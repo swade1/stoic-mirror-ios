@@ -4,8 +4,11 @@ import { Platform } from 'react-native';
 import { HapticTab } from '@/components/HapticTab';
 import { IconSymbol } from '@/components/ui/IconSymbol';
 import TabBarBackground from '@/components/ui/TabBarBackground';
+import { useColorScheme } from '@/hooks/useColorScheme';
 
 export default function TabLayout() {
+  const colorScheme = useColorScheme();
+
   return (
     <Tabs
       screenOptions={{
@@ -35,6 +38,15 @@ export default function TabLayout() {
           title: 'Counsel',
           tabBarIcon: ({ color }) => (
             <IconSymbol size={24} name="text.bubble.fill" color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="detail"
+        options={{
+          title: 'Results',
+          tabBarIcon: ({ color }) => (
+            <IconSymbol size={24} name="scroll.fill" color={color} />
           ),
         }}
       />

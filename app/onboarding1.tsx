@@ -1,35 +1,98 @@
 import { useRouter } from 'expo-router';
 import React from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { IconSymbol } from '@/components/ui/IconSymbol';
 
 export default function Onboarding1() {
   const router = useRouter();
   return (
     <View style={styles.container}>
       <View style={styles.spacer} />
-      <View style={styles.kywBox}>
-        <Text style={styles.kywText}>AN</Text>
-      </View>
-            <View style={styles.flexGrow} />
-      <Text style={styles.title}>Problem{"\n"}Statement</Text>
-      <Text style={styles.subtitle}>Simple clear statement{"\n"}that does not confuse</Text>
+
+      <IconSymbol name="sparkles" size={80} color="#c9b97a" />
       <View style={styles.flexGrow} />
+
+      <Text style={styles.title}>{"A mirror for\nthe mind"}</Text>
+      <Text style={styles.subtitle}>
+        {"Describe what's troubling you and receive counsel from the greatest Stoic philosophers in history."}
+      </Text>
+
+      <View style={styles.flexGrow} />
+
+      <View style={styles.progressRow}>
+        <View style={[styles.dot, styles.dotActive]} />
+        <View style={styles.dot} />
+        <View style={styles.dot} />
+      </View>
+
       <TouchableOpacity style={styles.button} onPress={() => router.push('/onboarding2')}>
         <Text style={styles.buttonText}>Next</Text>
       </TouchableOpacity>
+
       <View style={styles.spacer} />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24, backgroundColor: '#fff' },
+  container: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+    backgroundColor: '#0f0e0c',
+  },
   spacer: { height: 40 },
-  kywBox: { backgroundColor: '#7CFFB2', borderRadius: 32, paddingVertical: 24, paddingHorizontal: 36, marginBottom: 32, borderWidth: 1, borderColor: '#222' },
-  kywText: { fontSize: 32, fontWeight: 'bold', color: '#222', textAlign: 'center' },
-  title: { fontSize: 48, fontWeight: 'bold', marginBottom: 12, textAlign: 'center', color: '#111' },
-  subtitle: { fontSize: 28, color: '#111', marginBottom: 32, textAlign: 'center' },
   flexGrow: { flex: 1 },
-  button: { backgroundColor: '#000', paddingVertical: 20, paddingHorizontal: 48, borderRadius: 32, marginBottom: 12, width: '100%' },
-  buttonText: { color: '#fff', fontSize: 32, fontWeight: 'bold', textAlign: 'center' },
+  icon: {
+    fontSize: 80,
+    textAlign: 'center',
+    marginBottom: 16,
+  },
+  title: {
+    fontSize: 42,
+    fontWeight: 'bold',
+    marginBottom: 20,
+    textAlign: 'center',
+    color: '#f0ead6',
+    letterSpacing: 0.5,
+    lineHeight: 50,
+  },
+  subtitle: {
+    fontSize: 18,
+    color: '#a89f88',
+    marginBottom: 32,
+    textAlign: 'center',
+    lineHeight: 28,
+  },
+  progressRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 32,
+  },
+  dot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#3a3730',
+  },
+  dotActive: {
+    backgroundColor: '#c9b97a',
+  },
+  button: {
+    backgroundColor: '#2a2720',
+    paddingVertical: 16,
+    paddingHorizontal: 48,
+    borderRadius: 20,
+    width: '100%',
+    borderWidth: 1,
+    borderColor: '#c9b97a',
+  },
+  buttonText: {
+    color: '#c9b97a',
+    fontSize: 20,
+    fontWeight: 'bold',
+    textAlign: 'center',
+    letterSpacing: 2,
+  },
 });

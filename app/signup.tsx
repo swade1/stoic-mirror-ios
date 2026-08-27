@@ -1,7 +1,16 @@
 import { supabase } from '@/lib/supabase';
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
-import { Alert, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import {
+  Alert,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+  KeyboardAvoidingView,
+  Platform,
+} from 'react-native';
 
 export default function SignUp() {
   const router = useRouter();
@@ -23,66 +32,162 @@ export default function SignUp() {
   };
 
   return (
-    <View style={styles.container}>
-      <View style={styles.kywBox}>
-        <Text style={styles.kywText}>AN</Text>
+    <KeyboardAvoidingView
+      style={styles.container}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    >
+      <View style={styles.header}>
+        <Text style={styles.title}>Begin your practice</Text>
+        <Text style={styles.subtitle}>
+          Create an account to save your wisdom and track your journey
+        </Text>
       </View>
-      <Text style={styles.title}>Sign up</Text>
-      <Text style={styles.subtitle}>so you can start your recommended journey</Text>
-      <Text style={styles.label}>Email<Text style={styles.required}>*</Text></Text>
-      <TextInput
-        style={styles.input}
-        placeholder="ras@gmail.com"
-        keyboardType="email-address"
-        autoCapitalize="none"
-        value={email}
-        onChangeText={setEmail}
-      />
-      <Text style={styles.label}>Password<Text style={styles.required}>*</Text></Text>
-      <TextInput
-        style={styles.input}
-        placeholder="enter a secure password"
-        secureTextEntry
-        value={password}
-        onChangeText={setPassword}
-      />
-      <TextInput
-        style={styles.input}
-        placeholder="confirm your password"
-        secureTextEntry
-        value={confirm}
-        onChangeText={setConfirm}
-      />
-      <TouchableOpacity style={styles.button} onPress={handleSignUp} disabled={loading} activeOpacity={0.8}>
-        <Text style={styles.buttonText}>{loading ? 'Signing Up...' : 'Sign Up'}</Text>
-      </TouchableOpacity>
-      <View style={styles.policyRow}>
-        <TouchableOpacity><Text style={styles.policyLink}>Privacy Policy</Text></TouchableOpacity>
-        <TouchableOpacity><Text style={styles.policyLink}>Terms of Service</Text></TouchableOpacity>
-        <TouchableOpacity><Text style={styles.policyLink}>EULA</Text></TouchableOpacity>
-      </View>
-      <View style={styles.footer}>
-        <TouchableOpacity onPress={() => router.push('/login')}>
-          <Text style={styles.footerLink}>Already A User?</Text>
+
+      <View style={styles.form}>
+        <Text style={styles.label}>Email</Text>
+        <TextInput
+          style={styles.input}
+          placeholder="you@example.com"
+          placeholderTextColor="#5a5446"
+          keyboardType="email-address"
+          autoCapitalize="none"
+          autoCorrect={false}
+          value={email}
+          onChangeText={setEmail}
+        />
+
+        <Text style={styles.label}>Password</Text>
+        <TextInput
+          style={styles.input}
+          placeholder="choose a secure password"
+          placeholderTextColor="#5a5446"
+          secureTextEntry
+          textContentType="oneTimeCode"
+          autoComplete="off"
+          value={password}
+          onChangeText={setPassword}
+        />
+
+        <Text style={styles.label}>Confirm Password</Text>
+        <TextInput
+           style={styles.input}
+           placeholder="confirm your password"
+           placeholderTextColor="#5a5446"
+           secureTextEntry
+           textContentType="oneTimeCode"
+           autoComplete="off"
+           value={confirm}
+           onChangeText={setConfirm}
+        />
+
+        <TouchableOpacity
+          style={[styles.button, loading && styles.buttonDisabled]}
+          onPress={handleSignUp}
+          disabled={loading}
+          activeOpacity={0.8}
+        >
+          <Text style={styles.buttonText}>
+            {loading ? 'Creating account...' : 'Create Account'}
+          </Text>
         </TouchableOpacity>
+
+        <View style={styles.policyRow}>
+          <TouchableOpacity>
+            <Text style={styles.policyLink}>Privacy Policy</Text>
+          </TouchableOpacity>
+          <Text style={styles.policySeparator}>·</Text>
+          <TouchableOpacity>
+            <Text style={styles.policyLink}>Terms of Service</Text>
+          </TouchableOpacity>
+        </View>
       </View>
-    </View>
+
+      <TouchableOpacity onPress={() => router.push('/login')}>
+        <Text style={styles.signInText}>Already have an account? Sign in</Text>
+      </TouchableOpacity>
+    </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex:1, justifyContent:'center', alignItems:'center', padding:24, backgroundColor:'#fff' },
-  kywBox: { backgroundColor: '#7CFFB2', borderRadius: 20, paddingVertical: 14, paddingHorizontal: 24, marginTop: 24, marginBottom: 24, borderWidth: 1, borderColor: '#222' },
-  kywText: { fontSize: 20, fontWeight: 'bold', color: '#222', textAlign: 'center' },
-  title: { fontSize: 32, fontWeight: 'bold', textAlign: 'center', marginBottom: 8, color: '#111' },
-  subtitle: { fontSize: 20, color: '#111', textAlign: 'center', marginBottom: 24, fontWeight: '400' },
-  label: { fontSize: 16, fontWeight: 'bold', alignSelf: 'flex-start', marginBottom: 8, color: '#111' },
-  required: { color: 'red', fontSize: 16 },
-  input: { backgroundColor: '#f3f3f3', borderRadius: 10, padding: 12, marginBottom: 16, fontSize: 16, color: '#222', width: '100%' },
-  button: { backgroundColor: '#000', paddingVertical: 14, paddingHorizontal: 32, borderRadius: 18, marginTop: 18, width: '100%', alignItems: 'center', marginBottom: 18 },
-  buttonText: { color: '#fff', fontSize: 20, fontWeight: 'bold', textAlign: 'center' },
-  policyRow: { flexDirection: 'row', justifyContent: 'center', marginVertical: 8 },
-  policyLink: { marginHorizontal: 8, fontSize: 14, color: '#000', textDecorationLine: 'underline' },
-  footer: { marginTop: 32, alignItems: 'center', width: '100%' },
-  footerLink: { color: '#000', fontSize: 16, fontWeight: 'bold', textDecorationLine: 'underline' },
+  container: {
+    flex: 1,
+    backgroundColor: '#0f0e0c',
+    padding: 24,
+    justifyContent: 'center',
+  },
+  header: {
+    marginBottom: 40,
+  },
+  title: {
+    fontSize: 32,
+    fontWeight: 'bold',
+    color: '#f0ead6',
+    marginBottom: 8,
+    letterSpacing: 0.5,
+  },
+  subtitle: {
+    fontSize: 16,
+    color: '#a89f88',
+    lineHeight: 24,
+  },
+  form: {
+    marginBottom: 32,
+  },
+  label: {
+    fontSize: 13,
+    color: '#a89f88',
+    marginBottom: 8,
+    letterSpacing: 0.5,
+  },
+  input: {
+    backgroundColor: '#1e1c18',
+    borderWidth: 1,
+    borderColor: '#3a3730',
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    color: '#f0ead6',
+    fontSize: 16,
+    marginBottom: 20,
+  },
+  button: {
+    backgroundColor: '#2a2720',
+    paddingVertical: 16,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#c9b97a',
+    marginTop: 8,
+    marginBottom: 24,
+  },
+  buttonDisabled: {
+    opacity: 0.5,
+  },
+  buttonText: {
+    color: '#c9b97a',
+    fontSize: 18,
+    fontWeight: 'bold',
+    textAlign: 'center',
+    letterSpacing: 2,
+  },
+  policyRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 8,
+  },
+  policyLink: {
+    color: '#5a5446',
+    fontSize: 13,
+    textDecorationLine: 'underline',
+  },
+  policySeparator: {
+    color: '#5a5446',
+  },
+  signInText: {
+    color: '#a89f88',
+    fontSize: 15,
+    textAlign: 'center',
+    textDecorationLine: 'underline',
+  },
 });

@@ -1,38 +1,129 @@
 import { useRouter } from 'expo-router';
 import React from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-
-//Change this to whichever onboarding you choose (/onboardingPathos,/onboardingEthos,/onboardingLogos)
-const nextPath = `/onboardingEthos`
+import { IconSymbol } from '@/components/ui/IconSymbol';
 
 export default function Onboarding3() {
   const router = useRouter();
   return (
     <View style={styles.container}>
-    <View style={styles.spacer} />
-    <View style={styles.kywBox}>
-      <Text style={styles.kywText}>AN</Text>
+      <View style={styles.spacer} />
+
+      <IconSymbol name="shield.fill" size={80} color="#c9b97a" />
+
+      <View style={styles.flexGrow} />
+
+      <Text style={styles.title}>Wisdom,{"\n"}not therapy</Text>
+      <Text style={styles.subtitle}>
+        {"The Stoic Mirror offers ancient philosophical counsel — not medical or psychological advice. For serious concerns, please seek a qualified professional."}
+      </Text>
+
+      <View style={styles.quoteBox}>
+        <Text style={styles.quote}>
+          {"\"You have power over your mind, not outside events. Realize this, and you will find strength.\""}
+        </Text>
+        <Text style={styles.quoteAuthor}>— Marcus Aurelius</Text>
+      </View>
+
+      <View style={styles.flexGrow} />
+
+      <View style={styles.progressRow}>
+        <View style={styles.dot} />
+        <View style={styles.dot} />
+        <View style={[styles.dot, styles.dotActive]} />
+      </View>
+
+      <TouchableOpacity style={styles.button} onPress={() => router.push('/signup')}>
+        <Text style={styles.buttonText}>Begin my practice</Text>
+      </TouchableOpacity>
+
+      <View style={styles.spacer} />
     </View>
-          <View style={styles.flexGrow} />
-    <Text style={styles.title}>Our{"\n"}Solution</Text>
-    <Text style={styles.subtitle}>Simple clear statement{"\n"}that does not confuse</Text>
-    <View style={styles.flexGrow} />
-    <TouchableOpacity style={styles.button} onPress={() => router.push(nextPath)}>
-      <Text style={styles.buttonText}>Next</Text>
-    </TouchableOpacity>
-    <View style={styles.spacer} />
-  </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24, backgroundColor: '#fff' },
+  container: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+    backgroundColor: '#0f0e0c',
+  },
   spacer: { height: 40 },
-  kywBox: { backgroundColor: '#7CFFB2', borderRadius: 32, paddingVertical: 24, paddingHorizontal: 36, marginBottom: 32, borderWidth: 1, borderColor: '#222' },
-  kywText: { fontSize: 32, fontWeight: 'bold', color: '#222', textAlign: 'center' },
-  title: { fontSize: 48, fontWeight: 'bold', marginBottom: 12, textAlign: 'center', color: '#111' },
-  subtitle: { fontSize: 28, color: '#111', marginBottom: 32, textAlign: 'center' },
   flexGrow: { flex: 1 },
-  button: { backgroundColor: '#000', paddingVertical: 20, paddingHorizontal: 48, borderRadius: 32, marginBottom: 12, width: '100%' },
-  buttonText: { color: '#fff', fontSize: 32, fontWeight: 'bold', textAlign: 'center' },
+  icon: {
+    fontSize: 80,
+    textAlign: 'center',
+    marginBottom: 16,
+  },
+  title: {
+    fontSize: 42,
+    fontWeight: 'bold',
+    marginBottom: 20,
+    textAlign: 'center',
+    color: '#f0ead6',
+    letterSpacing: 0.5,
+    lineHeight: 50,
+  },
+  subtitle: {
+    fontSize: 16,
+    color: '#a89f88',
+    marginBottom: 24,
+    textAlign: 'center',
+    lineHeight: 26,
+  },
+  quoteBox: {
+    backgroundColor: '#1e1c18',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#3a3730',
+    borderLeftWidth: 3,
+    borderLeftColor: '#c9b97a',
+    padding: 20,
+    marginBottom: 32,
+    width: '100%',
+  },
+  quote: {
+    fontSize: 15,
+    color: '#c9b97a',
+    fontStyle: 'italic',
+    lineHeight: 24,
+    marginBottom: 8,
+  },
+  quoteAuthor: {
+    fontSize: 13,
+    color: '#5a5446',
+    textAlign: 'right',
+  },
+  progressRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 32,
+  },
+  dot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#3a3730',
+  },
+  dotActive: {
+    backgroundColor: '#c9b97a',
+  },
+  button: {
+    backgroundColor: '#2a2720',
+    paddingVertical: 16,
+    paddingHorizontal: 48,
+    borderRadius: 20,
+    width: '100%',
+    borderWidth: 1,
+    borderColor: '#c9b97a',
+  },
+  buttonText: {
+    color: '#c9b97a',
+    fontSize: 20,
+    fontWeight: 'bold',
+    textAlign: 'center',
+    letterSpacing: 2,
+  },
 });
