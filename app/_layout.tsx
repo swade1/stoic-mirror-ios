@@ -5,6 +5,7 @@ import { StatusBar } from 'expo-status-bar';
 import React, { useEffect, useState } from 'react';
 import 'react-native-reanimated';
 import { supabase } from '@/lib/supabase';
+import * as SplashScreen from 'expo-splash-screen';
 
 const DarkTheme: Theme = {
   dark: true,
@@ -23,6 +24,7 @@ const DarkTheme: Theme = {
     heavy: { fontFamily: 'SpaceMono', fontWeight: '900' },
   },
 };
+
 
 export default function RootLayout() {
   const [loaded] = useFonts({
@@ -53,7 +55,6 @@ export default function RootLayout() {
   if (!loaded || isSignedIn === null) {
     return null;
   }
-
   return (
     <ThemeProvider value={DarkTheme}>
        <Stack
