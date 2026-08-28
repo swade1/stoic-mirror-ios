@@ -1,19 +1,17 @@
 import { useRouter } from 'expo-router';
 import React from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { IconSymbol } from '@/components/ui/IconSymbol';
+import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 export default function Onboarding3() {
   const router = useRouter();
   return (
     <View style={styles.container}>
-      <View style={styles.spacer} />
-
-      <IconSymbol name="shield.fill" size={80} color="#c9b97a" />
-
       <View style={styles.flexGrow} />
-
-      <Text style={styles.title}>Wisdom,{"\n"}not therapy</Text>
+      <Image
+        source={require('../assets/images/wreath-welcome.png')}
+        style={styles.wreathImage}
+      />
+      <Text style={styles.title}>{"Wisdom, \nnot therapy"}</Text>
       <Text style={styles.subtitle}>
         {"The Stoic Mirror offers ancient philosophical counsel — not medical or psychological advice. For serious concerns, please seek a qualified professional."}
       </Text>
@@ -125,5 +123,10 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     textAlign: 'center',
     letterSpacing: 2,
+  },
+  wreathImage: {
+    width: 160,
+    height: 160,
+    marginBottom: 16,
   },
 });

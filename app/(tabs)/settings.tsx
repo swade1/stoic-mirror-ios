@@ -6,6 +6,7 @@ import {
   StyleSheet,
   Linking,
   Alert,
+  Image,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -47,9 +48,12 @@ export default function SettingsScreen() {
 
       {/* Header */}
       <View style={styles.header}>
+        <Image
+          source={require('../../assets/images/wreath-small.png')}
+          style={styles.wreathSmall}
+        />
         <Text style={styles.headerTitle}>Settings</Text>
       </View>
-
       <View style={styles.content}>
 
         {/* App info */}
@@ -117,6 +121,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#0f0e0c',
   },
   header: {
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingHorizontal: 24,
     paddingVertical: 16,
     borderBottomWidth: 1,
@@ -181,5 +187,10 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 18,
     paddingHorizontal: 16,
+  },
+  wreathSmall: {
+    width: 48,
+    height: 48,
+    marginRight: 12,
   },
 });

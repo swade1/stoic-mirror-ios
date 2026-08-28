@@ -1,19 +1,17 @@
 import { useRouter } from 'expo-router';
 import React from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { IconSymbol } from '@/components/ui/IconSymbol';
+import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 export default function Onboarding2() {
   const router = useRouter();
   return (
     <View style={styles.container}>
-      <View style={styles.spacer} />
-
-      <IconSymbol name="book.fill" size={80} color="#c9b97a" />
       <View style={styles.flexGrow} />
-
-      <Text style={styles.title}>Three voices,{"\n"}one wisdom</Text>
-
+      <Image
+        source={require('../assets/images/wreath-welcome.png')}
+        style={styles.wreathImage}
+      />
+      <Text style={styles.title}>{"Three voices, \none wisdom"}</Text>
       <View style={styles.philosopherList}>
         <View style={styles.philosopherRow}>
           <Text style={styles.philosopherName}>Marcus Aurelius</Text>
@@ -131,5 +129,10 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     textAlign: 'center',
     letterSpacing: 2,
+  },
+  wreathImage: {
+    width: 160,
+    height: 160,
+    marginBottom: 16,
   },
 });

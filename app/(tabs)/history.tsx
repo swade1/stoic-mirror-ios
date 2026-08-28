@@ -8,6 +8,7 @@ import {
   StyleSheet,
   Alert,
   ScrollView,
+  Image,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { supabase } from '@/lib/supabase';
@@ -123,12 +124,15 @@ export default function HistoryScreen() {
 
       {/* Header */}
       <View style={styles.header}>
+        <Image
+          source={require('../../assets/images/wreath-small.png')}
+          style={styles.wreathSmall}
+        />
         <View>
           <Text style={styles.headerTitle}>Saved Wisdom</Text>
           <Text style={styles.headerSubtitle}>Quotes you've chosen to keep</Text>
         </View>
       </View>
-
       {/* Category filter bar */}
       {categories.length > 0 && (
         <View style={styles.filterBarContainer}>
@@ -317,7 +321,6 @@ const styles = StyleSheet.create({
   },
   header: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 24,
     paddingVertical: 16,
@@ -602,5 +605,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     zIndex: 10,
+  },
+  wreathSmall: {
+    width: 48,
+    height: 48,
+    marginRight: 12,
   },
 });

@@ -7,6 +7,7 @@ import {
   StyleSheet,
   KeyboardAvoidingView,
   Platform,
+  Image,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -29,10 +30,15 @@ export default function CounselScreen() {
     >
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>The Stoic Mirror</Text>
-        <Text style={styles.headerSubtitle}>Seek counsel from the philosophers</Text>
+        <Image
+          source={require('../../assets/images/wreath-small.png')}
+          style={styles.wreathSmall}
+        />
+        <View>
+          <Text style={styles.headerTitle}>The Stoic Mirror</Text>
+          <Text style={styles.headerSubtitle}>Seek counsel from the philosophers</Text>
+        </View>
       </View>
-
       {/* Main content */}
       <View style={styles.content}>
         <Text style={styles.prompt}>What troubles you?</Text>
@@ -78,6 +84,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#0f0e0c',
   },
   header: {
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingHorizontal: 24,
     paddingVertical: 16,
     borderBottomWidth: 1,
@@ -156,5 +164,10 @@ const styles = StyleSheet.create({
     color: '#8a7e6e',
     letterSpacing: 1,
     textAlign: 'center',
+  },
+  wreathSmall: {
+    width: 48,
+    height: 48,
+    marginRight: 12,
   },
 });

@@ -4,6 +4,7 @@ import {
   Text,
   StyleSheet,
   ScrollView,
+  Image,
 } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import { useCallback } from 'react';
@@ -59,12 +60,17 @@ export default function InsightsScreen() {
 
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Insights</Text>
-        <Text style={styles.headerSubtitle}>
-          {total} {total === 1 ? 'session' : 'sessions'} across {insights.length} {insights.length === 1 ? 'theme' : 'themes'}
-       </Text>
+        <Image
+          source={require('../../assets/images/wreath-small.png')}
+          style={styles.wreathSmall}
+        />
+        <View>
+          <Text style={styles.headerTitle}>Insights</Text>
+          <Text style={styles.headerSubtitle}>
+            {total} {total === 1 ? 'session' : 'sessions'} across {insights.length} {insights.length === 1 ? 'theme' : 'themes'}
+          </Text>
+        </View>
       </View>
-
       {loading ? null : insights.length === 0 ? (
         <View style={styles.emptyContainer}>
           <Text style={styles.emptyTitle}>No insights yet</Text>
@@ -117,6 +123,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#0f0e0c',
   },
   header: {
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingHorizontal: 24,
     paddingVertical: 16,
     borderBottomWidth: 1,
@@ -219,5 +227,10 @@ const styles = StyleSheet.create({
     height: 6,
     backgroundColor: '#c9b97a',
     borderRadius: 3,
+  },
+  wreathSmall: {
+    width: 48,
+    height: 48,
+    marginRight: 12,
   },
 });
