@@ -77,7 +77,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#1e1c18',
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: '#3a3730',
+    borderColor: '#6a6050',
     overflow: 'hidden',
     marginBottom: 32,
   },
@@ -95,11 +95,11 @@ const styles = StyleSheet.create({
   },
   philosopherRole: {
     fontSize: 13,
-    color: '#5a5446',
+    color: '#8a7e6e',
   },
   divider: {
     height: 1,
-    backgroundColor: '#3a3730',
+    backgroundColor: '#6a6050',
     marginHorizontal: 20,
   },
   progressRow: {
@@ -111,7 +111,7 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: '#3a3730',
+    backgroundColor: '#6a6050',
   },
   dotActive: {
     backgroundColor: '#c9b97a',

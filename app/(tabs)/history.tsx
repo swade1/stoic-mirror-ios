@@ -4,7 +4,6 @@ import { useCallback } from 'react';
 import {
   View,
   Text,
-  FlatList,
   TouchableOpacity,
   StyleSheet,
   Alert,
@@ -29,9 +28,12 @@ export default function HistoryScreen() {
   const insets = useSafeAreaInsets();
   const [savedQuotes, setSavedQuotes] = useState<SavedQuote[]>([]);
   const [loading, setLoading] = useState(true);
-  const [expanded, setExpanded] = useState<string | null>(null);
   const [filter, setFilter] = useState<string | null>(null);
   const [categories, setCategories] = useState<string[]>([]);
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [showAllCategories, setShowAllCategories] = useState(false);
+  const [expandedConcern, setExpandedConcern] = useState(false);
+  const scrollRef = React.useRef<ScrollView>(null);
 
   useFocusEffect(
     useCallback(() => {
@@ -73,12 +75,12 @@ export default function HistoryScreen() {
           onPress: async () => {
             await supabase.from('saved_quotes').delete().eq('id', id);
             setSavedQuotes((prev) => prev.filter((q) => q.id !== id));
+            setCurrentIndex((prev) => Math.max(0, prev - 1));
           },
         },
       ]
     );
   };
-
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
@@ -88,11 +90,33 @@ export default function HistoryScreen() {
     });
   };
 
+  const getFirstSentence = (text: string) => {
+    const match = text.match(/^[^.!?]+[.!?]/);
+    return match ? match[0] : text;
+  };
+
   const filteredQuotes = filter
     ? savedQuotes.filter((q) => q.category === filter)
     : savedQuotes;
 
-  const [showAllCategories, setShowAllCategories] = useState(false);
+  const currentQuote = filteredQuotes[currentIndex];
+  const total = filteredQuotes.length;
+
+  const goNext = () => {
+    setCurrentIndex((prev) => Math.min(prev + 1, total - 1));
+    setExpandedConcern(false);
+    scrollRef.current?.scrollTo({ y: 0, animated: false });
+  };
+
+  const goPrev = () => {
+    setCurrentIndex((prev) => Math.max(prev - 1, 0));
+    setExpandedConcern(false);
+    scrollRef.current?.scrollTo({ y: 0, animated: false });
+  };
+
+  // Check if concern is same as previous page
+  const prevQuote = filteredQuotes[currentIndex - 1];
+  const concernChanged = !prevQuote || prevQuote.concern !== currentQuote?.concern;
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
@@ -104,149 +128,183 @@ export default function HistoryScreen() {
           <Text style={styles.headerSubtitle}>Quotes you've chosen to keep</Text>
         </View>
       </View>
-      {loading ? null : savedQuotes.length === 0 ? (
+
+      {/* Category filter bar */}
+      {categories.length > 0 && (
+        <View style={styles.filterBarContainer}>
+          <View style={styles.filterBar}>
+            {[null, ...categories].slice(0, 6).map((cat) => {
+              const count = cat === null
+                ? savedQuotes.length
+                : savedQuotes.filter((q) => q.category === cat).length;
+              return (
+                <TouchableOpacity
+                  key={cat ?? 'all'}
+                  style={[styles.filterChip, filter === cat && styles.filterChipActive]}
+                  onPress={() => {
+                    setFilter(cat);
+                    setCurrentIndex(0);
+                    setExpandedConcern(false);
+                  }}
+                >
+                  <Text style={[styles.filterChipText, filter === cat && styles.filterChipTextActive]}>
+                    {cat ?? 'All'} ({count})
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+          {categories.length > 5 && (
+            <TouchableOpacity
+              style={styles.showMoreButton}
+              onPress={() => setShowAllCategories(!showAllCategories)}
+            >
+              <Text style={styles.showMoreText}>
+                {showAllCategories ? 'Show less' : `${categories.length - 5} more`}
+              </Text>
+              <IconSymbol
+                name={showAllCategories ? 'chevron.up' : 'chevron.down'}
+                size={12}
+                color="#8a7e6e"
+              />
+            </TouchableOpacity>
+          )}
+          {showAllCategories && (
+            <View style={[styles.filterBar, { marginTop: 8 }]}>
+              {categories.slice(5).map((cat) => {
+                const count = savedQuotes.filter((q) => q.category === cat).length;
+                return (
+                  <TouchableOpacity
+                    key={cat}
+                    style={[styles.filterChip, filter === cat && styles.filterChipActive]}
+                    onPress={() => {
+                      setFilter(filter === cat ? null : cat);
+                      setCurrentIndex(0);
+                      setExpandedConcern(false);
+                    }}
+                  >
+                    <Text style={[styles.filterChipText, filter === cat && styles.filterChipTextActive]}>
+                      {cat} ({count})
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          )}
+        </View>
+      )}
+
+      {loading ? null : filteredQuotes.length === 0 ? (
         <View style={styles.emptyContainer}>
-          <IconSymbol name="bookmark" size={48} color="#3a3730" />
+          <IconSymbol name="bookmark" size={48} color="#6a6050" />
           <Text style={styles.emptyTitle}>No saved wisdom yet</Text>
           <Text style={styles.emptySubtitle}>
             Tap "Save this wisdom" on any quote to add it here
           </Text>
         </View>
       ) : (
-        <>
-          {/* Category filter bar */}
-            {categories.length > 0 && (
-            <View style={styles.filterBarContainer}>
-              <View style={styles.filterBar}>
-                {[null, ...categories].slice(0, 6).map((cat) => {
-                 const count = cat === null
-                   ? savedQuotes.length
-                   : savedQuotes.filter((q) => q.category === cat).length;
-                 return (
-                   <TouchableOpacity
-                     key={cat ?? 'all'}
-                     style={[styles.filterChip, filter === cat && styles.filterChipActive]}
-                     onPress={() => setFilter(cat)}
-                   >
-                     <Text style={[styles.filterChipText, filter === cat && styles.filterChipTextActive]}>
-                       {cat ?? 'All'} ({count})
-                     </Text>
-                   </TouchableOpacity>
-                 );
-               })}
+        <View style={styles.pageContainer}>
+
+          {/* Page content */}
+          <ScrollView
+            ref={scrollRef}
+            style={styles.pageScroll}
+            contentContainerStyle={styles.pageContent}
+            showsVerticalScrollIndicator={false}
+          >
+            {/* Top row — category, date, delete */}
+            <View style={styles.pageHeader}>
+              <View style={styles.categoryBadge}>
+                <Text style={styles.categoryText}>{currentQuote.category}</Text>
               </View>
-              {categories.length > 5 && (
+              <View style={styles.pageHeaderRight}>
+                <Text style={styles.date}>{formatDate(currentQuote.saved_at)}</Text>
                 <TouchableOpacity
-                  style={styles.showMoreButton}
-                  onPress={() => setShowAllCategories(!showAllCategories)}
+                  onPress={() => deleteQuote(currentQuote.id)}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                 >
-                  <Text style={styles.showMoreText}>
-                    {showAllCategories ? 'Show less' : `${categories.length - 5} more`}
-                  </Text>
-                  <IconSymbol
-                    name={showAllCategories ? 'chevron.up' : 'chevron.down'}
-                    size={12}
-                    color="#5a5446"
-                  />
+                  <IconSymbol name="trash" size={16} color="#c9b97a" />
                 </TouchableOpacity>
-              )}
-              {showAllCategories && (
-                <View style={[styles.filterBar, { marginTop: 8 }]}>
-                  {categories.slice(5).map((cat) => {
-                   const count = savedQuotes.filter((q) => q.category === cat).length;
-                   return (
-                     <TouchableOpacity
-                       key={cat}
-                       style={[styles.filterChip, filter === cat && styles.filterChipActive]}
-                       onPress={() => setFilter(filter === cat ? null : cat)}
-                     >
-                       <Text style={[styles.filterChipText, filter === cat && styles.filterChipTextActive]}>
-                         {cat} ({count})
-                       </Text>
-                     </TouchableOpacity>
-                   );
-                 })}
-                </View>
-              )}
-            </View>
-          )}
-
-          {/* Quotes list */}
-          <FlatList
-            data={filteredQuotes}
-            keyExtractor={(item) => item.id}
-            contentContainerStyle={styles.listContainer}
-            ListEmptyComponent={
-              <View style={styles.emptyContainer}>
-                <Text style={styles.emptyTitle}>No saved wisdom in this category</Text>
               </View>
-            }
-            renderItem={({ item }) => (
-              <TouchableOpacity
-                style={styles.quoteCard}
-                onPress={() => setExpanded(expanded === item.id ? null : item.id)}
-                activeOpacity={0.8}
-              >
-                {/* Top row — category and date */}
-                <View style={styles.cardHeader}>
-                  <View style={styles.categoryBadge}>
-                    <Text style={styles.categoryText}>{item.category}</Text>
-                  </View>
-                  <View style={styles.cardHeaderRight}>
-                    <Text style={styles.date}>{formatDate(item.saved_at)}</Text>
-                    <TouchableOpacity
-                      onPress={() => deleteQuote(item.id)}
-                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                    >
-                      <IconSymbol name="trash" size={14} color="#c9b97a" />
-                    </TouchableOpacity>
-                  </View>
-                </View>
+            </View>
 
-                {/* Quote */}
-                <Text
-                  style={styles.quoteText}
-                  numberOfLines={expanded === item.id ? undefined : 3}
-                >
-                  "{item.quote}"
-                </Text>
-
-                {/* Author and source at bottom of quote */}
-                <View style={styles.attribution}>
-                  <Text style={styles.author}>— {item.author}</Text>
-                  <Text style={styles.source}>{item.source}</Text>
-                </View>
-
-                {/* Expanded content */}
-                {expanded === item.id && (
-                  <>
-                    {item.interpretation && (
-                      <View style={styles.interpretationBox}>
-                        <Text style={styles.interpretationLabel}>Counsel</Text>
-                        <Text style={styles.interpretationText}>{item.interpretation}</Text>
-                      </View>
-                    )}
-                    {item.concern && (
-                      <View style={styles.concernBox}>
-                        <Text style={styles.concernLabel}>Original concern</Text>
-                        <Text style={styles.concernText}>{item.concern}</Text>
-                      </View>
-                    )}
-                  </>
+            {/* Concern */}
+            <View style={styles.concernBox}>
+              <View style={styles.sectionLabelRow}>
+                <IconSymbol name="person.fill" size={12} color="#8a7e6e" />
+                <Text style={styles.concernLabel}>Concern</Text>
+              </View>
+              <Text style={styles.concernText}>
+                {expandedConcern
+                  ? currentQuote.concern
+                  : getFirstSentence(currentQuote.concern)}
+                {!expandedConcern && currentQuote.concern.length > getFirstSentence(currentQuote.concern).length && (
+                  <Text
+                    style={styles.showMore}
+                    onPress={() => setExpandedConcern(true)}
+                  > ...Show more</Text>
                 )}
+              </Text>
+            </View>
 
-                {/* Expand indicator */}
-                <View style={styles.expandRow}>
-                  <IconSymbol
-                    name={expanded === item.id ? 'chevron.up' : 'chevron.down'}
-                    size={12}
-                    color="#5a5446"
+
+           {/* Counsel */}
+           <View style={styles.counselBox}>
+             <View style={styles.sectionLabelRow}>
+               <IconSymbol name="lightbulb.fill" size={12} color="#c4b99e" />
+               <Text style={styles.counselLabel}>Counsel</Text>
+             </View>
+             <Text style={styles.counselText}>{currentQuote.interpretation}</Text>
+           </View>
+
+           {/* Quote */}
+            <View style={styles.quoteBox}>
+              <View style={styles.sectionLabelRow}>
+                <IconSymbol name="text.quote" size={12} color="#c9b97a" />
+                <Text style={styles.quoteLabel}>The Philosophers</Text>
+              </View>
+              <Text style={styles.quoteText}>"{currentQuote.quote}"</Text>
+              <Text style={styles.author}>— {currentQuote.author}</Text>
+              <Text style={styles.source}>{currentQuote.source}</Text>
+            </View>
+
+            {/* Page dots */}
+            <View style={[styles.dotsRow, { justifyContent: 'center', paddingBottom: insets.bottom + 80 }]}>
+              {filteredQuotes.slice(
+                Math.max(0, currentIndex - 2),
+                Math.min(total, currentIndex + 3)
+              ).map((_, i) => {
+                const actualIndex = Math.max(0, currentIndex - 2) + i;
+                return (
+                  <View
+                    key={actualIndex}
+                    style={[
+                      styles.dot,
+                      actualIndex === currentIndex && styles.dotActive,
+                    ]}
                   />
-                </View>
-              </TouchableOpacity>
-            )}
-          />
-        </>
+                );
+              })}
+            </View>
+          </ScrollView>
+          {/* Fixed left arrow */}
+          <TouchableOpacity
+            style={[styles.fixedNavLeft, currentIndex === 0 && styles.navButtonDisabled]}
+            onPress={goPrev}
+            disabled={currentIndex === 0}
+          >
+            <IconSymbol name="chevron.left" size={16} color={currentIndex === 0 ? '#6a6050' : '#c9b97a'} />
+          </TouchableOpacity>
+
+          {/* Fixed right arrow */}
+          <TouchableOpacity
+            style={[styles.fixedNavRight, currentIndex === total - 1 && styles.navButtonDisabled]}
+            onPress={goNext}
+            disabled={currentIndex === total - 1}
+          >
+            <IconSymbol name="chevron.right" size={16} color={currentIndex === total - 1 ? '#6a6050' : '#c9b97a'} />
+          </TouchableOpacity>
+        </View>
       )}
     </View>
   );
@@ -274,12 +332,14 @@ const styles = StyleSheet.create({
   },
   headerSubtitle: {
     fontSize: 13,
-    color: '#5a5446',
+    color: '#8a7e6e',
     marginTop: 4,
   },
-  signOutText: {
-    fontSize: 14,
-    color: '#5a5446',
+  filterBarContainer: {
+    borderBottomWidth: 1,
+    borderBottomColor: '#2a2720',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
   },
   filterBar: {
     flexDirection: 'row',
@@ -291,7 +351,7 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: '#3a3730',
+    borderColor: '#6a6050',
     backgroundColor: '#1e1c18',
   },
   filterChipActive: {
@@ -300,7 +360,7 @@ const styles = StyleSheet.create({
   },
   filterChipText: {
     fontSize: 12,
-    color: '#5a5446',
+    color: '#8a7e6e',
     fontWeight: '600',
     letterSpacing: 0.5,
     lineHeight: 16,
@@ -308,9 +368,16 @@ const styles = StyleSheet.create({
   filterChipTextActive: {
     color: '#0f0e0c',
   },
-  listContainer: {
-    padding: 16,
-    paddingBottom: 100,
+  showMoreButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 8,
+    paddingVertical: 4,
+  },
+  showMoreText: {
+    fontSize: 12,
+    color: '#8a7e6e',
   },
   emptyContainer: {
     flex: 1,
@@ -323,35 +390,30 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#3a3730',
+    color: '#6a6050',
     textAlign: 'center',
   },
   emptySubtitle: {
     fontSize: 15,
-    color: '#3a3730',
+    color: '#6a6050',
     textAlign: 'center',
     lineHeight: 24,
   },
-  quoteCard: {
-    backgroundColor: '#1e1c18',
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: '#2a2720',
-    borderLeftWidth: 3,
-    borderLeftColor: '#c9b97a',
+  pageContainer: {
+    position: 'relative',
+    flex: 1,
   },
-  cardHeader: {
+  pageScroll: {
+    flex: 1,
+  },
+  pageContent: {
+    padding: 24,
+    gap: 16,
+  },
+  pageHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 12,
-  },
-  cardHeaderRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
   },
   categoryBadge: {
     backgroundColor: '#2a2720',
@@ -366,19 +428,87 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     fontWeight: '600',
   },
+  pageHeaderRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
   date: {
     fontSize: 11,
-    color: '#5a5446',
+    color: '#8a7e6e',
+  },
+  concernBox: {
+    backgroundColor: '#1e1c18',
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#2a2720',
+    borderLeftWidth: 3,
+    borderLeftColor: '#8a7e6e',
+  },
+  concernLabel: {
+    fontSize: 11,
+    color: '#8a7e6e',
+    letterSpacing: 1,
+    textTransform: 'uppercase',
+  },
+  concernText: {
+    fontSize: 15,
+    color: '#c4b99e',
+    lineHeight: 24,
+  },
+  showMore: {
+    fontSize: 15,
+    color: '#c9b97a',
+    fontWeight: '600',
+  },
+  counselBox: {
+    flex: 1,
+    backgroundColor: '#1e1c18',
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#2a2720',
+    borderLeftWidth: 3,
+    borderLeftColor: '#c4b99e',
+  },
+  counselLabel: {
+    fontSize: 11,
+    color: '#c4b99e',
+    letterSpacing: 1,
+    textTransform: 'uppercase',
+  },
+  counselText: {
+    fontSize: 15,
+    color: '#c4b99e',
+    lineHeight: 24,
+  },
+  counselRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  quoteBox: {
+    backgroundColor: '#1e1c18',
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#2a2720',
+    borderLeftWidth: 3,
+    borderLeftColor: '#c9b97a',
+  },
+  quoteLabel: {
+    fontSize: 11,
+    color: '#c9b97a',
+    letterSpacing: 1,
+    textTransform: 'uppercase',
   },
   quoteText: {
     fontSize: 15,
     color: '#f0ead6',
     lineHeight: 24,
     fontStyle: 'italic',
-    marginBottom: 10,
-  },
-  attribution: {
-    marginBottom: 8,
+    marginBottom: 12,
   },
   author: {
     fontSize: 13,
@@ -387,66 +517,90 @@ const styles = StyleSheet.create({
   },
   source: {
     fontSize: 11,
-    color: '#5a5446',
+    color: '#8a7e6e',
     marginTop: 2,
   },
-  interpretationBox: {
-    backgroundColor: '#0f0e0c',
-    borderRadius: 8,
-    padding: 12,
-    marginTop: 8,
-    marginBottom: 8,
-  },
-  interpretationLabel: {
-    fontSize: 11,
-    color: '#5a5446',
-    letterSpacing: 1,
-    textTransform: 'uppercase',
-    marginBottom: 6,
-  },
-  interpretationText: {
-    fontSize: 14,
-    color: '#a89f88',
-    lineHeight: 22,
-  },
-  concernBox: {
-    backgroundColor: '#0f0e0c',
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 8,
-  },
-  concernLabel: {
-    fontSize: 11,
-    color: '#5a5446',
-    letterSpacing: 1,
-    textTransform: 'uppercase',
-    marginBottom: 6,
-  },
-  concernText: {
-    fontSize: 13,
-    color: '#5a5446',
-    lineHeight: 20,
-    fontStyle: 'italic',
-  },
-  expandRow: {
-    alignItems: 'center',
-    marginTop: 4,
-  },
-  filterBarContainer: {
-    borderBottomWidth: 1, 
-    borderBottomColor: '#2a2720',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-  },
-  showMoreButton: {
+  navRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    marginTop: 8,
-    paddingVertical: 4,
+    justifyContent: 'space-between',
+    paddingHorizontal: 24,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#2a2720',
   },
-  showMoreText: {
-    fontSize: 12,
-    color: '#5a5446',
+  navButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#1e1c18',
+    borderWidth: 1,
+    borderColor: '#6a6050',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  navButtonDisabled: {
+    opacity: 0.3,
+  },
+  dotsRow: {
+    flexDirection: 'row',
+    gap: 6,
+    alignItems: 'center',
+  },
+  dot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#6a6050',
+  },
+  dotActive: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#c9b97a',
+  },
+  sectionLabelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 8,
+  },
+/*  sideNavButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#1e1c18',
+    borderWidth: 1,
+    borderColor: '#6a6050',
+    alignItems: 'center',
+    justifyContent: 'center',
+  }, */
+  sideNavButton: {
+    width: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 8,
+  },
+  fixedNavLeft: {
+    position: 'absolute',
+    left: 4,
+    top: '50%',
+    transform: [{ translateY: -12 }],
+    width: 24,
+    height: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 10,
+  },
+  fixedNavRight: {
+    position: 'absolute',
+    right: 4,
+    top: '50%',
+    transform: [{ translateY: -12 }],
+    width: 24,
+    height: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 10,
   },
 });

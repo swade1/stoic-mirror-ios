@@ -13,7 +13,7 @@ const DarkTheme: Theme = {
     background: '#0f0e0c',
     card: '#1e1c18',
     text: '#f0ead6',
-    border: '#3a3730',
+    border: '#6a6050',
     notification: '#c9b97a',
   },
   fonts: {

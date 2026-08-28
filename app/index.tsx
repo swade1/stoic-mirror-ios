@@ -60,13 +60,13 @@ const styles = StyleSheet.create({
   },
   subtitle: {
     fontSize: 18,
-    color: '#a89f88',
+    color: '#c4b99e',
     marginBottom: 12,
     textAlign: 'center',
   },
   attribution: {
     fontSize: 12,
-    color: '#5a5446',
+    color: '#8a7e6e',
     textAlign: 'center',
     letterSpacing: 1,
     marginBottom: 32,
@@ -90,7 +90,7 @@ const styles = StyleSheet.create({
     letterSpacing: 2,
   },
   signInText: {
-    color: '#5a5446',
+    color: '#8a7e6e',
     fontSize: 16,
     textAlign: 'center',
     textDecorationLine: 'underline',

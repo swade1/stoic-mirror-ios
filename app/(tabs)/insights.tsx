@@ -130,7 +130,7 @@ const styles = StyleSheet.create({
   },
   headerSubtitle: {
     fontSize: 13,
-    color: '#5a5446',
+    color: '#8a7e6e',
     marginTop: 4,
   },
   scrollContent: {
@@ -148,12 +148,12 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#3a3730',
+    color: '#6a6050',
     textAlign: 'center',
   },
   emptySubtitle: {
     fontSize: 15,
-    color: '#3a3730',
+    color: '#6a6050',
     textAlign: 'center',
     lineHeight: 24,
   },
@@ -169,7 +169,7 @@ const styles = StyleSheet.create({
   },
   summaryLabel: {
     fontSize: 11,
-    color: '#5a5446',
+    color: '#8a7e6e',
     letterSpacing: 1,
     textTransform: 'uppercase',
     marginBottom: 8,
@@ -186,7 +186,7 @@ const styles = StyleSheet.create({
   },
   sectionLabel: {
     fontSize: 11,
-    color: '#5a5446',
+    color: '#8a7e6e',
     letterSpacing: 1,
     textTransform: 'uppercase',
     marginBottom: 16,
@@ -202,12 +202,12 @@ const styles = StyleSheet.create({
   },
   barCategory: {
     fontSize: 14,
-    color: '#a89f88',
+    color: '#c4b99e',
     fontWeight: '500',
   },
   barMeta: {
     fontSize: 11,
-    color: '#5a5446',
+    color: '#8a7e6e',
   },
   barTrack: {
     height: 6,

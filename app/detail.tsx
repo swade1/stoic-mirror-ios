@@ -13,6 +13,7 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { supabase } from '@/lib/supabase';
 import { IconSymbol } from '@/components/ui/IconSymbol';
+import { Animated } from 'react-native';
 
 interface Quote {
   id: string;
@@ -37,6 +38,19 @@ export default function ResultsScreen() {
   const [quotes, setQuotes] = useState<Quote[]>([]);
   const [loading, setLoading] = useState(true);
   const [saved, setSaved] = useState<string[]>([]);
+  const [sessionSaved, setSessionSaved] = useState(false);
+
+  const fadeAnim = React.useRef(new Animated.Value(0)).current;
+
+  React.useEffect(() => {
+    if (quotes.length === 0) return;
+    fadeAnim.setValue(0);
+    Animated.timing(fadeAnim, {
+      toValue: 1,
+      duration: 800,
+      useNativeDriver: true,
+    }).start();
+  }, [quotes]);
 
   useFocusEffect(
     useCallback(() => {
@@ -103,6 +117,8 @@ export default function ResultsScreen() {
       console.error('Failed to load results:', error);
     } finally {
       setLoading(false);
+      setSessionSaved(true);
+      setTimeout(() => setSessionSaved(false), 3000);
     }
   };
 
@@ -142,6 +158,27 @@ export default function ResultsScreen() {
       setSaved((prev) => [...prev, quote.id]);
     }
   };
+  const saveAll = async () => {
+    const unsaved = quotes.filter((q) => !saved.includes(q.id));
+    if (unsaved.length === 0) return;
+
+    const session = (await supabase.auth.getSession()).data.session;
+    if (!session) return;
+
+    const rows = unsaved.map((q) => ({
+      user_id: session.user.id,
+      entry_id: entry?.id,
+      quote: q.quote,
+      author: q.author,
+      source: q.source,
+      interpretation: q.interpretation,
+      concern: entry?.concern,
+    }));
+
+    await supabase.from('saved_quotes').upsert(rows, { onConflict: 'user_id,quote' });
+    setSaved(quotes.map((q) => q.id));
+  };
+
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
@@ -161,7 +198,7 @@ export default function ResultsScreen() {
   if (!entry) {
     return (
       <View style={[styles.loadingContainer, { paddingTop: insets.top }]}>
-        <IconSymbol name="scroll.fill" size={48} color="#3a3730" />
+        <IconSymbol name="scroll.fill" size={48} color="#6a6050" />
         <Text style={styles.emptyTitle}>No results yet</Text>
         <Text style={styles.emptySubtitle}>
           Seek counsel from the Counsel tab and your wisdom will appear here
@@ -169,6 +206,8 @@ export default function ResultsScreen() {
       </View>
     );
   }
+
+
 return (
     <View style={[styles.outerContainer, { paddingTop: insets.top }]}>
 
@@ -183,6 +222,12 @@ return (
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Received Wisdom</Text>
         <Text style={styles.headerSubtitle}>{entry.category}</Text>
+        {sessionSaved && (
+          <View style={styles.savedIndicator}>
+            <IconSymbol name="checkmark.circle.fill" size={14} color="#4caf50" />
+            <Text style={styles.savedIndicatorText}>Session saved</Text>
+          </View>
+        )}
       </View>
 
       {/* Scrollable content */}
@@ -202,9 +247,13 @@ return (
         {/* Divider */}
         <View style={styles.divider} />
 
-        {/* Quotes */}
-        {quotes.map((quote, index) => (
-          <View key={quote.id} style={styles.quoteCard}>
+          {/* Quotes */}
+          <Animated.View style={{ opacity: fadeAnim }}>
+             {quotes.map((quote, index) => (
+               <View
+                 key={quote.id}
+                 style={styles.quoteCard}
+               >
             <Text style={styles.quoteNumber}>
               {index + 1} of {quotes.length}
             </Text>
@@ -235,15 +284,25 @@ return (
             </TouchableOpacity>
           </View>
         ))}
+       </Animated.View>
 
-        {/* Back to counsel */}
-        <TouchableOpacity
-          style={styles.againButton}
-          onPress={() => router.back()}
+        {/* Bottom Actions */}
+        <View style={styles.bottomActions}>
+          <TouchableOpacity
+          style={styles.saveAllButton}
+          onPress={saveAll}
         >
-          <Text style={styles.againButtonText}>Back to counsel</Text>
+          <IconSymbol name="bookmark.fill" size={14} color="#0f0e0c" />
+          <Text style={styles.saveAllButtonText}>Save all</Text>
         </TouchableOpacity>
 
+        <TouchableOpacity
+          style={styles.doneButton}
+          onPress={() => router.replace('/(tabs)/history')}
+        >
+          <Text style={styles.doneButtonText}>Done</Text>
+        </TouchableOpacity>
+      </View>
       </ScrollView>
     </View>
   );
@@ -297,7 +356,7 @@ const styles = StyleSheet.create({
   },
   date: {
     fontSize: 11,
-    color: '#5a5446',
+    color: '#8a7e6e',
   },
   concernBox: {
     backgroundColor: '#1e1c18',
@@ -309,14 +368,14 @@ const styles = StyleSheet.create({
   },
   concernLabel: {
     fontSize: 11,
-    color: '#5a5446',
+    color: '#8a7e6e',
     letterSpacing: 1,
     textTransform: 'uppercase',
     marginBottom: 8,
   },
   concernText: {
     fontSize: 16,
-    color: '#a89f88',
+    color: '#c4b99e',
     lineHeight: 24,
   },
   divider: {
@@ -336,7 +395,7 @@ const styles = StyleSheet.create({
   },
   quoteNumber: {
     fontSize: 11,
-    color: '#5a5446',
+    color: '#8a7e6e',
     letterSpacing: 1,
     marginBottom: 12,
   },
@@ -357,7 +416,7 @@ const styles = StyleSheet.create({
   },
   source: {
     fontSize: 12,
-    color: '#5a5446',
+    color: '#8a7e6e',
     marginTop: 2,
   },
   interpretationBox: {
@@ -368,14 +427,14 @@ const styles = StyleSheet.create({
   },
   interpretationLabel: {
     fontSize: 11,
-    color: '#5a5446',
+    color: '#8a7e6e',
     letterSpacing: 1,
     textTransform: 'uppercase',
     marginBottom: 6,
   },
   interpretationText: {
     fontSize: 14,
-    color: '#a89f88',
+    color: '#c4b99e',
     lineHeight: 22,
   },
   saveButton: {
@@ -404,23 +463,23 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: '#3a3730',
+    borderColor: '#6a6050',
     alignItems: 'center',
   },
   againButtonText: {
     fontSize: 16,
-    color: '#5a5446',
+    color: '#8a7e6e',
     letterSpacing: 1,
   },
   emptyTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#3a3730',
+    color: '#6a6050',
     textAlign: 'center',
   },
   emptySubtitle: {
     fontSize: 15,
-    color: '#3a3730',
+    color: '#6a6050',
     textAlign: 'center',
     lineHeight: 24,
     paddingHorizontal: 32,
@@ -434,5 +493,48 @@ const styles = StyleSheet.create({
   backButtonText: {
     fontSize: 14,
     color: '#c9b97a',
+  },
+  savedIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 6,
+  },
+  savedIndicatorText: {
+    fontSize: 12,
+    color: '#4caf50',
+  },
+  bottomActions: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 8,
+  },
+  saveAllButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 16,
+    borderRadius: 20,
+    backgroundColor: '#c9b97a',
+  },
+  saveAllButtonText: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#0f0e0c',
+  },
+  doneButton: {
+    flex: 1,
+    paddingVertical: 16,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#c9b97a',
+    alignItems: 'center',
+  },
+  doneButtonText: {
+    fontSize: 16,
+    color: '#c9b97a',
+    letterSpacing: 1,
   },
 });

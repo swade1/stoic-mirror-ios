@@ -79,12 +79,12 @@ export default function SettingsScreen() {
           <View style={styles.card}>
             <TouchableOpacity style={styles.row} onPress={handlePrivacyPolicy}>
               <Text style={styles.rowLabel}>Privacy Policy</Text>
-              <IconSymbol name="chevron.right" size={12} color="#5a5446" />
+              <IconSymbol name="chevron.right" size={12} color="#8a7e63" />
             </TouchableOpacity>
             <View style={styles.divider} />
             <TouchableOpacity style={styles.row} onPress={handleTerms}>
               <Text style={styles.rowLabel}>Terms of Service</Text>
-              <IconSymbol name="chevron.right" size={12} color="#5a5446" />
+              <IconSymbol name="chevron.right" size={12} color="#8a7e63" />
             </TouchableOpacity>
           </View>
         </View>
@@ -95,7 +95,7 @@ export default function SettingsScreen() {
           <View style={styles.card}>
             <TouchableOpacity style={styles.row} onPress={handleSignOut}>
               <Text style={styles.signOutText}>Sign Out</Text>
-              <IconSymbol name="chevron.right" size={12} color="#5a5446" />
+              <IconSymbol name="chevron.right" size={12} color="#8a7e63" />
             </TouchableOpacity>
           </View>
         </View>
@@ -137,7 +137,7 @@ const styles = StyleSheet.create({
   },
   sectionLabel: {
     fontSize: 11,
-    color: '#5a5446',
+    color: '#8a7e63',
     letterSpacing: 1,
     textTransform: 'uppercase',
     marginBottom: 8,
@@ -163,11 +163,11 @@ const styles = StyleSheet.create({
   },
   rowLabel: {
     fontSize: 15,
-    color: '#a89f88',
+    color: '#c4b99e',
   },
   rowValue: {
     fontSize: 13,
-    color: '#5a5446',
+    color: '#8a7e63',
     maxWidth: '50%',
     textAlign: 'right',
   },
@@ -177,7 +177,7 @@ const styles = StyleSheet.create({
   },
   disclaimer: {
     fontSize: 12,
-    color: '#5a5446',
+    color: '#8a7e63',
     textAlign: 'center',
     lineHeight: 18,
     paddingHorizontal: 16,

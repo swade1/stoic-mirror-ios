@@ -43,7 +43,7 @@ export default function CounselScreen() {
         <TextInput
           style={styles.textInput}
           placeholder="Speak freely..."
-          placeholderTextColor="#5a5446"
+          placeholderTextColor="#8a7e6e"
           value={input}
           onChangeText={setInput}
           multiline
@@ -91,7 +91,7 @@ const styles = StyleSheet.create({
   },
   headerSubtitle: {
     fontSize: 13,
-    color: '#5a5446',
+    color: '#8a7e6e',
     marginTop: 4,
     letterSpacing: 0.5,
   },
@@ -109,7 +109,7 @@ const styles = StyleSheet.create({
   },
   promptSub: {
     fontSize: 15,
-    color: '#5a5446',
+    color: '#8a7e6e',
     lineHeight: 22,
     marginBottom: 32,
   },
@@ -121,7 +121,7 @@ const styles = StyleSheet.create({
     color: '#f0ead6',
     fontSize: 16,
     borderWidth: 1,
-    borderColor: '#3a3730',
+    borderColor: '#6a6050',
     minHeight: 160,
     maxHeight: 280,
     marginBottom: 16,
@@ -135,7 +135,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   sendButtonDisabled: {
-    borderColor: '#3a3730',
+    borderColor: '#6a6050',
   },
   sendButtonText: {
     color: '#c9b97a',
@@ -144,7 +144,7 @@ const styles = StyleSheet.create({
     letterSpacing: 2,
   },
   sendButtonTextDisabled: {
-    color: '#3a3730',
+    color: '#6a6050',
   },
   footer: {
     paddingHorizontal: 24,
@@ -153,7 +153,7 @@ const styles = StyleSheet.create({
   },
   footerText: {
     fontSize: 11,
-    color: '#5a5446',
+    color: '#8a7e6e',
     letterSpacing: 1,
     textAlign: 'center',
   },

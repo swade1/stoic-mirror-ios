@@ -68,7 +68,7 @@ const styles = StyleSheet.create({
   },
   subtitle: {
     fontSize: 16,
-    color: '#a89f88',
+    color: '#c4b99e',
     marginBottom: 24,
     textAlign: 'center',
     lineHeight: 26,
@@ -77,7 +77,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#1e1c18',
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: '#3a3730',
+    borderColor: '#6a6050',
     borderLeftWidth: 3,
     borderLeftColor: '#c9b97a',
     padding: 20,
@@ -93,7 +93,7 @@ const styles = StyleSheet.create({
   },
   quoteAuthor: {
     fontSize: 13,
-    color: '#5a5446',
+    color: '#8a7e6e',
     textAlign: 'right',
   },
   progressRow: {
@@ -105,7 +105,7 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: '#3a3730',
+    backgroundColor: '#6a6050',
   },
   dotActive: {
     backgroundColor: '#c9b97a',

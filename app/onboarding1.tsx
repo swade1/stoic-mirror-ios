@@ -60,7 +60,7 @@ const styles = StyleSheet.create({
   },
   subtitle: {
     fontSize: 18,
-    color: '#a89f88',
+    color: '#c4b99e',
     marginBottom: 32,
     textAlign: 'center',
     lineHeight: 28,
@@ -74,7 +74,7 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: '#3a3730',
+    backgroundColor: '#6a6050',
   },
   dotActive: {
     backgroundColor: '#c9b97a',

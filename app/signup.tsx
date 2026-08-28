@@ -48,7 +48,7 @@ export default function SignUp() {
         <TextInput
           style={styles.input}
           placeholder="you@example.com"
-          placeholderTextColor="#5a5446"
+          placeholderTextColor="#8a7e6e"
           keyboardType="email-address"
           autoCapitalize="none"
           autoCorrect={false}
@@ -60,7 +60,7 @@ export default function SignUp() {
         <TextInput
           style={styles.input}
           placeholder="choose a secure password"
-          placeholderTextColor="#5a5446"
+          placeholderTextColor="#8a7e6e"
           secureTextEntry
           textContentType="oneTimeCode"
           autoComplete="off"
@@ -72,7 +72,7 @@ export default function SignUp() {
         <TextInput
            style={styles.input}
            placeholder="confirm your password"
-           placeholderTextColor="#5a5446"
+           placeholderTextColor="#8a7e6e"
            secureTextEntry
            textContentType="oneTimeCode"
            autoComplete="off"
@@ -128,7 +128,7 @@ const styles = StyleSheet.create({
   },
   subtitle: {
     fontSize: 16,
-    color: '#a89f88',
+    color: '#c4b99e',
     lineHeight: 24,
   },
   form: {
@@ -136,14 +136,14 @@ const styles = StyleSheet.create({
   },
   label: {
     fontSize: 13,
-    color: '#a89f88',
+    color: '#c4b99e',
     marginBottom: 8,
     letterSpacing: 0.5,
   },
   input: {
     backgroundColor: '#1e1c18',
     borderWidth: 1,
-    borderColor: '#3a3730',
+    borderColor: '#6a6050',
     borderRadius: 12,
     paddingHorizontal: 16,
     paddingVertical: 14,
@@ -177,15 +177,15 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   policyLink: {
-    color: '#5a5446',
+    color: '#8a7e6e',
     fontSize: 13,
     textDecorationLine: 'underline',
   },
   policySeparator: {
-    color: '#5a5446',
+    color: '#8a7e6e',
   },
   signInText: {
-    color: '#a89f88',
+    color: '#c4b99e',
     fontSize: 15,
     textAlign: 'center',
     textDecorationLine: 'underline',
