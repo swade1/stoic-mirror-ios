@@ -106,6 +106,17 @@ export default function SettingsScreen() {
           contentContainerStyle={[styles.contentContainer, { paddingBottom: insets.bottom + 80 }]}
           showsVerticalScrollIndicator={false}
         >
+          
+          {/* Account */}
+          <View style={styles.section}>
+            <Text style={styles.sectionLabel}>Account</Text>
+            <View style={styles.card}>
+              <TouchableOpacity style={styles.row} onPress={handleSignOut}>
+                <Text style={styles.signOutText}>Sign Out</Text>
+                <IconSymbol name="chevron.right" size={12} color="#a89f88" />
+              </TouchableOpacity>
+            </View>
+          </View>
 
           {/* Profile */}
           <View style={styles.section}>
@@ -170,16 +181,6 @@ export default function SettingsScreen() {
             </View>
           </View>
 
-          {/* Account */}
-          <View style={styles.section}>
-            <Text style={styles.sectionLabel}>Account</Text>
-            <View style={styles.card}>
-              <TouchableOpacity style={styles.row} onPress={handleSignOut}>
-                <Text style={styles.signOutText}>Sign Out</Text>
-                <IconSymbol name="chevron.right" size={12} color="#a89f88" />
-              </TouchableOpacity>
-            </View>
-          </View>
 
           {/* Disclaimer */}
           <Text style={styles.disclaimer}>
