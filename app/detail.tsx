@@ -41,6 +41,14 @@ export default function ResultsScreen() {
   const [sessionSaved, setSessionSaved] = useState(false);
 
   const fadeAnim = React.useRef(new Animated.Value(0)).current;
+  const saveAnims = React.useRef<{[key: string]: Animated.Value}>({}).current;
+
+  const getSaveAnim = (id: string) => {
+    if (!saveAnims[id]) {
+      saveAnims[id] = new Animated.Value(1);
+    }
+    return saveAnims[id];
+  };
 
   React.useEffect(() => {
     if (quotes.length === 0) return;
@@ -124,6 +132,14 @@ export default function ResultsScreen() {
 
   const toggleSave = async (quote: Quote) => {
     const isSaved = saved.includes(quote.id);
+   
+    // Bounce animation
+    const anim = getSaveAnim(quote.id);
+    Animated.sequence([
+      Animated.timing(anim, { toValue: 2.0, duration: 150, useNativeDriver: true }),
+      Animated.spring(anim, { toValue: 1, useNativeDriver: true }),
+    ]).start();
+
     if (isSaved) {
       await supabase
         .from('saved_quotes')
@@ -270,11 +286,13 @@ return (
               style={[styles.saveButton, saved.includes(quote.id) && styles.saveButtonActive]}
               onPress={() => toggleSave(quote)}
             >
+              <Animated.View style={{ transform: [{ scale: getSaveAnim(quote.id) }] }}>
               <IconSymbol
                 name={saved.includes(quote.id) ? 'bookmark.fill' : 'bookmark'}
                 size={16}
                 color={saved.includes(quote.id) ? '#0f0e0c' : '#c9b97a'}
               />
+              </Animated.View>
               <Text style={[
                 styles.saveButtonText,
                 saved.includes(quote.id) && styles.saveButtonTextActive,
