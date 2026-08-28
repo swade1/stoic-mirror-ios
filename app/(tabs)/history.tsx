@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useFocusEffect } from 'expo-router';
 import { useCallback } from 'react';
 import {
@@ -9,6 +9,7 @@ import {
   Alert,
   ScrollView,
   Image,
+  TextInput,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { supabase } from '@/lib/supabase';
@@ -35,6 +36,13 @@ export default function HistoryScreen() {
   const [showAllCategories, setShowAllCategories] = useState(false);
   const [expandedConcern, setExpandedConcern] = useState(false);
   const scrollRef = React.useRef<ScrollView>(null);
+  const [searchVisible, setSearchVisible] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  
+  useEffect(() => {
+    setCurrentIndex(0);
+    setExpandedConcern(false);
+  }, [searchQuery, filter]);
 
   useFocusEffect(
     useCallback(() => {
@@ -96,9 +104,18 @@ export default function HistoryScreen() {
     return match ? match[0] : text;
   };
 
-  const filteredQuotes = filter
-    ? savedQuotes.filter((q) => q.category === filter)
-    : savedQuotes;
+  const filteredQuotes = savedQuotes
+    .filter((q) => filter === null || q.category === filter)
+    .filter((q) => {
+      if (!searchQuery.trim()) return true;
+      const query = searchQuery.toLowerCase();
+      return (
+        q.concern.toLowerCase().includes(query) ||
+        q.quote.toLowerCase().includes(query) ||
+        q.author.toLowerCase().includes(query) ||
+        q.interpretation.toLowerCase().includes(query)
+      );
+    });
 
   const currentQuote = filteredQuotes[currentIndex];
   const total = filteredQuotes.length;
@@ -128,13 +145,55 @@ export default function HistoryScreen() {
           source={require('../../assets/images/wreath-small.png')}
           style={styles.wreathSmall}
         />
-        <View>
+        <View style={styles.headerText}>
           <Text style={styles.headerTitle}>Saved Wisdom</Text>
           <Text style={styles.headerSubtitle}>Quotes you've chosen to keep</Text>
         </View>
-      </View>
-      {/* Category filter bar */}
-      {categories.length > 0 && (
+        <TouchableOpacity
+          onPress={() => {
+            setSearchVisible(!searchVisible);
+            setSearchQuery('');
+          }}
+        >
+          <IconSymbol
+            name={searchVisible ? 'xmark' : 'magnifyingglass'}
+            size={20}
+            color="#c9b97a"
+          />
+        </TouchableOpacity>
+        </View>
+
+        {/* Search bar */}
+        {searchVisible && (
+          <View style={styles.searchContainer}>
+            <IconSymbol name="magnifyingglass" size={16} color="#8a7e6e" />
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Search concerns, quotes, authors..."
+              placeholderTextColor="#8a7e6e"
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              autoFocus
+              autoCapitalize="none"
+              autoCorrect={false}
+            />
+            {searchQuery.length > 0 && (
+              <TouchableOpacity onPress={() => setSearchQuery('')}>
+                <IconSymbol name="xmark.circle.fill" size={16} color="#8a7e6e" />
+              </TouchableOpacity>
+            )}
+          </View>
+        )}
+
+        {/* Search results count */}
+        {searchVisible && searchQuery.trim().length > 0 && (
+          <Text style={styles.searchResults}>
+            {filteredQuotes.length} {filteredQuotes.length === 1 ? 'result' : 'results'}
+          </Text>
+        )}
+   
+        {/* Category filter bar */}
+        {categories.length > 0 && (
         <View style={styles.filterBarContainer}>
           <View style={styles.filterBar}>
             {[null, ...categories].slice(0, 6).map((cat) => {
@@ -611,4 +670,32 @@ const styles = StyleSheet.create({
     height: 48,
     marginRight: 12,
   },
+  headerText: {
+    flex: 1,
+  },
+  searchInput: {
+    flex: 1,
+    color: '#f0ead6',
+    fontSize: 15,
+  },
+  searchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#1e1c18',
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 16,
+    marginHorizontal: 16,
+    marginVertical: 8,
+    gap: 8,
+    borderWidth: 1,
+    borderColor: '#4a4540',
+  },
+  searchResults: {
+    fontSize: 12,
+    color: '#8a7e6e',
+    paddingHorizontal: 28,
+    paddingBottom: 4,
+  },
 });
+

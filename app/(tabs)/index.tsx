@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import * as Haptics from 'expo-haptics';
 
 export default function CounselScreen() {
   const router = useRouter();
@@ -32,6 +33,7 @@ export default function CounselScreen() {
 
   const handleSeekCounsel = () => {
     if (!input.trim()) return;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     router.push(`/loading?prompt=${encodeURIComponent(input.trim())}`);
     setInput('');
   };
