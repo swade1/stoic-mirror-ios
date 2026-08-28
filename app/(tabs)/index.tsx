@@ -177,7 +177,7 @@ const styles = StyleSheet.create({
   },
   footerText: {
     fontSize: 11,
-    color: '#8a7e6e',
+    color: '#a89f88',
     letterSpacing: 1,
     textAlign: 'center',
   },

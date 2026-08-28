@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -6,8 +6,10 @@ import {
   StyleSheet,
   Alert,
   Image,
+  ScrollView,
+  ActivityIndicator,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { supabase } from '@/lib/supabase';
 import { IconSymbol } from '@/components/ui/IconSymbol';
@@ -20,14 +22,29 @@ export default function SettingsScreen() {
   const [memberSince, setMemberSince] = useState<string | null>(null);
   const [totalEntries, setTotalEntries] = useState(0);
   const [totalSaved, setTotalSaved] = useState(0);
+  const [profileLoading, setProfileLoading] = useState(true);
+  const isLoadingRef = React.useRef(false);
   
-  useEffect(() => {
-    loadProfile();
-  }, []);
+    useFocusEffect(
+    useCallback(() => {
+      isLoadingRef.current = false;
+      setProfileLoading(true);
+      loadProfile();
+    }, [])
+    );
 
-  const loadProfile = async () => {
+    const loadProfile = async () => {
+    if (isLoadingRef.current) return;
+    isLoadingRef.current = true;
+    console.log('loadProfile called');
     const { data: { session } } = await supabase.auth.getSession();
-    if (!session) return;
+    console.log('Session in settings:', session ? 'found' : 'not found');
+    if (!session) {
+      console.log('Profile loaded - entries:', entryCount, 'saved:', savedCount);
+      setProfileLoading(false);
+      isLoadingRef.current = false;
+      return;
+    }
 
     // Get user email and creation date
     setEmail(session.user.email ?? null);
@@ -50,6 +67,7 @@ export default function SettingsScreen() {
 
     setTotalEntries(entryCount ?? 0);
     setTotalSaved(savedCount ?? 0);
+    setProfileLoading(false);
   };
 
   const handleSignOut = async () => {
@@ -89,8 +107,14 @@ export default function SettingsScreen() {
         />
         <Text style={styles.headerTitle}>Settings</Text>
       </View>
-      <View style={styles.content}>
-
+       {profileLoading ? (
+          <ActivityIndicator size="large" color="#c9b97a" style={{ marginTop: 60 }} />
+        ) : (
+        <ScrollView 
+          style={styles.content}
+          contentContainerStyle={[styles.contentContainer, { paddingBottom: insets.bottom + 80 }]}
+          showsVerticalScrollIndicator={false}
+        >
         {/* Profile */}
         <View style={styles.section}>
           <Text style={styles.sectionLabel}>Profile</Text>
@@ -171,7 +195,8 @@ export default function SettingsScreen() {
           It is not a substitute for professional mental health support.
         </Text>
 
-      </View>
+      </ScrollView>
+    )}
     </View>
   );
 }
@@ -204,7 +229,7 @@ const styles = StyleSheet.create({
   },
   sectionLabel: {
     fontSize: 11,
-    color: '#8a7e63',
+    color: '#a89f88',
     letterSpacing: 1,
     textTransform: 'uppercase',
     marginBottom: 8,
@@ -234,7 +259,7 @@ const styles = StyleSheet.create({
   },
   rowValue: {
     fontSize: 13,
-    color: '#8a7e63',
+    color: '#a89f88',
     maxWidth: '50%',
     textAlign: 'right',
   },
@@ -244,7 +269,7 @@ const styles = StyleSheet.create({
   },
   disclaimer: {
     fontSize: 12,
-    color: '#8a7e63',
+    color: '#a89f88',
     textAlign: 'center',
     lineHeight: 18,
     paddingHorizontal: 16,
@@ -256,8 +281,11 @@ const styles = StyleSheet.create({
   },
   rowValueEmail: {
     fontSize: 13,
-    color: '#8a7e6e',
+    color: '#a89f88',
     textAlign: 'right',
     flexShrink: 1,
+  },
+  contentContainer: {
+    paddingBottom: 40,
   },
 });

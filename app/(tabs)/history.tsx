@@ -10,6 +10,7 @@ import {
   ScrollView,
   Image,
   TextInput,
+  ActivityIndicator,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { supabase } from '@/lib/supabase';
@@ -38,6 +39,7 @@ export default function HistoryScreen() {
   const scrollRef = React.useRef<ScrollView>(null);
   const [searchVisible, setSearchVisible] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const isLoadingRef = React.useRef(false);
   
   useEffect(() => {
     setCurrentIndex(0);
@@ -46,13 +48,22 @@ export default function HistoryScreen() {
 
   useFocusEffect(
     useCallback(() => {
+      isLoadingRef.current = false;
+      setLoading(true);
       loadSavedQuotes();
     }, [])
   );
 
   const loadSavedQuotes = async () => {
+    if (isLoadingRef.current) return;
+    isLoadingRef.current = true;
+
     const { data: { session } } = await supabase.auth.getSession();
-    if (!session) return;
+    if (!session) {
+      setLoading(false);
+      isLoadingRef.current = false;
+      return;
+    }
 
     const { data } = await supabase
       .from('saved_quotes')
@@ -70,6 +81,7 @@ export default function HistoryScreen() {
       setCategories(unique);
     }
     setLoading(false);
+    isLoadingRef.current = false;
   };
 
   const deleteQuote = async (id: string) => {
@@ -257,7 +269,9 @@ export default function HistoryScreen() {
         </View>
       )}
 
-      {loading ? null : filteredQuotes.length === 0 ? (
+        {loading ? (
+          <ActivityIndicator size="large" color="#c9b97a" style={{ marginTop: 60 }} />
+        ) : filteredQuotes.length === 0 ? (
         <View style={styles.emptyContainer}>
           <IconSymbol name="bookmark" size={48} color="#6a6050" />
           <Text style={styles.emptyTitle}>No saved wisdom yet</Text>

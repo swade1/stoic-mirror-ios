@@ -5,6 +5,7 @@ import {
   StyleSheet,
   ScrollView,
   Image,
+  ActivityIndicator,
 } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import { useCallback } from 'react';
@@ -22,17 +23,22 @@ export default function InsightsScreen() {
   const [insights, setInsights] = useState<InsightRow[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
+  const isLoadingRef = React.useRef(false);
 
   useFocusEffect(
     useCallback(() => {
+      isLoadingRef.current = false;
+      setLoading(true);
       loadInsights();
     }, [])
   );
 
   const loadInsights = async () => {
     const { data: { session } } = await supabase.auth.getSession();
-    if (!session) return;
-
+    if (!session) {
+      setLoading(false);
+      return;
+    }
     const { data } = await supabase
       .rpc('get_user_insights');
 
@@ -71,7 +77,9 @@ export default function InsightsScreen() {
           </Text>
         </View>
       </View>
-      {loading ? null : insights.length === 0 ? (
+        {loading ? (
+          <ActivityIndicator size="large" color="#c9b97a" style={{ marginTop: 60 }} />
+        ) : insights.length === 0 ? (
         <View style={styles.emptyContainer}>
           <Text style={styles.emptyTitle}>No insights yet</Text>
           <Text style={styles.emptySubtitle}>
@@ -138,7 +146,7 @@ const styles = StyleSheet.create({
   },
   headerSubtitle: {
     fontSize: 13,
-    color: '#8a7e6e',
+    color: '#a89f88',
     marginTop: 4,
   },
   scrollContent: {
@@ -177,7 +185,7 @@ const styles = StyleSheet.create({
   },
   summaryLabel: {
     fontSize: 11,
-    color: '#8a7e6e',
+    color: '#a89f88',
     letterSpacing: 1,
     textTransform: 'uppercase',
     marginBottom: 8,
@@ -190,11 +198,11 @@ const styles = StyleSheet.create({
   },
   summaryCount: {
     fontSize: 13,
-    color: '#c9b97a',
+    color: '#a89f88',
   },
   sectionLabel: {
     fontSize: 11,
-    color: '#8a7e6e',
+    color: '#a89f88',
     letterSpacing: 1,
     textTransform: 'uppercase',
     marginBottom: 16,
@@ -215,7 +223,7 @@ const styles = StyleSheet.create({
   },
   barMeta: {
     fontSize: 11,
-    color: '#8a7e6e',
+    color: '#a89f88',
   },
   barTrack: {
     height: 6,
