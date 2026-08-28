@@ -4,7 +4,6 @@ import {
   Text,
   TouchableOpacity,
   StyleSheet,
-  Linking,
   Alert,
   Image,
 } from 'react-native';
@@ -36,11 +35,11 @@ export default function SettingsScreen() {
   };
 
   const handlePrivacyPolicy = () => {
-    Linking.openURL('https://yourdomain.com/privacy');
+    router.push('/privacy');
   };
 
   const handleTerms = () => {
-    Linking.openURL('https://yourdomain.com/terms');
+    router.push('/terms');
   };
 
   return (

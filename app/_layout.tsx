@@ -69,6 +69,8 @@ export default function RootLayout() {
             <Stack.Screen name="loading" options={{ headerShown: false }} />
             <Stack.Screen name="detail" options={{ headerShown: false }} />
             <Stack.Screen name="+not-found" />
+            <Stack.Screen name="privacy" options={{ headerShown: false }} />
+            <Stack.Screen name="terms" options={{ headerShown: false }} />
           </>
         ) : (
           <>
