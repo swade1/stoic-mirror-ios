@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -15,6 +15,42 @@ import { IconSymbol } from '@/components/ui/IconSymbol';
 export default function SettingsScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+
+  const [email, setEmail] = useState<string | null>(null);
+  const [memberSince, setMemberSince] = useState<string | null>(null);
+  const [totalEntries, setTotalEntries] = useState(0);
+  const [totalSaved, setTotalSaved] = useState(0);
+  
+  useEffect(() => {
+    loadProfile();
+  }, []);
+
+  const loadProfile = async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return;
+
+    // Get user email and creation date
+    setEmail(session.user.email ?? null);
+    setMemberSince(new Date(session.user.created_at).toLocaleDateString('en-US', {
+      month: 'long',
+      year: 'numeric',
+    }));
+
+    // Get total entries
+    const { count: entryCount } = await supabase
+      .from('entries')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', session.user.id);
+
+    // Get total saved quotes
+    const { count: savedCount } = await supabase
+      .from('saved_quotes')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', session.user.id);
+
+    setTotalEntries(entryCount ?? 0);
+    setTotalSaved(savedCount ?? 0);
+  };
 
   const handleSignOut = async () => {
     Alert.alert(
@@ -54,6 +90,32 @@ export default function SettingsScreen() {
         <Text style={styles.headerTitle}>Settings</Text>
       </View>
       <View style={styles.content}>
+
+        {/* Profile */}
+        <View style={styles.section}>
+          <Text style={styles.sectionLabel}>Profile</Text>
+          <View style={styles.card}>
+            <View style={styles.row}>
+              <Text style={styles.rowLabel}>Email</Text>
+              <Text style={styles.rowValueEmail}>{email ?? '—'}</Text>
+            </View>
+            <View style={styles.divider} />
+            <View style={styles.row}>
+              <Text style={styles.rowLabel}>Member since</Text>
+              <Text style={styles.rowValue}>{memberSince ?? '—'}</Text>
+            </View>
+            <View style={styles.divider} />
+            <View style={styles.row}>
+              <Text style={styles.rowLabel}>Times counseled</Text>
+              <Text style={styles.rowValue}>{totalEntries}</Text>
+            </View>
+            <View style={styles.divider} />
+            <View style={styles.row}>
+              <Text style={styles.rowLabel}>Wisdom saved</Text>
+              <Text style={styles.rowValue}>{totalSaved}</Text>
+            </View>
+          </View>
+        </View>   
 
         {/* App info */}
         <View style={styles.section}>
@@ -191,5 +253,11 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     marginRight: 12,
+  },
+  rowValueEmail: {
+    fontSize: 13,
+    color: '#8a7e6e',
+    textAlign: 'right',
+    flexShrink: 1,
   },
 });
