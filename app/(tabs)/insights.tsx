@@ -1,11 +1,11 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
-  Image,
   ActivityIndicator,
+  Image,
 } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import { useCallback } from 'react';
@@ -23,31 +23,31 @@ export default function InsightsScreen() {
   const [insights, setInsights] = useState<InsightRow[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
-  const isLoadingRef = React.useRef(false);
 
   useFocusEffect(
     useCallback(() => {
-      isLoadingRef.current = false;
-      setLoading(true);
+      let cancelled = false;
+
+      const loadInsights = async () => {
+        setLoading(true);
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session || cancelled) { setLoading(false); return; }
+
+        const { data } = await supabase.rpc('get_user_insights');
+
+        if (!cancelled) {
+          if (data) {
+            setInsights(data);
+            setTotal(data.reduce((sum: number, row: InsightRow) => sum + Number(row.entry_count), 0));
+          }
+          setLoading(false);
+        }
+      };
+
       loadInsights();
+      return () => { cancelled = true; };
     }, [])
   );
-
-  const loadInsights = async () => {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) {
-      setLoading(false);
-      return;
-    }
-    const { data } = await supabase
-      .rpc('get_user_insights');
-
-    if (data) {
-      setInsights(data);
-      setTotal(data.reduce((sum: number, row: InsightRow) => sum + Number(row.entry_count), 0));
-    }
-    setLoading(false);
-  };
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
@@ -77,9 +77,10 @@ export default function InsightsScreen() {
           </Text>
         </View>
       </View>
-        {loading ? (
-          <ActivityIndicator size="large" color="#c9b97a" style={{ marginTop: 60 }} />
-        ) : insights.length === 0 ? (
+
+      {loading ? (
+        <ActivityIndicator size="large" color="#c9b97a" style={{ marginTop: 60 }} />
+      ) : insights.length === 0 ? (
         <View style={styles.emptyContainer}>
           <Text style={styles.emptyTitle}>No insights yet</Text>
           <Text style={styles.emptySubtitle}>
@@ -87,14 +88,14 @@ export default function InsightsScreen() {
           </Text>
         </View>
       ) : (
-        <ScrollView contentContainerStyle={styles.scrollContent}>
+        <ScrollView contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 80 }]}>
 
           {/* Summary card */}
           <View style={styles.summaryCard}>
             <Text style={styles.summaryLabel}>Most explored theme</Text>
             <Text style={styles.summaryValue}>{insights[0]?.category}</Text>
             <Text style={styles.summaryCount}>
-             {insights[0]?.entry_count} {Number(insights[0]?.entry_count) === 1 ? 'session' : 'sessions'}
+              {insights[0]?.entry_count} {Number(insights[0]?.entry_count) === 1 ? 'session' : 'sessions'}
             </Text>
           </View>
 
@@ -105,7 +106,7 @@ export default function InsightsScreen() {
               <View style={styles.barLabelRow}>
                 <Text style={styles.barCategory}>{row.category}</Text>
                 <Text style={styles.barMeta}>
-                 {row.entry_count} {Number(row.entry_count) === 1 ? 'session' : 'sessions'} · last {formatDate(row.last_entry_at)}
+                  {row.entry_count} {Number(row.entry_count) === 1 ? 'session' : 'sessions'} · last {formatDate(row.last_entry_at)}
                 </Text>
               </View>
               <View style={styles.barTrack}>
@@ -138,6 +139,11 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#4a4540',
   },
+  wreathSmall: {
+    width: 48,
+    height: 48,
+    marginRight: 12,
+  },
   headerTitle: {
     fontSize: 24,
     fontWeight: 'bold',
@@ -151,7 +157,6 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     padding: 24,
-    paddingBottom: 100,
   },
   emptyContainer: {
     flex: 1,
@@ -235,10 +240,5 @@ const styles = StyleSheet.create({
     height: 6,
     backgroundColor: '#c9b97a',
     borderRadius: 3,
-  },
-  wreathSmall: {
-    width: 48,
-    height: 48,
-    marginRight: 12,
   },
 });

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -9,7 +9,8 @@ import {
   ScrollView,
   ActivityIndicator,
 } from 'react-native';
-import { useRouter, useFocusEffect } from 'expo-router';
+import { useRouter } from 'expo-router';
+import { useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { supabase } from '@/lib/supabase';
 import { IconSymbol } from '@/components/ui/IconSymbol';
@@ -17,58 +18,47 @@ import { IconSymbol } from '@/components/ui/IconSymbol';
 export default function SettingsScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-
   const [email, setEmail] = useState<string | null>(null);
   const [memberSince, setMemberSince] = useState<string | null>(null);
   const [totalEntries, setTotalEntries] = useState(0);
   const [totalSaved, setTotalSaved] = useState(0);
   const [profileLoading, setProfileLoading] = useState(true);
-  const isLoadingRef = React.useRef(false);
-  
-    useFocusEffect(
+
+  useFocusEffect(
     useCallback(() => {
-      isLoadingRef.current = false;
-      setProfileLoading(true);
+      let cancelled = false;
+
+      const loadProfile = async () => {
+        setProfileLoading(true);
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session || cancelled) { setProfileLoading(false); return; }
+
+        setEmail(session.user.email ?? null);
+        setMemberSince(new Date(session.user.created_at).toLocaleDateString('en-US', {
+          month: 'long', year: 'numeric',
+        }));
+
+        const { count: entryCount } = await supabase
+          .from('entries')
+          .select('*', { count: 'exact', head: true })
+          .eq('user_id', session.user.id);
+
+        const { count: savedCount } = await supabase
+          .from('saved_quotes')
+          .select('*', { count: 'exact', head: true })
+          .eq('user_id', session.user.id);
+
+        if (!cancelled) {
+          setTotalEntries(entryCount ?? 0);
+          setTotalSaved(savedCount ?? 0);
+          setProfileLoading(false);
+        }
+      };
+
       loadProfile();
+      return () => { cancelled = true; };
     }, [])
-    );
-
-    const loadProfile = async () => {
-    if (isLoadingRef.current) return;
-    isLoadingRef.current = true;
-    console.log('loadProfile called');
-    const { data: { session } } = await supabase.auth.getSession();
-    console.log('Session in settings:', session ? 'found' : 'not found');
-    if (!session) {
-      console.log('Profile loaded - entries:', entryCount, 'saved:', savedCount);
-      setProfileLoading(false);
-      isLoadingRef.current = false;
-      return;
-    }
-
-    // Get user email and creation date
-    setEmail(session.user.email ?? null);
-    setMemberSince(new Date(session.user.created_at).toLocaleDateString('en-US', {
-      month: 'long',
-      year: 'numeric',
-    }));
-
-    // Get total entries
-    const { count: entryCount } = await supabase
-      .from('entries')
-      .select('*', { count: 'exact', head: true })
-      .eq('user_id', session.user.id);
-
-    // Get total saved quotes
-    const { count: savedCount } = await supabase
-      .from('saved_quotes')
-      .select('*', { count: 'exact', head: true })
-      .eq('user_id', session.user.id);
-
-    setTotalEntries(entryCount ?? 0);
-    setTotalSaved(savedCount ?? 0);
-    setProfileLoading(false);
-  };
+  );
 
   const handleSignOut = async () => {
     Alert.alert(
@@ -107,96 +97,98 @@ export default function SettingsScreen() {
         />
         <Text style={styles.headerTitle}>Settings</Text>
       </View>
-       {profileLoading ? (
-          <ActivityIndicator size="large" color="#c9b97a" style={{ marginTop: 60 }} />
-        ) : (
-        <ScrollView 
+
+      {profileLoading ? (
+        <ActivityIndicator size="large" color="#c9b97a" style={{ marginTop: 60 }} />
+      ) : (
+        <ScrollView
           style={styles.content}
           contentContainerStyle={[styles.contentContainer, { paddingBottom: insets.bottom + 80 }]}
           showsVerticalScrollIndicator={false}
         >
-        {/* Profile */}
-        <View style={styles.section}>
-          <Text style={styles.sectionLabel}>Profile</Text>
-          <View style={styles.card}>
-            <View style={styles.row}>
-              <Text style={styles.rowLabel}>Email</Text>
-              <Text style={styles.rowValueEmail}>{email ?? '—'}</Text>
-            </View>
-            <View style={styles.divider} />
-            <View style={styles.row}>
-              <Text style={styles.rowLabel}>Member since</Text>
-              <Text style={styles.rowValue}>{memberSince ?? '—'}</Text>
-            </View>
-            <View style={styles.divider} />
-            <View style={styles.row}>
-              <Text style={styles.rowLabel}>Times counseled</Text>
-              <Text style={styles.rowValue}>{totalEntries}</Text>
-            </View>
-            <View style={styles.divider} />
-            <View style={styles.row}>
-              <Text style={styles.rowLabel}>Wisdom saved</Text>
-              <Text style={styles.rowValue}>{totalSaved}</Text>
+
+          {/* Profile */}
+          <View style={styles.section}>
+            <Text style={styles.sectionLabel}>Profile</Text>
+            <View style={styles.card}>
+              <View style={styles.row}>
+                <Text style={styles.rowLabel}>Email</Text>
+                <Text style={styles.rowValueEmail}>{email ?? '—'}</Text>
+              </View>
+              <View style={styles.divider} />
+              <View style={styles.row}>
+                <Text style={styles.rowLabel}>Member since</Text>
+                <Text style={styles.rowValue}>{memberSince ?? '—'}</Text>
+              </View>
+              <View style={styles.divider} />
+              <View style={styles.row}>
+                <Text style={styles.rowLabel}>Times counseled</Text>
+                <Text style={styles.rowValue}>{totalEntries}</Text>
+              </View>
+              <View style={styles.divider} />
+              <View style={styles.row}>
+                <Text style={styles.rowLabel}>Wisdom saved</Text>
+                <Text style={styles.rowValue}>{totalSaved}</Text>
+              </View>
             </View>
           </View>
-        </View>   
 
-        {/* App info */}
-        <View style={styles.section}>
-          <Text style={styles.sectionLabel}>About</Text>
-          <View style={styles.card}>
-            <View style={styles.row}>
-              <Text style={styles.rowLabel}>App</Text>
-              <Text style={styles.rowValue}>The Stoic Mirror</Text>
-            </View>
-            <View style={styles.divider} />
-            <View style={styles.row}>
-              <Text style={styles.rowLabel}>Version</Text>
-              <Text style={styles.rowValue}>1.0.0</Text>
-            </View>
-            <View style={styles.divider} />
-            <View style={styles.row}>
-              <Text style={styles.rowLabel}>Sources</Text>
-              <Text style={styles.rowValue}>Marcus Aurelius · Epictetus · Seneca</Text>
+          {/* App info */}
+          <View style={styles.section}>
+            <Text style={styles.sectionLabel}>About</Text>
+            <View style={styles.card}>
+              <View style={styles.row}>
+                <Text style={styles.rowLabel}>App</Text>
+                <Text style={styles.rowValue}>The Stoic Mirror</Text>
+              </View>
+              <View style={styles.divider} />
+              <View style={styles.row}>
+                <Text style={styles.rowLabel}>Version</Text>
+                <Text style={styles.rowValue}>1.0.0</Text>
+              </View>
+              <View style={styles.divider} />
+              <View style={styles.row}>
+                <Text style={styles.rowLabel}>Sources</Text>
+                <Text style={styles.rowValue}>Marcus Aurelius · Epictetus · Seneca</Text>
+              </View>
             </View>
           </View>
-        </View>
 
-        {/* Legal */}
-        <View style={styles.section}>
-          <Text style={styles.sectionLabel}>Legal</Text>
-          <View style={styles.card}>
-            <TouchableOpacity style={styles.row} onPress={handlePrivacyPolicy}>
-              <Text style={styles.rowLabel}>Privacy Policy</Text>
-              <IconSymbol name="chevron.right" size={12} color="#8a7e63" />
-            </TouchableOpacity>
-            <View style={styles.divider} />
-            <TouchableOpacity style={styles.row} onPress={handleTerms}>
-              <Text style={styles.rowLabel}>Terms of Service</Text>
-              <IconSymbol name="chevron.right" size={12} color="#8a7e63" />
-            </TouchableOpacity>
+          {/* Legal */}
+          <View style={styles.section}>
+            <Text style={styles.sectionLabel}>Legal</Text>
+            <View style={styles.card}>
+              <TouchableOpacity style={styles.row} onPress={handlePrivacyPolicy}>
+                <Text style={styles.rowLabel}>Privacy Policy</Text>
+                <IconSymbol name="chevron.right" size={12} color="#a89f88" />
+              </TouchableOpacity>
+              <View style={styles.divider} />
+              <TouchableOpacity style={styles.row} onPress={handleTerms}>
+                <Text style={styles.rowLabel}>Terms of Service</Text>
+                <IconSymbol name="chevron.right" size={12} color="#a89f88" />
+              </TouchableOpacity>
+            </View>
           </View>
-        </View>
 
-        {/* Account */}
-        <View style={styles.section}>
-          <Text style={styles.sectionLabel}>Account</Text>
-          <View style={styles.card}>
-            <TouchableOpacity style={styles.row} onPress={handleSignOut}>
-              <Text style={styles.signOutText}>Sign Out</Text>
-              <IconSymbol name="chevron.right" size={12} color="#8a7e63" />
-            </TouchableOpacity>
+          {/* Account */}
+          <View style={styles.section}>
+            <Text style={styles.sectionLabel}>Account</Text>
+            <View style={styles.card}>
+              <TouchableOpacity style={styles.row} onPress={handleSignOut}>
+                <Text style={styles.signOutText}>Sign Out</Text>
+                <IconSymbol name="chevron.right" size={12} color="#a89f88" />
+              </TouchableOpacity>
+            </View>
           </View>
-        </View>
 
-        {/* Disclaimer */}
-        <Text style={styles.disclaimer}>
-          The Stoic Mirror provides philosophical counsel for reflective purposes only.
-          It is not a substitute for professional mental health support.
-        </Text>
+          {/* Disclaimer */}
+          <Text style={styles.disclaimer}>
+            The Stoic Mirror provides philosophical counsel for reflective purposes only.
+            It is not a substitute for professional mental health support.
+          </Text>
 
-      </ScrollView>
-    )}
+        </ScrollView>
+      )}
     </View>
   );
 }
@@ -214,6 +206,11 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#4a4540',
   },
+  wreathSmall: {
+    width: 48,
+    height: 48,
+    marginRight: 12,
+  },
   headerTitle: {
     fontSize: 24,
     fontWeight: 'bold',
@@ -222,6 +219,8 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
+  },
+  contentContainer: {
     padding: 24,
   },
   section: {
@@ -250,7 +249,7 @@ const styles = StyleSheet.create({
   },
   divider: {
     height: 1,
-    backgroundColor: '#2a2720',
+    backgroundColor: '#4a4540',
     marginHorizontal: 16,
   },
   rowLabel: {
@@ -263,6 +262,12 @@ const styles = StyleSheet.create({
     maxWidth: '50%',
     textAlign: 'right',
   },
+  rowValueEmail: {
+    fontSize: 13,
+    color: '#a89f88',
+    textAlign: 'right',
+    flexShrink: 1,
+  },
   signOutText: {
     fontSize: 15,
     color: '#c9b97a',
@@ -273,19 +278,5 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 18,
     paddingHorizontal: 16,
-  },
-  wreathSmall: {
-    width: 48,
-    height: 48,
-    marginRight: 12,
-  },
-  rowValueEmail: {
-    fontSize: 13,
-    color: '#a89f88',
-    textAlign: 'right',
-    flexShrink: 1,
-  },
-  contentContainer: {
-    paddingBottom: 40,
   },
 });

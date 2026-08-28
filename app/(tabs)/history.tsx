@@ -11,6 +11,7 @@ import {
   Image,
   TextInput,
   ActivityIndicator,
+  FlatList,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { supabase } from '@/lib/supabase';
@@ -39,8 +40,7 @@ export default function HistoryScreen() {
   const scrollRef = React.useRef<ScrollView>(null);
   const [searchVisible, setSearchVisible] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const isLoadingRef = React.useRef(false);
-  
+
   useEffect(() => {
     setCurrentIndex(0);
     setExpandedConcern(false);
@@ -48,41 +48,37 @@ export default function HistoryScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      isLoadingRef.current = false;
-      setLoading(true);
+      let cancelled = false;
+
+      const loadSavedQuotes = async () => {
+        setLoading(true);
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session || cancelled) { setLoading(false); return; }
+
+        const { data } = await supabase
+          .from('saved_quotes')
+          .select('*, entries(category)')
+          .eq('user_id', session.user.id)
+          .order('saved_at', { ascending: false });
+
+        if (!cancelled) {
+          if (data) {
+            const withCategory = data.map((q: any) => ({
+              ...q,
+              category: q.entries?.category ?? 'General',
+            }));
+            setSavedQuotes(withCategory);
+            const unique = [...new Set(withCategory.map((q: SavedQuote) => q.category))].sort() as string[];
+            setCategories(unique);
+          }
+          setLoading(false);
+        }
+      };
+
       loadSavedQuotes();
+      return () => { cancelled = true; };
     }, [])
   );
-
-  const loadSavedQuotes = async () => {
-    if (isLoadingRef.current) return;
-    isLoadingRef.current = true;
-
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) {
-      setLoading(false);
-      isLoadingRef.current = false;
-      return;
-    }
-
-    const { data } = await supabase
-      .from('saved_quotes')
-      .select('*, entries(category)')
-      .eq('user_id', session.user.id)
-      .order('saved_at', { ascending: false });
-
-    if (data) {
-      const withCategory = data.map((q: any) => ({
-        ...q,
-        category: q.entries?.category ?? 'General',
-      }));
-      setSavedQuotes(withCategory);
-      const unique = [...new Set(withCategory.map((q: SavedQuote) => q.category))].sort() as string[];
-      setCategories(unique);
-    }
-    setLoading(false);
-    isLoadingRef.current = false;
-  };
 
   const deleteQuote = async (id: string) => {
     Alert.alert(
@@ -144,10 +140,6 @@ export default function HistoryScreen() {
     scrollRef.current?.scrollTo({ y: 0, animated: false });
   };
 
-  // Check if concern is same as previous page
-  const prevQuote = filteredQuotes[currentIndex - 1];
-  const concernChanged = !prevQuote || prevQuote.concern !== currentQuote?.concern;
-
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
 
@@ -173,39 +165,39 @@ export default function HistoryScreen() {
             color="#c9b97a"
           />
         </TouchableOpacity>
+      </View>
+
+      {/* Search bar */}
+      {searchVisible && (
+        <View style={styles.searchContainer}>
+          <IconSymbol name="magnifyingglass" size={16} color="#8a7e6e" />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Search concerns, quotes, authors..."
+            placeholderTextColor="#8a7e6e"
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            autoFocus
+            autoCapitalize="none"
+            autoCorrect={false}
+          />
+          {searchQuery.length > 0 && (
+            <TouchableOpacity onPress={() => setSearchQuery('')}>
+              <IconSymbol name="xmark.circle.fill" size={16} color="#8a7e6e" />
+            </TouchableOpacity>
+          )}
         </View>
+      )}
 
-        {/* Search bar */}
-        {searchVisible && (
-          <View style={styles.searchContainer}>
-            <IconSymbol name="magnifyingglass" size={16} color="#8a7e6e" />
-            <TextInput
-              style={styles.searchInput}
-              placeholder="Search concerns, quotes, authors..."
-              placeholderTextColor="#8a7e6e"
-              value={searchQuery}
-              onChangeText={setSearchQuery}
-              autoFocus
-              autoCapitalize="none"
-              autoCorrect={false}
-            />
-            {searchQuery.length > 0 && (
-              <TouchableOpacity onPress={() => setSearchQuery('')}>
-                <IconSymbol name="xmark.circle.fill" size={16} color="#8a7e6e" />
-              </TouchableOpacity>
-            )}
-          </View>
-        )}
+      {/* Search results count */}
+      {searchVisible && searchQuery.trim().length > 0 && (
+        <Text style={styles.searchResults}>
+          {filteredQuotes.length} {filteredQuotes.length === 1 ? 'result' : 'results'}
+        </Text>
+      )}
 
-        {/* Search results count */}
-        {searchVisible && searchQuery.trim().length > 0 && (
-          <Text style={styles.searchResults}>
-            {filteredQuotes.length} {filteredQuotes.length === 1 ? 'result' : 'results'}
-          </Text>
-        )}
-   
-        {/* Category filter bar */}
-        {categories.length > 0 && (
+      {/* Category filter bar */}
+      {categories.length > 0 && (
         <View style={styles.filterBarContainer}>
           <View style={styles.filterBar}>
             {[null, ...categories].slice(0, 6).map((cat) => {
@@ -269,9 +261,9 @@ export default function HistoryScreen() {
         </View>
       )}
 
-        {loading ? (
-          <ActivityIndicator size="large" color="#c9b97a" style={{ marginTop: 60 }} />
-        ) : filteredQuotes.length === 0 ? (
+      {loading ? (
+        <ActivityIndicator size="large" color="#c9b97a" style={{ marginTop: 60 }} />
+      ) : filteredQuotes.length === 0 ? (
         <View style={styles.emptyContainer}>
           <IconSymbol name="bookmark" size={48} color="#6a6050" />
           <Text style={styles.emptyTitle}>No saved wisdom yet</Text>
@@ -324,17 +316,16 @@ export default function HistoryScreen() {
               </Text>
             </View>
 
+            {/* Counsel */}
+            <View style={styles.counselBox}>
+              <View style={styles.sectionLabelRow}>
+                <IconSymbol name="lightbulb.fill" size={12} color="#c4b99e" />
+                <Text style={styles.counselLabel}>Counsel</Text>
+              </View>
+              <Text style={styles.counselText}>{currentQuote.interpretation}</Text>
+            </View>
 
-           {/* Counsel */}
-           <View style={styles.counselBox}>
-             <View style={styles.sectionLabelRow}>
-               <IconSymbol name="lightbulb.fill" size={12} color="#c4b99e" />
-               <Text style={styles.counselLabel}>Counsel</Text>
-             </View>
-             <Text style={styles.counselText}>{currentQuote.interpretation}</Text>
-           </View>
-
-           {/* Quote */}
+            {/* Quote */}
             <View style={styles.quoteBox}>
               <View style={styles.sectionLabelRow}>
                 <IconSymbol name="text.quote" size={12} color="#c9b97a" />
@@ -364,6 +355,7 @@ export default function HistoryScreen() {
               })}
             </View>
           </ScrollView>
+
           {/* Fixed left arrow */}
           <TouchableOpacity
             style={[styles.fixedNavLeft, currentIndex === 0 && styles.navButtonDisabled]}
@@ -381,6 +373,7 @@ export default function HistoryScreen() {
           >
             <IconSymbol name="chevron.right" size={16} color={currentIndex === total - 1 ? '#6a6050' : '#c9b97a'} />
           </TouchableOpacity>
+
         </View>
       )}
     </View>
@@ -410,6 +403,38 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#8a7e6e',
     marginTop: 4,
+  },
+  headerText: {
+    flex: 1,
+  },
+  wreathSmall: {
+    width: 48,
+    height: 48,
+    marginRight: 12,
+  },
+  searchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#1e1c18',
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 16,
+    marginHorizontal: 16,
+    marginVertical: 8,
+    gap: 8,
+    borderWidth: 1,
+    borderColor: '#4a4540',
+  },
+  searchInput: {
+    flex: 1,
+    color: '#f0ead6',
+    fontSize: 15,
+  },
+  searchResults: {
+    fontSize: 12,
+    color: '#8a7e6e',
+    paddingHorizontal: 28,
+    paddingBottom: 4,
   },
   filterBarContainer: {
     borderBottomWidth: 1,
@@ -559,11 +584,6 @@ const styles = StyleSheet.create({
     color: '#c4b99e',
     lineHeight: 24,
   },
-  counselRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
   quoteBox: {
     backgroundColor: '#1e1c18',
     borderRadius: 12,
@@ -596,25 +616,6 @@ const styles = StyleSheet.create({
     color: '#8a7e6e',
     marginTop: 2,
   },
-  navRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 24,
-    paddingTop: 16,
-    borderTopWidth: 1,
-    borderTopColor: '#4a4540',
-  },
-  navButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: '#1e1c18',
-    borderWidth: 1,
-    borderColor: '#6a6050',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
   navButtonDisabled: {
     opacity: 0.3,
   },
@@ -641,22 +642,6 @@ const styles = StyleSheet.create({
     gap: 6,
     marginBottom: 8,
   },
-/*  sideNavButton: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#1e1c18',
-    borderWidth: 1,
-    borderColor: '#6a6050',
-    alignItems: 'center',
-    justifyContent: 'center',
-  }, */
-  sideNavButton: {
-    width: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 8,
-  },
   fixedNavLeft: {
     position: 'absolute',
     left: 4,
@@ -679,37 +664,4 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     zIndex: 10,
   },
-  wreathSmall: {
-    width: 48,
-    height: 48,
-    marginRight: 12,
-  },
-  headerText: {
-    flex: 1,
-  },
-  searchInput: {
-    flex: 1,
-    color: '#f0ead6',
-    fontSize: 15,
-  },
-  searchContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#1e1c18',
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 16,
-    marginHorizontal: 16,
-    marginVertical: 8,
-    gap: 8,
-    borderWidth: 1,
-    borderColor: '#4a4540',
-  },
-  searchResults: {
-    fontSize: 12,
-    color: '#8a7e6e',
-    paddingHorizontal: 28,
-    paddingBottom: 4,
-  },
 });
-
