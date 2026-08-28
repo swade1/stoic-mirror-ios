@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import { ExpoSpeechRecognitionModule, useSpeechRecognitionEvent } from 'expo-speech-recognition';
+import { IconSymbol } from '@/components/ui/IconSymbol';
 import {
   View,
   Text,
@@ -18,9 +20,31 @@ export default function CounselScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const [input, setInput] = useState('');
-
-
+  const [listening, setListening] = useState(false);
   const [keyboardVisible, setKeyboardVisible] = useState(false);
+  
+
+  const handleMic = async () => {
+    try {
+      const SpeechModule = require('expo-speech-recognition');
+      if (listening) {
+        SpeechModule.ExpoSpeechRecognitionModule.stop();
+        setListening(false);
+        return;
+      }
+      const { granted } = await SpeechModule.ExpoSpeechRecognitionModule.requestPermissionsAsync();
+      if (!granted) return;
+      setListening(true);
+      SpeechModule.ExpoSpeechRecognitionModule.start({
+        lang: 'en-US',
+        continuous: false,
+        interimResults: true,
+      });
+    } catch (e) {
+      console.log('Speech recognition not available on this device');
+      setListening(false);
+    }
+  };
 
   useEffect(() => {
     const show = Keyboard.addListener('keyboardDidShow', () => setKeyboardVisible(true));
@@ -54,6 +78,7 @@ export default function CounselScreen() {
           <Text style={styles.headerSubtitle}>Seek counsel from the philosophers</Text>
         </View>
       </View>
+
       {/* Main content */}
       <View style={styles.content}>
         <Text style={styles.prompt}>What troubles you?</Text>
@@ -61,38 +86,51 @@ export default function CounselScreen() {
           Describe your concern openly. The philosophers will counsel you from their own words.
         </Text>
 
-        <TextInput
-          style={styles.textInput}
-          placeholder="Speak freely..."
-          placeholderTextColor="#8a7e6e"
-          value={input}
-          onChangeText={setInput}
-          multiline
-          maxLength={2000}
-          textAlignVertical="top"
+      <View style={styles.textInputContainer}>
+      <TextInput
+        style={styles.textInput}
+        placeholder="Speak freely..."
+        placeholderTextColor="#8a7e6e"
+        value={input}
+        onChangeText={setInput}
+        multiline
+        maxLength={2000}
+        textAlignVertical="top"
+      />
+      <TouchableOpacity
+        style={[styles.micButton, listening && styles.micButtonActive]}
+        onPress={handleMic}
+      >
+        <IconSymbol
+          name={listening ? 'stop.fill' : 'mic.fill'}
+          size={16}
+          color={listening ? '#0f0e0c' : '#c9b97a'}
         />
+      </TouchableOpacity>
+    </View>
+    
+    <TouchableOpacity
+      style={[styles.sendButton, !input.trim() && styles.sendButtonDisabled]}
+      onPress={handleSeekCounsel}
+      disabled={!input.trim()}
+    >
+      <Text style={[styles.sendButtonText, !input.trim() && styles.sendButtonTextDisabled]}>
+        Seek Counsel
+      </Text>
+    </TouchableOpacity>
+      </View>
 
-        <TouchableOpacity
-          style={[styles.sendButton, !input.trim() && styles.sendButtonDisabled]}
-          onPress={handleSeekCounsel}
-          disabled={!input.trim()}
-        >
-          <Text style={[styles.sendButtonText, !input.trim() && styles.sendButtonTextDisabled]}>
-            Seek Counsel
+      {!keyboardVisible && (
+        <View style={[styles.footer, { paddingBottom: insets.bottom + 80 }]}>
+          <Text style={styles.footerText}>
+            Drawing from Marcus Aurelius · Epictetus · Seneca
           </Text>
-        </TouchableOpacity>
-      </View>
-
-     {!keyboardVisible && (
-      <View style={[styles.footer, { paddingBottom: insets.bottom + 80 }]}>
-        <Text style={styles.footerText}>
-          Drawing from Marcus Aurelius · Epictetus · Seneca
-        </Text>
-      </View>
-     )}
+        </View>
+      )}
     </KeyboardAvoidingView>
   );
 }
+
 
 const styles = StyleSheet.create({
   container: {
@@ -152,11 +190,12 @@ const styles = StyleSheet.create({
   },
   sendButton: {
     backgroundColor: '#2a2720',
-    paddingVertical: 16,
+    paddingVertical: 8,
     borderRadius: 20,
     borderWidth: 1,
     borderColor: '#c9b97a',
     alignItems: 'center',
+    width: '100%',
   },
   sendButtonDisabled: {
     borderColor: '#6a6050',
@@ -186,4 +225,31 @@ const styles = StyleSheet.create({
     height: 48,
     marginRight: 12,
   },
+  inputButtons: {
+    flexDirection: 'row',
+    gap: 12,
+    alignItems: 'center',
+    marginTop: 16,
+  },
+  textInputContainer: {
+    position: 'relative',
+    marginBottom: 16,
+  },
+  micButton: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    backgroundColor: '#2a2720',
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#c9b97a',
+    zIndex: 1,
+  },
+  micButtonActive: {
+    backgroundColor: '#c9b97a',
+  },  
 });
