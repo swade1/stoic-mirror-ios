@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -8,6 +8,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   Image,
+  Keyboard,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -16,6 +17,18 @@ export default function CounselScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const [input, setInput] = useState('');
+
+
+  const [keyboardVisible, setKeyboardVisible] = useState(false);
+
+  useEffect(() => {
+    const show = Keyboard.addListener('keyboardDidShow', () => setKeyboardVisible(true));
+    const hide = Keyboard.addListener('keyboardDidHide', () => setKeyboardVisible(false));
+    return () => {
+      show.remove();
+      hide.remove();
+    };
+  }, []);
 
   const handleSeekCounsel = () => {
     if (!input.trim()) return;
@@ -68,12 +81,13 @@ export default function CounselScreen() {
         </TouchableOpacity>
       </View>
 
+     {!keyboardVisible && (
       <View style={[styles.footer, { paddingBottom: insets.bottom + 80 }]}>
         <Text style={styles.footerText}>
           Drawing from Marcus Aurelius · Epictetus · Seneca
         </Text>
       </View>
-
+     )}
     </KeyboardAvoidingView>
   );
 }
