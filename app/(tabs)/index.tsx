@@ -153,7 +153,7 @@ const styles = StyleSheet.create({
   },
   headerSubtitle: {
     fontSize: 13,
-    color: '#8a7e6e',
+    color: '#a89f88',
     marginTop: 4,
     letterSpacing: 0.5,
   },
@@ -221,8 +221,8 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   wreathSmall: {
-    width: 56,
-    height: 56,
+    width: 68,
+    height: 68,
     marginRight: 12,
   },
   inputButtons: {

@@ -208,8 +208,8 @@ const styles = StyleSheet.create({
     borderBottomColor: '#4a4540',
   },
   wreathSmall: {
-    width: 56,
-    height: 56,
+    width: 68,
+    height: 68,
     marginRight: 12,
   },
   headerTitle: {

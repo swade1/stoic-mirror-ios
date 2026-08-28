@@ -401,15 +401,15 @@ const styles = StyleSheet.create({
   },
   headerSubtitle: {
     fontSize: 13,
-    color: '#8a7e6e',
+    color: '#a89f88',
     marginTop: 4,
   },
   headerText: {
     flex: 1,
   },
   wreathSmall: {
-    width: 56,
-    height: 56,
+    width: 68,
+    height: 68,
     marginRight: 12,
   },
   searchContainer: {
