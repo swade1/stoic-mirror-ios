@@ -325,7 +325,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingVertical: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#2a2720',
+    borderBottomColor: '#4a4540',
   },
   headerTitle: {
     fontSize: 24,
@@ -340,7 +340,7 @@ const styles = StyleSheet.create({
   },
   filterBarContainer: {
     borderBottomWidth: 1,
-    borderBottomColor: '#2a2720',
+    borderBottomColor: '#4a4540',
     paddingHorizontal: 16,
     paddingVertical: 12,
   },
@@ -471,7 +471,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 16,
     borderWidth: 1,
-    borderColor: '#2a2720',
+    borderColor: '#4a4540',
     borderLeftWidth: 3,
     borderLeftColor: '#c4b99e',
   },
@@ -530,7 +530,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingTop: 16,
     borderTopWidth: 1,
-    borderTopColor: '#2a2720',
+    borderTopColor: '#4a4540',
   },
   navButton: {
     width: 44,

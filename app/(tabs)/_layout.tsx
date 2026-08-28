@@ -27,6 +27,7 @@ export default function TabLayout() {
             borderTopWidth: 1,
           },
         }),
+        animation: 'fade',
       }}>
 
       <Tabs.Screen

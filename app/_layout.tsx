@@ -56,7 +56,12 @@ export default function RootLayout() {
 
   return (
     <ThemeProvider value={DarkTheme}>
-      <Stack screenOptions={{ headerShown: false }}>
+       <Stack
+         screenOptions={{
+           headerShown: false,
+           animation: 'fade',
+         }}
+       >
         {isSignedIn ? (
           <>
             <Stack.Screen name="(tabs)" />

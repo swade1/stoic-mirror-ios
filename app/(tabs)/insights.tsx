@@ -128,7 +128,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingVertical: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#2a2720',
+    borderBottomColor: '#4a4540',
   },
   headerTitle: {
     fontSize: 24,
@@ -171,7 +171,7 @@ const styles = StyleSheet.create({
     padding: 20,
     marginBottom: 32,
     borderWidth: 1,
-    borderColor: '#2a2720',
+    borderColor: '#4a4540',
     borderLeftWidth: 3,
     borderLeftColor: '#c9b97a',
   },
