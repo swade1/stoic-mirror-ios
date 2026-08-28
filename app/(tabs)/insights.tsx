@@ -67,7 +67,7 @@ export default function InsightsScreen() {
       {/* Header */}
       <View style={styles.header}>
         <Image
-          source={require('../../assets/images/wreath-small.png')}
+          source={require('../../assets/images/wreath-small-bright.png')}
           style={styles.wreathSmall}
         />
         <View>
@@ -140,8 +140,8 @@ const styles = StyleSheet.create({
     borderBottomColor: '#4a4540',
   },
   wreathSmall: {
-    width: 48,
-    height: 48,
+    width: 56,
+    height: 56,
     marginRight: 12,
   },
   headerTitle: {
