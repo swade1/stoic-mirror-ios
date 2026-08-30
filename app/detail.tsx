@@ -129,10 +129,10 @@ export default function ResultsScreen() {
       setTimeout(() => setSessionSaved(false), 3000);
     }
   };
-
+  
   const toggleSave = async (quote: Quote) => {
     const isSaved = saved.includes(quote.id);
-   
+    
     // Bounce animation
     const anim = getSaveAnim(quote.id);
     Animated.sequence([
@@ -141,29 +141,21 @@ export default function ResultsScreen() {
     ]).start();
 
     if (isSaved) {
-      await supabase
+      const { error } = await supabase
         .from('saved_quotes')
         .delete()
         .eq('entry_id', entry?.id)
         .eq('quote', quote.quote);
+      if (!error || error.code === '23505') {
+       // Success or duplicate (already saved) — both are fine
+       setSaved((prev) => [...prev, quote.id]);
+     }
       setSaved((prev) => prev.filter((savedId) => savedId !== quote.id));
     } else {
-      // Check for existing duplicate
-      const { data: existing } = await supabase
-        .from('saved_quotes')
-        .select('id')
-        .eq('user_id', (await supabase.auth.getSession()).data.session?.user.id)
-        .eq('quote', quote.quote)
-        .single();
-
-      if (existing) {
-        // Already saved — just update UI state
-        setSaved((prev) => [...prev, quote.id]);
-        return;
-      }
-
-      await supabase.from('saved_quotes').insert({
-        user_id: (await supabase.auth.getSession()).data.session?.user.id,
+      const session = (await supabase.auth.getSession()).data.session;
+      
+      const { error } = await supabase.from('saved_quotes').insert({
+        user_id: session?.user.id,
         entry_id: entry?.id,
         quote: quote.quote,
         author: quote.author,
@@ -174,6 +166,7 @@ export default function ResultsScreen() {
       setSaved((prev) => [...prev, quote.id]);
     }
   };
+
   const saveAll = async () => {
     const unsaved = quotes.filter((q) => !saved.includes(q.id));
     if (unsaved.length === 0) return;
@@ -229,13 +222,6 @@ return (
 
       {/* Fixed header */}
       <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => router.back()}
-        >
-          <IconSymbol name="chevron.left" size={16} color="#c9b97a" />
-          <Text style={styles.backButtonText}>Back</Text>
-        </TouchableOpacity>
         <Text style={styles.headerTitle}>Received Wisdom</Text>
         <Text style={styles.headerSubtitle}>{entry.category}</Text>
         {sessionSaved && (
@@ -254,12 +240,16 @@ return (
           { paddingBottom: insets.bottom + 100 },
         ]}
       >
-        {/* Concern */}
-        <View style={styles.concernBox}>
-          <Text style={styles.concernLabel}>Your concern</Text>
-          <Text style={styles.concernText}>{entry.concern}</Text>
-        </View>
-
+      {/* Concern */}
+      <View style={styles.concernBox}>
+        <Text style={styles.concernLabel}>Your concern</Text>
+        <Text style={styles.concernText}>{entry.concern}</Text>
+        {true && (
+          <Text style={styles.savePrompt}>
+            Save at least one quote to revisit this counsel in History.
+          </Text>
+        )}
+      </View>
         {/* Divider */}
         <View style={styles.divider} />
 
@@ -502,16 +492,6 @@ const styles = StyleSheet.create({
     lineHeight: 24,
     paddingHorizontal: 32,
   },
-  backButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    marginBottom: 8,
-  },
-  backButtonText: {
-    fontSize: 14,
-    color: '#c9b97a',
-  },
   savedIndicator: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -554,5 +534,11 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#c9b97a',
     letterSpacing: 1,
+  },
+  savePrompt: {
+    fontSize: 12,
+    color: '#c9b97a',
+    marginTop: 10,
+    fontStyle: 'italic',
   },
 });
