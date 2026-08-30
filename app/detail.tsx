@@ -112,7 +112,13 @@ export default function ResultsScreen() {
         .select('quote')
         .eq('entry_id', entryId);
 
-      if (entryData) setEntry(entryData);
+      if (entryData) {
+        const { decryptConcern } = await import('@/lib/encryption');
+        const { data: { session } } = await supabase.auth.getSession();
+        const userId = session?.user.id ?? '';
+        const decryptedConcern = await decryptConcern(entryData.concern, userId);
+        setEntry({ ...entryData, concern: decryptedConcern });
+      }
       if (quotesData) setQuotes(quotesData);
       if (savedData && quotesData) {
         const savedQuoteTexts = savedData.map((s) => s.quote);

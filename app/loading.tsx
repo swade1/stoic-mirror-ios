@@ -220,11 +220,14 @@ useEffect(() => {
       const category: string = parsed.category || 'General';
 
       // Step 6: Save entry to Supabase
+      const { encryptConcern } = await import('@/lib/encryption');
+      const encryptedConcern = await encryptConcern(concern, user.id);
+
       const { data: entry, error: entryError } = await supabase
         .from('entries')
         .insert({
           user_id: user.id,
-          concern,
+          concern: encryptedConcern,
           category,
         })
         .select()

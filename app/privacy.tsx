@@ -58,7 +58,12 @@ export default function PrivacyScreen() {
         </Section>
 
         <Section title="Data Security">
-          We implement industry-standard security measures to protect your data. All data is transmitted over encrypted HTTPS connections. Your journal entries and saved quotes are protected by Row Level Security — only you can access your own data. Passwords are encrypted and never stored in plain text.
+          We implement industry-standard security measures to protect your data. All data is 
+          transmitted over encrypted HTTPS connections. Your personal concerns are encrypted 
+          end-to-end before being stored — we cannot read them, and neither can anyone else. 
+          Only you can decrypt your concerns, using your account credentials. Your saved quotes 
+          and insights are protected by Row Level Security — only you can access your own data. 
+          Passwords are encrypted and never stored in plain text.
         </Section>
 
         <Section title="Data Retention">

@@ -63,10 +63,12 @@ export default function HistoryScreen() {
 
         if (!cancelled) {
           if (data) {
-            const withCategory = data.map((q: any) => ({
+            const { decryptConcern } = await import('@/lib/encryption');
+            const withCategory = await Promise.all(data.map(async (q: any) => ({
               ...q,
               category: q.entries?.category ?? 'General',
-            }));
+              concern: q.concern ? await decryptConcern(q.concern, session.user.id) : '',
+            })));
             setSavedQuotes(withCategory);
             const unique = [...new Set(withCategory.map((q: SavedQuote) => q.category))].sort() as string[];
             setCategories(unique);
