@@ -15,6 +15,7 @@ import {
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
+import { supabase } from '@/lib/supabase';
 
 export default function CounselScreen() {
   const router = useRouter();
@@ -22,7 +23,38 @@ export default function CounselScreen() {
   const [input, setInput] = useState('');
   const [listening, setListening] = useState(false);
   const [keyboardVisible, setKeyboardVisible] = useState(false);
+  const [dailyQuote, setDailyQuote] = useState<{ quote: string; author: string; source: string } | null>(null);
+  const [expandedQuote, setExpandedQuote] = useState(false);
   
+  const loadDailyQuote = async () => {
+    const { count } = await supabase
+      .from('daily_quotes')
+      .select('*', { count: 'exact', head: true });
+
+    if (!count) return;
+
+    const today = new Date();
+    const seed = today.getFullYear() * 10000 + (today.getMonth() + 1) * 100 + today.getDate();
+    const index = (seed % count) + 1;
+
+    const { data } = await supabase
+      .from('daily_quotes')
+      .select('quote, author, source')
+      .eq('id', index)
+      .single();
+
+    if (data) {
+      setDailyQuote({
+        quote: data.quote,
+        author: data.author,
+        source: data.source,
+      });
+    }
+  };
+
+  useEffect(() => {
+    loadDailyQuote();
+  }, []); 
 
   const handleMic = async () => {
     try {
@@ -81,10 +113,22 @@ export default function CounselScreen() {
 
       {/* Main content */}
       <View style={styles.content}>
+
+        { /* Daily quote */ }
+        {dailyQuote && (
+          <View style={styles.dailyQuoteBox}>
+            <Text style={styles.dailyQuoteLabel}>Today's reflection</Text>
+            <Text style={styles.dailyQuoteText}>
+              "{dailyQuote.quote}"
+            </Text>
+            <Text style={styles.dailyQuoteAuthor}>— {dailyQuote.author}</Text>
+          </View>
+        )}
         <Text style={styles.prompt}>What troubles you?</Text>
         <Text style={styles.promptSub}>
           Describe your concern openly. The philosophers will counsel you from their own words.
         </Text>
+
 
       <View style={styles.textInputContainer}>
       <TextInput
@@ -160,7 +204,8 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     padding: 24,
-    justifyContent: 'center',
+    justifyContent: 'flex-start',
+    width: '100%',
   },
   prompt: {
     fontSize: 28,
@@ -232,7 +277,6 @@ const styles = StyleSheet.create({
     marginTop: 16,
   },
   textInputContainer: {
-    position: 'relative',
     marginBottom: 16,
   },
   micButton: {
@@ -252,4 +296,38 @@ const styles = StyleSheet.create({
   micButtonActive: {
     backgroundColor: '#c9b97a',
   },  
+  dailyQuoteBox: {
+    backgroundColor: '#1e1c18',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: '#2a2720',
+    borderLeftWidth: 3,
+    borderLeftColor: '#c9b97a',
+    alignSelf: 'stretch',
+   },
+  dailyQuoteLabel: {
+    fontSize: 11,
+    color: '#c9b97a',
+    letterSpacing: 1,
+    textTransform: 'uppercase',
+    marginBottom: 8,
+  },
+  dailyQuoteText: {
+    fontSize: 14,
+    color: '#f0ead6',
+    lineHeight: 22,
+    marginBottom: 10,
+  },
+  dailyQuoteAuthor: {
+    fontSize: 13,
+    color: '#a89f88',
+    textAlign: 'right',
+  },
+  showMore: {
+    color: '#c9b97a',
+    fontStyle: 'normal',
+    fontWeight: '600',
+  },
 });
