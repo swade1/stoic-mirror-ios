@@ -8,7 +8,7 @@ export default function Onboarding2() {
     <View style={styles.container}>
       <View style={styles.flexGrow} />
       <Image
-        source={require('../assets/images/wreath-welcome.png')}
+        source={require('../assets/images/mirror-welcome.png')}
         style={styles.wreathImage}
       />
       <Text style={styles.title}>{"Three voices, \none wisdom"}</Text>

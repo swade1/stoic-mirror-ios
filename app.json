@@ -4,7 +4,7 @@
     "slug": "stoic-mirror",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/wreath.png",
+    "icon": "./assets/images/mirror-icon.png",
     "scheme": "stoicmirror",
     "userInterfaceStyle": "dark",
     "newArchEnabled": true,
@@ -18,7 +18,7 @@
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/wreath.png",
+        "foregroundImage": "./assets/images/mirror-icon.png",
         "backgroundColor": "#0f0e0c"
       },
       "edgeToEdgeEnabled": true,
@@ -30,7 +30,7 @@
     "web": {
       "bundler": "metro",
       "output": "static",
-      "favicon": "./assets/images/wreath.png"
+      "favicon": "./assets/images/mirror-icon.png"
     },
     "plugins": [
       "expo-router",

@@ -10,6 +10,7 @@ import {
   View,
   KeyboardAvoidingView,
   Platform,
+  Image,
 } from 'react-native';
 
 export default function Login() {
@@ -32,12 +33,15 @@ export default function Login() {
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
       <View style={styles.header}>
+        <Image
+          source={require('../assets/images/mirror-welcome.png')}
+          style={styles.mirrorImage}
+        />
         <Text style={styles.title}>Welcome back</Text>
         <Text style={styles.subtitle}>
           Continue your Stoic practice
         </Text>
       </View>
-
       <View style={styles.form}>
         <Text style={styles.label}>Email</Text>
         <TextInput
@@ -174,5 +178,11 @@ const styles = StyleSheet.create({
     fontSize: 15,
     textAlign: 'center',
     textDecorationLine: 'underline',
+  },
+  mirrorImage: {
+    width: 200,
+    height: 200,
+    alignSelf: 'center',
+    marginBottom: 24,
   },
 });

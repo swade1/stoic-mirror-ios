@@ -102,7 +102,7 @@ export default function CounselScreen() {
       {/* Header */}
       <View style={styles.header}>
         <Image
-          source={require('../../assets/images/wreath-small-bright.png')}
+          source={require('../../assets/images/mirror-small.png')}
           style={styles.wreathSmall}
         />
         <View>

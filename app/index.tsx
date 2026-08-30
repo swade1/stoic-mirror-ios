@@ -12,7 +12,7 @@ export default function Start() {
       <View style={styles.flexGrow} />
 
       <Image
-       source={require('../assets/images/wreath-welcome.png')}
+       source={require('../assets/images/mirror-welcome.png')}
        style={styles.wreathImage}
      />
       <Text style={styles.title}>The Stoic Mirror</Text>
