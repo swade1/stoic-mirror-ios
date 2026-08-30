@@ -19,6 +19,21 @@ export default function Login() {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
 
+  const handleForgotPassword = async () => {
+    if (!email) {
+      Alert.alert('Enter your email', 'Please enter your email address first, then tap Forgot Password.');
+      return;
+    }
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: 'exp://localhost:8081',
+    });
+    if (error) {
+      Alert.alert('Error', error.message);
+    } else {
+      Alert.alert('Check your email', 'A password reset link has been sent to ' + email);
+    }
+  };
+
   const handleLogin = async () => {
     setLoading(true);
     const { error } = await supabase.auth.signInWithPassword({ email, password });
@@ -89,13 +104,17 @@ export default function Login() {
         </View>
       </View>
 
-      <TouchableOpacity onPress={() => router.push('/signup')}>
-        <Text style={styles.signUpText}>
-          Don't have an account? Create one
-        </Text>
-      </TouchableOpacity>
+    <TouchableOpacity onPress={() => router.push('/signup')}>
+      <Text style={styles.signUpText}>
+        Don't have an account? Create one
+      </Text>
+    </TouchableOpacity>
+    
+    <TouchableOpacity onPress={handleForgotPassword} style={{ marginTop: 12 }}>
+      <Text style={styles.forgotText}>Forgot your password?</Text>
+    </TouchableOpacity>
     </KeyboardAvoidingView>
-  );
+    );
 }
 
 const styles = StyleSheet.create({
@@ -184,5 +203,11 @@ const styles = StyleSheet.create({
     height: 200,
     alignSelf: 'center',
     marginBottom: 24,
+  },
+  forgotText: {
+    color: '#8a7e6e',
+    fontSize: 14,
+    textAlign: 'center',
+    textDecorationLine: 'underline',
   },
 });
