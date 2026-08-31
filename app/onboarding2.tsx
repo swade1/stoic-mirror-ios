@@ -1,47 +1,87 @@
 import { useRouter } from 'expo-router';
-import React from 'react';
-import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import React, { useState } from 'react';
+import { Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+const REASONS = [
+  'Anxiety & worry',
+  'Relationships & conflict',
+  'Work & career stress',
+  'Loss & grief',
+  'Finding direction',
+  'General peace of mind',
+];
 
 export default function Onboarding2() {
   const router = useRouter();
+  const [selected, setSelected] = useState<string[]>([]);
+
+  const handleContinue = async () => {
+    if (selected.length > 0) {
+      await AsyncStorage.setItem('user_primary_concern', JSON.stringify(selected));
+    }
+    router.push('/signup');
+  };
+
   return (
     <View style={styles.container}>
-      <View style={styles.flexGrow} />
-      <Image
-        source={require('../assets/images/mirror-welcome.png')}
-        style={styles.wreathImage}
-      />
-      <Text style={styles.title}>{"Three voices, \none wisdom"}</Text>
-      <View style={styles.philosopherList}>
-        <View style={styles.philosopherRow}>
-          <Text style={styles.philosopherName}>Marcus Aurelius</Text>
-          <Text style={styles.philosopherRole}>Emperor · Meditations</Text>
+      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+
+        <Image
+          source={require('../assets/images/mirror-welcome.png')}
+          style={styles.mirrorImage}
+        />
+
+        <Text style={styles.title}>What brings you here?</Text>
+
+        <Text style={styles.subtitle}>
+          Your answer helps us find the most relevant wisdom for you.
+        </Text>
+
+        <View style={styles.options}>
+          {REASONS.map((reason) => (
+            <TouchableOpacity
+              key={reason}
+              style={[styles.option, selected.includes(reason) && styles.optionSelected]}
+              onPress={() => {
+                setSelected((prev) =>
+                  prev.includes(reason)
+                    ? prev.filter((r) => r !== reason)
+                    : [...prev, reason]
+                );
+              }}
+            >
+              <Text style={[styles.optionText, selected.includes(reason) && styles.optionTextSelected]}>
+                {reason}
+              </Text>
+              {selected.includes(reason) && (
+                <Text style={styles.checkmark}>✓</Text>
+              )}
+            </TouchableOpacity>
+          ))}
         </View>
-        <View style={styles.divider} />
-        <View style={styles.philosopherRow}>
-          <Text style={styles.philosopherName}>Epictetus</Text>
-          <Text style={styles.philosopherRole}>Slave · Discourses</Text>
+
+      </ScrollView>
+
+      <View style={styles.footer}>
+        <View style={styles.progressRow}>
+          <View style={styles.dot} />
+          <View style={[styles.dot, styles.dotActive]} />
         </View>
-        <View style={styles.divider} />
-        <View style={styles.philosopherRow}>
-          <Text style={styles.philosopherName}>Seneca</Text>
-          <Text style={styles.philosopherRole}>Statesman · Letters</Text>
-        </View>
+        <TouchableOpacity
+          style={[styles.button, selected.length === 0 && styles.buttonDisabled]}
+          onPress={handleContinue}
+          disabled={selected.length === 0}
+        >
+          <Text style={[styles.buttonText, selected.length === 0 && styles.buttonTextDisabled]}>
+            Continue
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.skip} onPress={() => router.push('/signup')}>
+          <Text style={styles.skipText}>Skip</Text>
+        </TouchableOpacity>
+        <View style={styles.spacer} />
       </View>
-
-      <View style={styles.flexGrow} />
-
-      <View style={styles.progressRow}>
-        <View style={styles.dot} />
-        <View style={[styles.dot, styles.dotActive]} />
-        <View style={styles.dot} />
-      </View>
-
-      <TouchableOpacity style={styles.button} onPress={() => router.push('/onboarding3')}>
-        <Text style={styles.buttonText}>Next</Text>
-      </TouchableOpacity>
-
-      <View style={styles.spacer} />
     </View>
   );
 }
@@ -49,61 +89,75 @@ export default function Onboarding2() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 24,
     backgroundColor: '#0f0e0c',
   },
-  spacer: { height: 40 },
-  flexGrow: { flex: 1 },
-  icon: {
-    fontSize: 80,
-    textAlign: 'center',
-    marginBottom: 16,
+  scrollContent: {
+    padding: 32,
+    paddingTop: 60,
+    alignItems: 'center',
   },
-  title: {
-    fontSize: 42,
-    fontWeight: 'bold',
-    marginBottom: 24,
-    textAlign: 'center',
-    color: '#f0ead6',
-    letterSpacing: 0.5,
-    lineHeight: 50,
-  },
-  philosopherList: {
-    width: '100%',
-    backgroundColor: '#1e1c18',
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: '#6a6050',
-    overflow: 'hidden',
+  mirrorImage: {
+    width: 120,
+    height: 120,
     marginBottom: 32,
   },
-  philosopherRow: {
+  title: {
+    fontSize: 36,
+    fontWeight: 'bold',
+    color: '#f0ead6',
+    textAlign: 'center',
+    letterSpacing: 0.5,
+    marginBottom: 12,
+    lineHeight: 44,
+  },
+  subtitle: {
+    fontSize: 16,
+    color: '#a89f88',
+    textAlign: 'center',
+    lineHeight: 24,
+    marginBottom: 32,
+  },
+  options: {
+    width: '100%',
+    gap: 12,
+  },
+  option: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 14,
+    backgroundColor: '#1e1c18',
+    borderRadius: 12,
+    paddingVertical: 16,
     paddingHorizontal: 20,
+    borderWidth: 1,
+    borderColor: '#4a4540',
   },
-  philosopherName: {
+  optionSelected: {
+    borderColor: '#c9b97a',
+    backgroundColor: '#2a2720',
+  },
+  optionText: {
     fontSize: 16,
-    fontWeight: '600',
+    color: '#a89f88',
+  },
+  optionTextSelected: {
     color: '#f0ead6',
+    fontWeight: '600',
   },
-  philosopherRole: {
-    fontSize: 13,
-    color: '#8a7e6e',
+  checkmark: {
+    fontSize: 16,
+    color: '#c9b97a',
+    fontWeight: 'bold',
   },
-  divider: {
-    height: 1,
-    backgroundColor: '#6a6050',
-    marginHorizontal: 20,
+  footer: {
+    padding: 24,
+    paddingBottom: 0,
+    alignItems: 'center',
   },
   progressRow: {
     flexDirection: 'row',
     gap: 8,
-    marginBottom: 32,
+    marginBottom: 20,
   },
   dot: {
     width: 8,
@@ -123,6 +177,10 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#c9b97a',
   },
+  buttonDisabled: {
+    borderColor: '#4a4540',
+    backgroundColor: '#1a1814',
+  },
   buttonText: {
     color: '#c9b97a',
     fontSize: 20,
@@ -130,9 +188,16 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     letterSpacing: 2,
   },
-  wreathImage: {
-    width: 160,
-    height: 160,
-    marginBottom: 16,
+  buttonTextDisabled: {
+    color: '#4a4540',
   },
+  skip: {
+    marginTop: 16,
+  },
+  skipText: {
+    fontSize: 14,
+    color: '#5a5446',
+    textDecorationLine: 'underline',
+  },
+  spacer: { height: 40 },
 });

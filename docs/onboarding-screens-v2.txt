@@ -1,0 +1,161 @@
+THE STOIC MIRROR — ONBOARDING SCREENS V2
+==========================================
+Based on Screensdesign research: prove value fast, one lightweight preference,
+defer sign-up, gate monetization on intent.
+
+ANALYSIS OF CURRENT FLOW vs SCREENSDESIGN GUIDELINES
+======================================================
+
+Current flow (5 screens):
+1. The Problem — "Your mind won't stop"
+2. The Insight — Epictetus/Aurelius
+3. The Practice — Daily Stoic practice
+4. The Tool — How the app works
+5. The Promise — Equanimity
+
+Problems with current flow:
+- 5 screens is too many before proving value
+- No personalization/preference collection
+- Sign-up happens before user experiences anything
+- No paywall — monetization not addressed
+- Heavy on philosophy, light on "what's in it for me right now"
+
+REVISED FLOW (4 screens + paywall)
+====================================
+
+SCREEN 1 — Value Proposition (prove value immediately)
+-------------------------------------------------------
+Headline: "Your mind won't stop."
+
+Body:
+You keep thinking about it. The conversation that went wrong.
+The thing you can't fix. The future you can't predict.
+
+The Stoics had a name for this. And a solution that has worked
+for 2,000 years.
+
+The Stoic Mirror matches your exact concern to the words of
+Marcus Aurelius, Epictetus, and Seneca — philosophers who faced
+the same struggles you face today.
+
+[Button: See how it works]
+
+
+SCREEN 2 — Single Lightweight Preference (personalization)
+-----------------------------------------------------------
+Headline: "What brings you here?"
+
+Options (user selects one):
+• Anxiety & worry
+• Relationships & conflict
+• Work & career stress
+• Loss & grief
+• Finding direction
+• General peace of mind
+
+Body (below options):
+Your answer helps us find the most relevant wisdom for you.
+
+[Button: Continue]
+
+
+SCREEN 3 — Social Proof (substitute for feature tour)
+------------------------------------------------------
+Headline: "Ancient wisdom. Real results."
+
+Body:
+"I've tried meditation apps, therapy, journaling. Nothing
+clicked until I found Stoicism. This app makes it practical."
+
+"The quotes it returns are eerily relevant. It's like the
+philosophers knew exactly what I was going through."
+
+"I open it when I'm spiraling. It always brings me back."
+
+— Early users of The Stoic Mirror
+
+[Button: Try it free]
+
+
+SCREEN 4 — Paywall (intent-gated, patronage-framed)
+----------------------------------------------------
+Headline: "Support the practice."
+
+Body:
+The Stoic Mirror is free to try. Seek counsel, receive wisdom,
+and discover what the philosophers have to say about what
+troubles you most.
+
+If it helps — and we believe it will — consider becoming a
+supporter. Your subscription keeps the philosophers talking.
+
+[Free Trial: 7 days free, then $4.99/month]
+[Annual: 7 days free, then $39.99/year — save 33%]
+[Maybe later — continue free]
+
+
+SIGN-UP (deferred — after paywall decision)
+-------------------------------------------
+Headline: "Create your account."
+
+Body:
+Save your wisdom, track your insights, and carry the
+philosophers with you.
+
+[Email field]
+[Password field]
+[Create Account button]
+[Already have an account? Sign in]
+
+
+NOTES ON KEY CHANGES
+=====================
+
+1. SCREENS REDUCED: 5 philosophy screens → 2 value/proof screens
+   Reason: prove value fast, don't lecture before user is invested
+
+2. PERSONALIZATION ADDED: "What brings you here?" preference screen
+   Reason: lightweight, one question, makes app feel tailored
+   Implementation: store answer as first category preference
+
+3. SOCIAL PROOF SCREEN: replaces 3 philosophy explanation screens
+   Reason: DailyCare shows social proof alone can substitute for
+   feature tour when step budget is tight
+   Note: need real user quotes before launch — use placeholder for now
+
+4. PAYWALL REPOSITIONED: before sign-up, after intent established
+   Reason: gate on intent not on launch. User has seen value prop,
+   personalized their experience, seen social proof — now they're
+   ready to decide
+
+5. SIGN-UP DEFERRED: moved to after paywall decision
+   Reason: removing friction early increases completion rate.
+   User who decides to subscribe is highly motivated to complete sign-up
+
+6. PAYWALL FRAMED AS PATRONAGE: "Support the practice" not "Subscribe"
+   Reason: Meditate app uses this framing successfully. Feels less
+   transactional, more aligned with the app's philosophical values
+
+7. FREE OPTION PRESERVED: "Maybe later — continue free"
+   Reason: Art of Living uses intent-driven model with no hard paywall.
+   Users who try free and find value convert later.
+
+OPEN QUESTIONS BEFORE IMPLEMENTATION
+======================================
+- What features are free vs paid? (determines paywall copy)
+- What is the free tier limit? (X concerns per month?)
+- Do we need real user quotes for social proof screen?
+  (could use "Early users" framing as placeholder)
+- Should personalization answer affect RAG results?
+  (could filter passages by theme based on selection)
+
+Implementation Notes 
+Free session tracking:
+- Track session count in AsyncStorage (no account needed)
+- Increment on each "Seek Counsel" tap
+- Check count before navigating to loading screen
+- If count >= 3 and not subscribed → show paywall
+- Note: session count resets on uninstall/reinstall — accepted
+  risk. Users who game the free tier are unlikely to convert
+  to paying customers. Reducing friction for the honest majority
+  outweighs the cost of occasional abuse.

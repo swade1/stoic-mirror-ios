@@ -1,35 +1,44 @@
 import { useRouter } from 'expo-router';
 import React from 'react';
-import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 export default function Onboarding1() {
   const router = useRouter();
   return (
     <View style={styles.container}>
-    <View style={styles.flexGrow} />
-    <Image
-      source={require('../assets/images/mirror-welcome.png')}
-      style={styles.wreathImage}
-    />
-    <Text style={styles.title}>{"A mirror for\nthe mind"}</Text>
+      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+        
+        <Image
+          source={require('../assets/images/mirror-welcome.png')}
+          style={styles.mirrorImage}
+        />
 
-      <Text style={styles.subtitle}>
-        {"Describe what's troubling you and receive counsel from the greatest Stoic philosophers in history."}
-      </Text>
+        <Text style={styles.title}>Your mind won't stop.</Text>
 
-      <View style={styles.flexGrow} />
+        <Text style={styles.body}>
+          You keep thinking about it. The conversation that went wrong. The thing you can't fix. The future you can't predict. No matter how hard you try, your thoughts keep circling back.
+        </Text>
 
-      <View style={styles.progressRow}>
-        <View style={[styles.dot, styles.dotActive]} />
-        <View style={styles.dot} />
-        <View style={styles.dot} />
+        <Text style={styles.body}>
+          You're not broken. You're human. But there's a better way.
+        </Text>
+
+        <Text style={styles.body}>
+          The Stoics believed that wisdom begins with seeing yourself clearly — like looking into a mirror. Not to judge what you see, but to understand it. That's why Marcus Aurelius kept a journal we know today as Meditations. That's why this app is called The Stoic Mirror.
+        </Text>
+
+      </ScrollView>
+
+      <View style={styles.footer}>
+        <View style={styles.progressRow}>
+          <View style={[styles.dot, styles.dotActive]} />
+          <View style={styles.dot} />
+        </View>
+        <TouchableOpacity style={styles.button} onPress={() => router.push('/onboarding2')}>
+          <Text style={styles.buttonText}>See how it works</Text>
+        </TouchableOpacity>
+        <View style={styles.spacer} />
       </View>
-
-      <TouchableOpacity style={styles.button} onPress={() => router.push('/onboarding2')}>
-        <Text style={styles.buttonText}>Next</Text>
-      </TouchableOpacity>
-
-      <View style={styles.spacer} />
     </View>
   );
 }
@@ -37,38 +46,43 @@ export default function Onboarding1() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 24,
     backgroundColor: '#0f0e0c',
   },
-  spacer: { height: 40 },
-  flexGrow: { flex: 1 },
-  icon: {
-    fontSize: 80,
-    textAlign: 'center',
-    marginBottom: 16,
+  scrollContent: {
+    padding: 32,
+    paddingTop: 60,
+    alignItems: 'center',
+  },
+  mirrorImage: {
+    width: 120,
+    height: 120,
+    marginBottom: 32,
   },
   title: {
-    fontSize: 42,
+    fontSize: 36,
     fontWeight: 'bold',
-    marginBottom: 20,
-    textAlign: 'center',
     color: '#f0ead6',
+    textAlign: 'center',
     letterSpacing: 0.5,
-    lineHeight: 50,
+    marginBottom: 24,
+    lineHeight: 44,
   },
-  subtitle: {
-    fontSize: 18,
-    color: '#c4b99e',
-    marginBottom: 32,
+  body: {
+    fontSize: 17,
+    color: '#a89f88',
     textAlign: 'center',
     lineHeight: 28,
+    marginBottom: 20,
+  },
+  footer: {
+    padding: 24,
+    paddingBottom: 0,
+    alignItems: 'center',
   },
   progressRow: {
     flexDirection: 'row',
     gap: 8,
-    marginBottom: 32,
+    marginBottom: 20,
   },
   dot: {
     width: 8,
@@ -95,9 +109,5 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     letterSpacing: 2,
   },
-  wreathImage: {
-    width: 160,
-    height: 160,
-    marginBottom: 16,
-  },
+  spacer: { height: 40 },
 });
