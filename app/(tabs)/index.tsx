@@ -16,7 +16,6 @@ import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import { supabase } from '@/lib/supabase';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function CounselScreen() {
   const router = useRouter();
@@ -57,19 +56,6 @@ export default function CounselScreen() {
     }
   };
    
-  const checkSessionLimit = async (): Promise<boolean> => {
-    try {
-      const count = await AsyncStorage.getItem('free_session_count');
-      const sessionCount = count ? parseInt(count) : 0;
-      if (sessionCount >= 3) {
-        return false;
-      }
-      await AsyncStorage.setItem('free_session_count', String(sessionCount + 1));
-      return true;
-    } catch {
-      return true;
-    }
-  };
 
   useEffect(() => {
     loadDailyQuote();
@@ -106,17 +92,8 @@ export default function CounselScreen() {
     };
   }, []);
 
-  const handleSeekCounsel = async () => {
-
+  const handleSeekCounsel = () => {
     if (!input.trim()) return;
-    
-    const allowed = await checkSessionLimit();
-    if (!allowed) {
-      // Navigate to paywall screen
-      router.push('/paywall');
-      return;
-    }
-    
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     router.push(`/loading?prompt=${encodeURIComponent(input.trim())}`);
     setInput('');
