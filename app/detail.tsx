@@ -342,8 +342,7 @@ export default function ResultsScreen() {
               style={styles.saveAllButton}
               onPress={() => router.push('/signup')}
             >
-              <IconSymbol name="person.fill" size={14} color="#0f0e0c" />
-              <Text style={styles.saveAllButtonText}>Create account to save</Text>
+              <Text style={styles.createAccountButtonText}>Create account to save</Text>
             </TouchableOpacity>
           ) : (
             <TouchableOpacity
@@ -590,5 +589,12 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#8a7e6e',
     letterSpacing: 1,
+  },
+  createAccountButtonText: {
+    fontSize: 13,
+    fontWeight: 'bold',
+    color: '#0f0e0c',
+    textAlign: 'center',
+    flexShrink: 1,
   },
 });

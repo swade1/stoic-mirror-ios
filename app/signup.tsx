@@ -206,6 +206,7 @@ const styles = StyleSheet.create({
     height: 200,
     alignSelf: 'center',
     marginBottom: 24,
+    marginTop: 18,
   },
   skipButton: {
     marginTop: 16,
