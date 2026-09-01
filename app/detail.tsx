@@ -33,12 +33,18 @@ interface Entry {
 export default function ResultsScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id, quotes: quotesParam, concern: concernParam, category: categoryParam } = useLocalSearchParams<{
+    id: string;
+    quotes: string;
+    concern: string;
+    category: string;
+  }>();
   const [entry, setEntry] = useState<Entry | null>(null);
   const [quotes, setQuotes] = useState<Quote[]>([]);
   const [loading, setLoading] = useState(true);
   const [saved, setSaved] = useState<string[]>([]);
   const [sessionSaved, setSessionSaved] = useState(false);
+  const [isAnonymous, setIsAnonymous] = useState(false);
 
   const fadeAnim = React.useRef(new Animated.Value(0)).current;
   const saveAnims = React.useRef<{[key: string]: Animated.Value}>({}).current;
@@ -66,18 +72,45 @@ export default function ResultsScreen() {
       setEntry(null);
       setQuotes([]);
       setSaved([]);
-      if (id) {
+
+      if (quotesParam) {
+        // Anonymous user — load from params
+        loadFromParams();
+      } else if (id) {
+        // Authenticated user — load from database
         loadResults(id);
       } else {
         loadMostRecent();
       }
-    }, [id])
+    }, [id, quotesParam])
   );
+
+  const loadFromParams = () => {
+    try {
+      setIsAnonymous(true);
+      const parsedQuotes: Quote[] = JSON.parse(decodeURIComponent(quotesParam!)).map(
+        (q: any, index: number) => ({ ...q, id: `anon-${index}` })
+      );
+      const concern = decodeURIComponent(concernParam ?? '');
+      const category = decodeURIComponent(categoryParam ?? 'General');
+
+      setQuotes(parsedQuotes);
+      setEntry({
+        id: 'anonymous',
+        concern,
+        category,
+        created_at: new Date().toISOString(),
+      });
+    } catch (error) {
+      console.error('Failed to load anonymous results:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const loadMostRecent = async () => {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) { setLoading(false); return; }
-
     const { data } = await supabase
       .from('entries')
       .select('id')
@@ -85,7 +118,6 @@ export default function ResultsScreen() {
       .order('created_at', { ascending: false })
       .limit(1)
       .single();
-
     if (data) {
       loadResults(data.id);
     } else {
@@ -100,18 +132,15 @@ export default function ResultsScreen() {
         .select('*')
         .eq('id', entryId)
         .single();
-
       const { data: quotesData } = await supabase
         .from('entry_quotes')
         .select('*')
         .eq('entry_id', entryId)
         .order('created_at', { ascending: true });
-
       const { data: savedData } = await supabase
         .from('saved_quotes')
         .select('quote')
         .eq('entry_id', entryId);
-
       if (entryData) {
         const { decryptConcern } = await import('@/lib/encryption');
         const { data: { session } } = await supabase.auth.getSession();
@@ -135,11 +164,15 @@ export default function ResultsScreen() {
       setTimeout(() => setSessionSaved(false), 3000);
     }
   };
-  
+
   const toggleSave = async (quote: Quote) => {
+    if (isAnonymous) {
+      // Prompt anonymous user to create account to save
+      router.push('/signup');
+      return;
+    }
+
     const isSaved = saved.includes(quote.id);
-    
-    // Bounce animation
     const anim = getSaveAnim(quote.id);
     Animated.sequence([
       Animated.timing(anim, { toValue: 2.0, duration: 150, useNativeDriver: true }),
@@ -152,14 +185,9 @@ export default function ResultsScreen() {
         .delete()
         .eq('entry_id', entry?.id)
         .eq('quote', quote.quote);
-      if (!error || error.code === '23505') {
-       // Success or duplicate (already saved) — both are fine
-       setSaved((prev) => [...prev, quote.id]);
-     }
       setSaved((prev) => prev.filter((savedId) => savedId !== quote.id));
     } else {
       const session = (await supabase.auth.getSession()).data.session;
-      
       const { error } = await supabase.from('saved_quotes').insert({
         user_id: session?.user.id,
         entry_id: entry?.id,
@@ -169,17 +197,21 @@ export default function ResultsScreen() {
         interpretation: quote.interpretation,
         concern: entry?.concern,
       });
-      setSaved((prev) => [...prev, quote.id]);
+      if (!error || error.code === '23505') {
+        setSaved((prev) => [...prev, quote.id]);
+      }
     }
   };
 
   const saveAll = async () => {
+    if (isAnonymous) {
+      router.push('/signup');
+      return;
+    }
     const unsaved = quotes.filter((q) => !saved.includes(q.id));
     if (unsaved.length === 0) return;
-
     const session = (await supabase.auth.getSession()).data.session;
     if (!session) return;
-
     const rows = unsaved.map((q) => ({
       user_id: session.user.id,
       entry_id: entry?.id,
@@ -189,11 +221,9 @@ export default function ResultsScreen() {
       interpretation: q.interpretation,
       concern: entry?.concern,
     }));
-
     await supabase.from('saved_quotes').upsert(rows, { onConflict: 'user_id,quote' });
     setSaved(quotes.map((q) => q.id));
   };
-
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
@@ -202,6 +232,7 @@ export default function ResultsScreen() {
       year: 'numeric',
     });
   };
+
   if (loading) {
     return (
       <View style={[styles.loadingContainer, { paddingTop: insets.top }]}>
@@ -222,10 +253,8 @@ export default function ResultsScreen() {
     );
   }
 
-
-return (
+  return (
     <View style={[styles.outerContainer, { paddingTop: insets.top }]}>
-
       {/* Fixed header */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Received Wisdom</Text>
@@ -246,77 +275,92 @@ return (
           { paddingBottom: insets.bottom + 100 },
         ]}
       >
-      {/* Concern */}
-      <View style={styles.concernBox}>
-        <Text style={styles.concernLabel}>Your concern</Text>
-        <Text style={styles.concernText}>{entry.concern}</Text>
-        {true && (
-          <Text style={styles.savePrompt}>
-            Save at least one quote to revisit this counsel in History.
-          </Text>
-        )}
-      </View>
+        {/* Concern */}
+        <View style={styles.concernBox}>
+          <Text style={styles.concernLabel}>Your concern</Text>
+          <Text style={styles.concernText}>{entry.concern}</Text>
+          {isAnonymous ? (
+            <Text style={styles.savePrompt}>
+              Create a free account to save this wisdom and revisit it in History.
+            </Text>
+          ) : saved.length === 0 && entry && (() => {
+            const createdAt = new Date(entry.created_at).getTime();
+            const now = new Date().getTime();
+            return now - createdAt < 60000;
+          })() ? (
+            <Text style={styles.savePrompt}>
+              Save at least one quote to revisit this counsel in History.
+            </Text>
+          ) : null}
+        </View>
+
         {/* Divider */}
         <View style={styles.divider} />
 
-          {/* Quotes */}
-          <Animated.View style={{ opacity: fadeAnim }}>
-             {quotes.map((quote, index) => (
-               <View
-                 key={quote.id}
-                 style={styles.quoteCard}
-               >
-            <Text style={styles.quoteNumber}>
-              {index + 1} of {quotes.length}
-            </Text>
-            <Text style={styles.quoteText}>"{quote.quote}"</Text>
-            <View style={styles.attribution}>
-              <Text style={styles.author}>{quote.author}</Text>
-              <Text style={styles.source}>{quote.source}</Text>
-            </View>
-            <View style={styles.interpretationBox}>
-              <Text style={styles.interpretationLabel}>Counsel</Text>
-              <Text style={styles.interpretationText}>{quote.interpretation}</Text>
-            </View>
-            <TouchableOpacity
-              style={[styles.saveButton, saved.includes(quote.id) && styles.saveButtonActive]}
-              onPress={() => toggleSave(quote)}
-            >
-              <Animated.View style={{ transform: [{ scale: getSaveAnim(quote.id) }] }}>
-              <IconSymbol
-                name={saved.includes(quote.id) ? 'bookmark.fill' : 'bookmark'}
-                size={16}
-                color={saved.includes(quote.id) ? '#0f0e0c' : '#c9b97a'}
-              />
-              </Animated.View>
-              <Text style={[
-                styles.saveButtonText,
-                saved.includes(quote.id) && styles.saveButtonTextActive,
-              ]}>
-                {saved.includes(quote.id) ? 'Saved' : 'Save this wisdom'}
+        {/* Quotes */}
+        <Animated.View style={{ opacity: fadeAnim }}>
+          {quotes.map((quote, index) => (
+            <View key={quote.id} style={styles.quoteCard}>
+              <Text style={styles.quoteNumber}>
+                {index + 1} of {quotes.length}
               </Text>
-            </TouchableOpacity>
-          </View>
-        ))}
-       </Animated.View>
+              <Text style={styles.quoteText}>"{quote.quote}"</Text>
+              <View style={styles.attribution}>
+                <Text style={styles.author}>{quote.author}</Text>
+                <Text style={styles.source}>{quote.source}</Text>
+              </View>
+              <View style={styles.interpretationBox}>
+                <Text style={styles.interpretationLabel}>Counsel</Text>
+                <Text style={styles.interpretationText}>{quote.interpretation}</Text>
+              </View>
+              <TouchableOpacity
+                style={[styles.saveButton, saved.includes(quote.id) && styles.saveButtonActive]}
+                onPress={() => toggleSave(quote)}
+              >
+                <Animated.View style={{ transform: [{ scale: getSaveAnim(quote.id) }] }}>
+                  <IconSymbol
+                    name={saved.includes(quote.id) ? 'bookmark.fill' : 'bookmark'}
+                    size={16}
+                    color={saved.includes(quote.id) ? '#0f0e0c' : '#c9b97a'}
+                  />
+                </Animated.View>
+                <Text style={[
+                  styles.saveButtonText,
+                  saved.includes(quote.id) && styles.saveButtonTextActive,
+                ]}>
+                  {isAnonymous ? 'Create account to save' : saved.includes(quote.id) ? 'Saved' : 'Save this wisdom'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          ))}
+        </Animated.View>
 
         {/* Bottom Actions */}
         <View style={styles.bottomActions}>
+          {isAnonymous ? (
+            <TouchableOpacity
+              style={styles.saveAllButton}
+              onPress={() => router.push('/signup')}
+            >
+              <IconSymbol name="person.fill" size={14} color="#0f0e0c" />
+              <Text style={styles.saveAllButtonText}>Create account to save</Text>
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity
+              style={styles.saveAllButton}
+              onPress={saveAll}
+            >
+              <IconSymbol name="bookmark.fill" size={14} color="#0f0e0c" />
+              <Text style={styles.saveAllButtonText}>Save all</Text>
+            </TouchableOpacity>
+          )}
           <TouchableOpacity
-          style={styles.saveAllButton}
-          onPress={saveAll}
-        >
-          <IconSymbol name="bookmark.fill" size={14} color="#0f0e0c" />
-          <Text style={styles.saveAllButtonText}>Save all</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.doneButton}
-          onPress={() => router.replace('/(tabs)/history')}
-        >
-          <Text style={styles.doneButtonText}>Done</Text>
-        </TouchableOpacity>
-      </View>
+            style={styles.doneButton}
+            onPress={() => router.replace(isAnonymous ? '/(tabs)' : '/(tabs)/history')}
+          >
+            <Text style={styles.doneButtonText}>Done</Text>
+          </TouchableOpacity>
+        </View>
       </ScrollView>
     </View>
   );
@@ -472,19 +516,6 @@ const styles = StyleSheet.create({
   saveButtonTextActive: {
     color: '#0f0e0c',
   },
-  againButton: {
-    marginTop: 8,
-    paddingVertical: 16,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: '#6a6050',
-    alignItems: 'center',
-  },
-  againButtonText: {
-    fontSize: 16,
-    color: '#8a7e6e',
-    letterSpacing: 1,
-  },
   emptyTitle: {
     fontSize: 20,
     fontWeight: 'bold',
@@ -546,5 +577,18 @@ const styles = StyleSheet.create({
     color: '#c9b97a',
     marginTop: 10,
     fontStyle: 'italic',
+  },
+  againButton: {
+    marginTop: 8,
+    paddingVertical: 16,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#6a6050',
+    alignItems: 'center',
+  },
+  againButtonText: {
+    fontSize: 16,
+    color: '#8a7e6e',
+    letterSpacing: 1,
   },
 });

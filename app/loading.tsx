@@ -22,33 +22,6 @@ const CATEGORIES = [
   'Control & Acceptance', 'Pride & Ego', 'General',
 ];
 
-/* const SYSTEM_PROMPT = `You are a scholar of Stoic philosophy providing counsel to someone in need.
-
-
-
-You will be given:
-1. A person's concern or struggle
-2. A set of verified passages from the actual writings of Marcus Aurelius, Epictetus, and Seneca
-
-Your task:
-- Select 3 to 5 of the most relevant and emotionally resonant passages
-- For each passage, write a 2-3 sentence interpretation explaining how it applies to this person's specific situation. Be warm, direct, and personal.
-- Determine the single best category for their concern from this list: ${CATEGORIES.join(', ')}
-- Return ONLY valid JSON — no preamble, no commentary, no markdown fences
-
-JSON format:
-{
-  "quotes": [
-    {
-      "quote": "exact passage text as provided",
-      "author": "author name",
-      "source": "work title and section",
-      "interpretation": "your personal interpretation for this person"
-    }
-  ],
-  "category": "category string"
-}`; */
-
 const SYSTEM_PROMPT = `You are a Stoic philosophy scholar. Given a person's concern and verified passages from Marcus Aurelius, Epictetus, and Seneca, select 3-5 most relevant passages and add a personal 2-sentence interpretation for each. Return ONLY valid JSON:
 {"quotes":[{"quote":"exact text","author":"name","source":"work","interpretation":"your counsel"}],"category":"one of: ${CATEGORIES.join(', ')}"}`;
 
@@ -74,9 +47,8 @@ export default function LoadingScreen() {
   const [displayedText, setDisplayedText] = useState('');
   const [charIndex, setCharIndex] = useState(0);
 
-  // Cycle through loading phrases
   // Cycle to next phrase when current one finishes typing
-useEffect(() => {
+  useEffect(() => {
     if (charIndex >= LOADING_PHRASES[phraseIndex].length) {
       const pause = setTimeout(() => {
         setPhraseIndex((prev) => (prev + 1) % LOADING_PHRASES.length);
@@ -97,6 +69,7 @@ useEffect(() => {
       return () => clearTimeout(timer);
     }
   }, [charIndex, phraseIndex]);
+
   useEffect(() => {
     if (!prompt) return;
     seekCounsel(prompt);
@@ -104,12 +77,11 @@ useEffect(() => {
 
   const seekCounsel = async (concern: string) => {
     try {
-      // Step 1: Get current user
+      // Step 1: Get current user (may be null for anonymous/free tier)
       const { data: { session } } = await supabase.auth.getSession();
-      console.log('Session:', JSON.stringify(session));
-      const user = session?.user ?? { id: 'anonymous' };
+      const user = session?.user ?? null;
 
-      // Step 2: Embed the concern via Anthropic
+      // Step 2: Embed the concern via Voyage AI
       const embedRes = await fetch('https://api.voyageai.com/v1/embeddings', {
         method: 'POST',
         headers: {
@@ -117,18 +89,16 @@ useEffect(() => {
           'Authorization': `Bearer ${VOYAGE_API_KEY}`,
         },
         body: JSON.stringify({
-        model: 'voyage-3',
-        input: [`Stoic philosophy advice needed: ${concern}`],
+          model: 'voyage-3',
+          input: [`Stoic philosophy advice needed: ${concern}`],
         }),
       });
-
       if (!embedRes.ok) {
         const errText = await embedRes.text();
         throw new Error(`Embedding failed: ${embedRes.status} ${errText}`);
       }
       const embedData = await embedRes.json();
       const embedding = embedData.data[0].embedding;
-     
       console.log('Embedding success, length:', embedding?.length);
 
       // Step 3: Retrieve relevant passages from Supabase
@@ -148,14 +118,11 @@ useEffect(() => {
           }),
         }
       );
-
       if (!matchRes.ok) throw new Error('Passage retrieval failed');
       const passages = await matchRes.json();
-
       console.log('Passages found:', passages?.length);
 
       if (!passages.length) {
-        // Retry with lower threshold
         const retryRes = await fetch(
           `${SUPABASE_URL}/rest/v1/rpc/match_stoic_passages`,
           {
@@ -171,11 +138,12 @@ useEffect(() => {
               match_threshold: 0.1,
             }),
           }
-      );
-      const retryPassages = await retryRes.json();
-      if (!retryPassages.length) throw new Error('No relevant passages found');
-      passages.push(...retryPassages);
-    }
+        );
+        const retryPassages = await retryRes.json();
+        if (!retryPassages.length) throw new Error('No relevant passages found');
+        passages.push(...retryPassages);
+      }
+
       // Step 4: Format passages as context
       const passageContext = passages
         .map((p: any, i: number) => {
@@ -201,14 +169,10 @@ useEffect(() => {
           messages: [{ role: 'user', content: userMessage }],
         }),
       });
-
-
       if (!claudeRes.ok) throw new Error('Claude API failed');
       const claudeData = await claudeRes.json();
       const content = claudeData.content.find((b: any) => b.type === 'text')?.text;
-   
-      console.log('Claude content:', content?.slice(0,100));
-
+      console.log('Claude content:', content?.slice(0, 100));
       if (!content) throw new Error('Empty response from Claude');
 
       const clean = content
@@ -219,36 +183,43 @@ useEffect(() => {
       const quotes: Quote[] = parsed.quotes.slice(0, 5);
       const category: string = parsed.category || 'General';
 
-      // Step 6: Save entry to Supabase
-      const { encryptConcern } = await import('@/lib/encryption');
-      const encryptedConcern = await encryptConcern(concern, user.id);
+      // Step 6: Save to database only if user is authenticated
+      if (user) {
+        const { encryptConcern } = await import('@/lib/encryption');
+        const encryptedConcern = await encryptConcern(concern, user.id);
 
-      const { data: entry, error: entryError } = await supabase
-        .from('entries')
-        .insert({
+        const { data: entry, error: entryError } = await supabase
+          .from('entries')
+          .insert({
+            user_id: user.id,
+            concern: encryptedConcern,
+            category,
+          })
+          .select()
+          .single();
+
+        if (entryError) throw entryError;
+
+        const quoteRows = quotes.map((q) => ({
+          entry_id: entry.id,
           user_id: user.id,
-          concern: encryptedConcern,
-          category,
-        })
-        .select()
-        .single();
+          quote: q.quote,
+          author: q.author,
+          source: q.source,
+          interpretation: q.interpretation,
+        }));
 
-      if (entryError) throw entryError;
+        await supabase.from('entry_quotes').insert(quoteRows);
 
-      // Step 7: Save quotes
-      const quoteRows = quotes.map((q) => ({
-        entry_id: entry.id,
-        user_id: user.id,
-        quote: q.quote,
-        author: q.author,
-        source: q.source,
-        interpretation: q.interpretation,
-      }));
-
-      await supabase.from('entry_quotes').insert(quoteRows);
-
-      // Step 8: Navigate to results
-      router.replace(`/detail?id=${entry.id}`);
+        // Navigate to results with entry id
+        router.replace(`/detail?id=${entry.id}`);
+      } else {
+        // Anonymous user — pass quotes directly via params
+        const quotesParam = encodeURIComponent(JSON.stringify(quotes));
+        const concernParam = encodeURIComponent(concern);
+        const categoryParam = encodeURIComponent(category);
+        router.replace(`/detail?quotes=${quotesParam}&concern=${concernParam}&category=${categoryParam}`);
+      }
 
     } catch (error) {
       Alert.alert('Error', (error as Error).message);
@@ -260,7 +231,7 @@ useEffect(() => {
     <View style={styles.container}>
       <Text style={styles.title}>The Stoic Mirror</Text>
       <ActivityIndicator size="large" color="#c9b97a" style={styles.spinner} />
-      <Text style={styles.phrase}>{displayedText}</Text> 
+      <Text style={styles.phrase}>{displayedText}</Text>
     </View>
   );
 }

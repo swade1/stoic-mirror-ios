@@ -106,9 +106,16 @@ export default function SignUp() {
         </View>
       </View>
 
-      <TouchableOpacity onPress={() => router.push('/login')}>
-        <Text style={styles.signInText}>Already have an account? Sign in</Text>
-      </TouchableOpacity>
+    <TouchableOpacity onPress={() => router.push('/login')}>
+      <Text style={styles.signInText}>Already have an account? Sign in</Text>
+    </TouchableOpacity>
+    
+    <TouchableOpacity
+      style={styles.skipButton}
+      onPress={() => router.replace('/(tabs)')}
+    >
+      <Text style={styles.skipText}>Try it first — no account needed</Text>
+    </TouchableOpacity>
     </KeyboardAvoidingView>
   );
 }
@@ -199,5 +206,15 @@ const styles = StyleSheet.create({
     height: 200,
     alignSelf: 'center',
     marginBottom: 24,
+  },
+  skipButton: {
+    marginTop: 16,
+    paddingVertical: 8,
+  },
+  skipText: {
+    fontSize: 14,
+    color: '#5a5446',
+    textAlign: 'center',
+    textDecorationLine: 'underline',
   },
 });

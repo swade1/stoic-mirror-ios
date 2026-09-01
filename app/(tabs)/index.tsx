@@ -26,6 +26,10 @@ export default function CounselScreen() {
   const [keyboardVisible, setKeyboardVisible] = useState(false);
   const [dailyQuote, setDailyQuote] = useState<{ quote: string; author: string; source: string } | null>(null);
   const [expandedQuote, setExpandedQuote] = useState(false);
+
+
+  //TESTING ONLY - remove after one run
+
   
   const loadDailyQuote = async () => {
     const { count } = await supabase
@@ -58,12 +62,12 @@ export default function CounselScreen() {
       const count = await AsyncStorage.getItem('free_session_count');
       const sessionCount = count ? parseInt(count) : 0;
       if (sessionCount >= 3) {
-        return false; // limit reached
+        return false;
       }
       await AsyncStorage.setItem('free_session_count', String(sessionCount + 1));
-      return true; // allowed
+      return true;
     } catch {
-      return true; // if error, allow session
+      return true;
     }
   };
 
@@ -103,6 +107,7 @@ export default function CounselScreen() {
   }, []);
 
   const handleSeekCounsel = async () => {
+
     if (!input.trim()) return;
     
     const allowed = await checkSessionLimit();
