@@ -6,6 +6,7 @@ import React, { useEffect, useState } from 'react';
 import 'react-native-reanimated';
 import { supabase } from '@/lib/supabase';
 import * as SplashScreen from 'expo-splash-screen';
+import Purchases from 'react-native-purchases';
 
 const DarkTheme: Theme = {
   dark: true,
@@ -31,6 +32,12 @@ export default function RootLayout() {
     SpaceMono: require('../assets/fonts/SpaceMono-Regular.ttf'),
   });
   const [isSignedIn, setIsSignedIn] = useState<boolean | null>(null);
+ 
+  useEffect(() => {
+    Purchases.configure({
+      apiKey: 'test_YogsUwNBuOrctiWVgJBBcqyhRSL',
+    });
+  },[]);
 
   useEffect(() => {
     const checkSession = async () => {
