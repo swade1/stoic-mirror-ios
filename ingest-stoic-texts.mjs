@@ -15,9 +15,21 @@ const SOURCES = [
   {
     author: "Marcus Aurelius",
     work: "Meditations",
-    url: "https://www.gutenberg.org/files/2680/2680-0.txt",
-    startMarker: "FIRST BOOK",
-    endMarker: "End of the Project Gutenberg",
+    wikisource: true,
+    urls: [
+      "https://en.wikisource.org/w/api.php?action=parse&page=The_Meditations_of_the_Emperor_Marcus_Antoninus/Book_1&prop=text&format=json",
+      "https://en.wikisource.org/w/api.php?action=parse&page=The_Meditations_of_the_Emperor_Marcus_Antoninus/Book_2&prop=text&format=json",
+      "https://en.wikisource.org/w/api.php?action=parse&page=The_Meditations_of_the_Emperor_Marcus_Antoninus/Book_3&prop=text&format=json",
+      "https://en.wikisource.org/w/api.php?action=parse&page=The_Meditations_of_the_Emperor_Marcus_Antoninus/Book_4&prop=text&format=json",
+      "https://en.wikisource.org/w/api.php?action=parse&page=The_Meditations_of_the_Emperor_Marcus_Antoninus/Book_5&prop=text&format=json",
+      "https://en.wikisource.org/w/api.php?action=parse&page=The_Meditations_of_the_Emperor_Marcus_Antoninus/Book_6&prop=text&format=json",
+      "https://en.wikisource.org/w/api.php?action=parse&page=The_Meditations_of_the_Emperor_Marcus_Antoninus/Book_7&prop=text&format=json",
+      "https://en.wikisource.org/w/api.php?action=parse&page=The_Meditations_of_the_Emperor_Marcus_Antoninus/Book_8&prop=text&format=json",
+      "https://en.wikisource.org/w/api.php?action=parse&page=The_Meditations_of_the_Emperor_Marcus_Antoninus/Book_9&prop=text&format=json",
+      "https://en.wikisource.org/w/api.php?action=parse&page=The_Meditations_of_the_Emperor_Marcus_Antoninus/Book_10&prop=text&format=json",
+      "https://en.wikisource.org/w/api.php?action=parse&page=The_Meditations_of_the_Emperor_Marcus_Antoninus/Book_11&prop=text&format=json",
+      "https://en.wikisource.org/w/api.php?action=parse&page=The_Meditations_of_the_Emperor_Marcus_Antoninus/Book_12&prop=text&format=json",
+    ],
   },
   {
     author: "Epictetus",
@@ -47,12 +59,40 @@ const MAX_CHUNK_CHARS = 800;
 const EMBED_BATCH_SIZE = 8;
 const EMBED_DELAY_MS = 500;
 
-function chunkText(text, author, work) {
+// Fetch and extract plain text from Wikisource rendered HTML
+async function fetchWikisourceText(url, bookNum) {
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`HTTP ${res.status} for ${url}`);
+  const data = await res.json();
+  const html = data.parse.text["*"];
+  
+  // Strip all HTML tags
+  const text = html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+  
+  // Find where numbered entries begin (the actual Meditations content)
+  const startIdx = text.search(/\s1\.\s/);
+  if (startIdx === -1) {
+    console.warn(`  Could not find start of content for Book ${bookNum}`);
+    return text;
+  }
+  
+  // Find where content ends (before footer navigation)
+  const endMarkers = ["Retrieved from", "Categories:", "Navigation menu"];
+  let endIdx = text.length;
+  for (const marker of endMarkers) {
+    const idx = text.indexOf(marker);
+    if (idx !== -1 && idx < endIdx) endIdx = idx;
+  }
+  
+  return text.slice(startIdx, endIdx).trim();
+}
+
+function chunkText(text, author, work, sectionPrefix) {
   const cleaned = text.replace(/\r\n/g, "\n").replace(/\n{3,}/g, "\n\n").trim();
   const paragraphs = cleaned.split(/\n\n+/);
   const chunks = [];
   let buffer = "";
-  let sectionLabel = "";
+  let sectionLabel = sectionPrefix || "";
 
   for (const para of paragraphs) {
     const trimmed = para.trim();
@@ -103,7 +143,7 @@ function sleep(ms) {
   return new Promise((r) => setTimeout(r, ms));
 }
 
-async function fetchText(source) {
+async function fetchGutenbergText(source) {
   console.log(`  Downloading ${source.work}...`);
   const res = await fetch(source.url);
   if (!res.ok) throw new Error(`HTTP ${res.status} for ${source.url}`);
@@ -131,23 +171,44 @@ async function ingest() {
   for (const source of SOURCES) {
     console.log(`\nProcessing: ${source.author} — ${source.work}`);
 
-    let rawText;
-    try {
-      rawText = await fetchText(source);
-    } catch (err) {
-      console.error(`  Download failed: ${err.message}`);
-      continue;
+    let allChunks = [];
+
+    if (source.wikisource) {
+      // Handle Wikisource multi-URL sources
+      for (let i = 0; i < source.urls.length; i++) {
+        const url = source.urls[i];
+        const bookNum = i + 1;
+        console.log(`  Fetching Book ${bookNum}...`);
+        try {
+          const text = await fetchWikisourceText(url, bookNum);
+          const chunks = chunkText(text, source.author, source.work, `Book ${bookNum}`);
+          allChunks.push(...chunks);
+          console.log(`  Book ${bookNum}: ${chunks.length} passages`);
+          await sleep(500); // Be polite to Wikisource API
+        } catch (err) {
+          console.error(`  Book ${bookNum} failed: ${err.message}`);
+        }
+      }
+    } else {
+      // Handle Gutenberg plain text sources
+      let rawText;
+      try {
+        rawText = await fetchGutenbergText(source);
+      } catch (err) {
+        console.error(`  Download failed: ${err.message}`);
+        continue;
+      }
+      allChunks = chunkText(rawText, source.author, source.work, "");
     }
 
-    const chunks = chunkText(rawText, source.author, source.work);
-    console.log(`  ${chunks.length} passages extracted`);
+    console.log(`  ${allChunks.length} total passages extracted`);
 
     const rows = [];
-    for (let i = 0; i < chunks.length; i += EMBED_BATCH_SIZE) {
-      const batch = chunks.slice(i, i + EMBED_BATCH_SIZE);
+    for (let i = 0; i < allChunks.length; i += EMBED_BATCH_SIZE) {
+      const batch = allChunks.slice(i, i + EMBED_BATCH_SIZE);
       const texts = batch.map((c) => c.passage);
       process.stdout.write(
-        `  Embedding batch ${Math.floor(i / EMBED_BATCH_SIZE) + 1}/${Math.ceil(chunks.length / EMBED_BATCH_SIZE)}...`
+        `  Embedding batch ${Math.floor(i / EMBED_BATCH_SIZE) + 1}/${Math.ceil(allChunks.length / EMBED_BATCH_SIZE)}...`
       );
       try {
         const embeddings = await embedBatch(texts);
@@ -158,7 +219,7 @@ async function ingest() {
       } catch (err) {
         process.stdout.write(` error: ${err.message}\n`);
       }
-      if (i + EMBED_BATCH_SIZE < chunks.length) await sleep(EMBED_DELAY_MS);
+      if (i + EMBED_BATCH_SIZE < allChunks.length) await sleep(EMBED_DELAY_MS);
     }
 
     const INSERT_BATCH = 50;
