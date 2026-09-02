@@ -20,7 +20,7 @@ export default function Onboarding2() {
     if (selected.length > 0) {
       await AsyncStorage.setItem('user_primary_concern', JSON.stringify(selected));
     }
-    router.push('/signup');
+    router.push('/onboarding3');
   };
 
   return (

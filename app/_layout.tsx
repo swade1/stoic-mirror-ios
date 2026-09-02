@@ -89,6 +89,7 @@ export default function RootLayout() {
             <Stack.Screen name="signup" />
             <Stack.Screen name="login" />
             <Stack.Screen name="+not-found" />
+            <Stack.Screen name="onboarding3" />
           </>
         )}
       </Stack>
