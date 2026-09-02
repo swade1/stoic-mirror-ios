@@ -22,8 +22,11 @@ const CATEGORIES = [
   'Control & Acceptance', 'Pride & Ego', 'General',
 ];
 
-const SYSTEM_PROMPT = `You are a Stoic philosophy scholar. Given a person's concern and verified passages from Marcus Aurelius, Epictetus, and Seneca, select 3-5 most relevant passages and add a personal 2-sentence interpretation for each. Return ONLY valid JSON:
-{"quotes":[{"quote":"exact text","author":"name","source":"work","interpretation":"your counsel"}],"category":"one of: ${CATEGORIES.join(', ')}"}`;
+
+const SYSTEM_PROMPT = `You are a Stoic philosophy scholar. Given a person's concern and verified passages from Marcus Aurelius, Epictetus, and Seneca, select 3-5 most relevant passages and add a personal 2-sentence interpretation for each. Return ONLY valid JSON using EXACTLY one of the category strings listed:
+{"quotes":[{"quote":"exact text","author":"name","source":"work","interpretation":"your counsel"}],"category":"one of: ${CATEGORIES.join(', ')}"}
+The category value MUST be copied exactly as written above — do not reorder, abbreviate, or modify the category string.`;
+
 
 interface Quote {
   quote: string;

@@ -12,13 +12,22 @@ export default function Start() {
       <View style={styles.flexGrow} />
 
       <Image
-       source={require('../assets/images/mirror-welcome.png')}
-       style={styles.wreathImage}
-     />
+        source={require('../assets/images/mirror-welcome.png')}
+        style={styles.mirrorImage}
+      />
+
       <Text style={styles.title}>The Stoic Mirror</Text>
-      <Text style={styles.subtitle}>Ancient wisdom for modern concerns</Text>
+
+      <Text style={styles.tagline}>
+        When all you want is peace of mind.
+      </Text>
+
+      <Text style={styles.description}>
+        Describe what's troubling you and receive personalized wisdom from Marcus Aurelius, Epictetus, and Seneca.
+      </Text>
+
       <Text style={styles.attribution}>
-        Marcus Aurelius · Epictetus · Seneca 
+        2,000 years of Stoic philosophy · matched to your concern
       </Text>
 
       <View style={styles.flexGrow} />
@@ -45,7 +54,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#0f0e0c',
   },
   spacer: { height: 40 },
-  wreathImage: {
+  flexGrow: { flex: 1 },
+  mirrorImage: {
     width: 160,
     height: 160,
     marginBottom: 32,
@@ -53,25 +63,35 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 36,
     fontWeight: 'bold',
-    marginBottom: 12,
+    marginBottom: 16,
     textAlign: 'center',
     color: '#f0ead6',
     letterSpacing: 0.5,
   },
-  subtitle: {
-    fontSize: 18,
-    color: '#c4b99e',
-    marginBottom: 12,
+  tagline: {
+    fontSize: 20,
+    color: '#c9b97a',
+    marginBottom: 16,
     textAlign: 'center',
+    fontStyle: 'italic',
+    lineHeight: 28,
+    paddingHorizontal: 16,
+  },
+  description: {
+    fontSize: 16,
+    color: '#a89f88',
+    marginBottom: 16,
+    textAlign: 'center',
+    lineHeight: 26,
+    paddingHorizontal: 8,
   },
   attribution: {
     fontSize: 12,
-    color: '#8a7e6e',
+    color: '#a89f88',
     textAlign: 'center',
-    letterSpacing: 1,
+    letterSpacing: 0.5,
     marginBottom: 32,
   },
-  flexGrow: { flex: 1 },
   button: {
     backgroundColor: '#2a2720',
     paddingVertical: 16,

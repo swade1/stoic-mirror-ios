@@ -12,7 +12,7 @@ import { IconSymbol } from '@/components/ui/IconSymbol';
 
 const SOCIAL_PROOF = [
   {
-    quote: 'The quotes it returns are eerily relevant. It\'s like the philosophers knew exactly what I was going through.',
+    quote: 'Checking in daily with the wisdom of the Stoics has given me the tools to let go of negative emotions over things I can\'t control and only focus on the things I can control.',
     initials: 'S.W.',
   },
   {
@@ -78,7 +78,7 @@ export default function PaywallScreen() {
             <View style={styles.timelineText}>
               <Text style={styles.timelineTitle}>Subscription begins</Text>
               <Text style={styles.timelineSubtitle}>
-                {selected === 'annual' ? '$39.99/year' : '$4.99/month'} — cancel anytime
+                Your selected plan begins - cancel anytime
               </Text>
             </View>
           </View>

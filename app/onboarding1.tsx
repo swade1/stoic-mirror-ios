@@ -16,7 +16,7 @@ export default function Onboarding1() {
         <Text style={styles.title}>Your mind won't stop.</Text>
 
         <Text style={styles.body}>
-          You keep thinking about it. The thing you can't fix. The future you can't predict.
+          You keep thinking about it. The thing you can't fix. The future you can't predict. The thing you should've said but didn't think of in time.
         </Text>
         
         <Text style={styles.body}>
