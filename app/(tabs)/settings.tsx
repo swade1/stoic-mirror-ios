@@ -23,6 +23,7 @@ export default function SettingsScreen() {
   const [totalEntries, setTotalEntries] = useState(0);
   const [totalSaved, setTotalSaved] = useState(0);
   const [profileLoading, setProfileLoading] = useState(true);
+  const [subscriptionStatus, setSubscriptionStatus] = useState<string>('Free');
 
   useFocusEffect(
     useCallback(() => {
@@ -51,6 +52,8 @@ export default function SettingsScreen() {
         if (!cancelled) {
           setTotalEntries(entryCount ?? 0);
           setTotalSaved(savedCount ?? 0);
+          // Placeholder — will be replaced with RevenueCat check
+          setSubscriptionStatus('Free');
           setProfileLoading(false);
         }
       };
@@ -141,8 +144,20 @@ export default function SettingsScreen() {
                 <Text style={styles.rowLabel}>Wisdom saved</Text>
                 <Text style={styles.rowValue}>{totalSaved}</Text>
               </View>
+              <View style={styles.divider} />
+              <View style={styles.row}>
+                <Text style={styles.rowLabel}>Subscription</Text>
+                <Text style={[styles.rowValue, subscriptionStatus === 'Free' && styles.rowValueFree]}>
+                  {subscriptionStatus}
+                </Text>
+              </View>
             </View>
           </View>
+          {subscriptionStatus === 'Free' && (
+            <TouchableOpacity style={styles.upgradeButton} onPress={() => router.push('/paywall')}>
+              <Text style={styles.upgradeButtonText}>Manage subscription</Text>
+            </TouchableOpacity>
+          )}
 
           {/* App info */}
           <View style={styles.section}>
@@ -279,5 +294,20 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 18,
     paddingHorizontal: 16,
+  },
+  rowValueFree: {
+    color: '#8a7e6e',
+  },
+  upgradeButton: {
+    backgroundColor: '#c9b97a',
+    borderRadius: 12,
+    paddingVertical: 14,
+    alignItems: 'center',
+    marginBottom: 32,
+  },
+  upgradeButtonText: {
+    fontSize: 15,
+    fontWeight: 'bold',
+    color: '#0f0e0c',
   },
 });

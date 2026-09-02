@@ -16,17 +16,16 @@ export default function Onboarding1() {
         <Text style={styles.title}>Your mind won't stop.</Text>
 
         <Text style={styles.body}>
-          You keep thinking about it. The conversation that went wrong. The thing you can't fix. The future you can't predict. No matter how hard you try, your thoughts keep circling back.
+          You keep thinking about it. The thing you can't fix. The future you can't predict.
         </Text>
-
+        
         <Text style={styles.body}>
           You're not broken. You're human. But there's a better way.
         </Text>
-
+        
         <Text style={styles.body}>
-          The Stoics believed that wisdom begins with seeing yourself clearly — like looking into a mirror. Not to judge what you see, but to understand it. That's why Marcus Aurelius kept a journal we know today as Meditations. That's why this app is called The Stoic Mirror.
-        </Text>
-
+          The Stoics believed wisdom begins with seeing yourself clearly — like looking into a mirror. That's why Marcus Aurelius kept a journal we know today as Meditations. That's why this app is called The Stoic Mirror.
+         </Text>
       </ScrollView>
 
       <View style={styles.footer}>
