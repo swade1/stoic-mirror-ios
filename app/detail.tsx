@@ -221,7 +221,7 @@ export default function ResultsScreen() {
       interpretation: q.interpretation,
       concern: entry?.concern,
     }));
-    await supabase.from('saved_quotes').upsert(rows, { onConflict: 'user_id,quote' });
+    await supabase.from('saved_quotes').upsert(rows, { onConflict: 'user_id,entry_id,quote' });
     setSaved(quotes.map((q) => q.id));
   };
 
