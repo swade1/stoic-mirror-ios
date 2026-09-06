@@ -31,15 +31,15 @@
     --font-body: "Source Serif 4", Georgia, "Times New Roman", serif;
     --font-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
 
-    --fs-hero: clamp(2.6rem, 6vw, 4.4rem);
-    --fs-h2: clamp(1.7rem, 3.4vw, 2.35rem);
-    --fs-lead: 1.3rem;
-    --fs-body: 1.125rem;
-    --fs-small: 1rem;
-    --fs-caption: 0.78rem;
+    --fs-hero: clamp(2.9rem, 6.5vw, 4.8rem);
+    --fs-h2: clamp(1.95rem, 3.8vw, 2.7rem);
+    --fs-lead: 1.5rem;
+    --fs-body: 1.25rem;
+    --fs-small: 1.1rem;
+    --fs-caption: 0.85rem;
 
-    --col-narrow: 680px;
-    --col-wide: 1040px;
+    --col-narrow: 860px;
+    --col-wide: 1280px;
   }
 
   *{ box-sizing: border-box; }
@@ -100,7 +100,7 @@
     text-transform: uppercase;
     color: var(--text-dim);
   }
-  .eyebrow .num{ color: var(--gold); font-size: 1rem; letter-spacing: 0.05em; }
+  .eyebrow .num{ color: var(--gold); font-size: 1.1rem; letter-spacing: 0.05em; }
 
   /* fleuron divider between books */
   .fleuron{
@@ -173,7 +173,7 @@
 
   .btn{
     font-family: var(--font-mono);
-    font-size: 0.95rem;
+    font-size: 1.05rem;
     letter-spacing: 0.06em;
     text-transform: uppercase;
     padding: 15px 28px;
@@ -190,7 +190,7 @@
     color: #201b10;
     font-weight: 600;
   }
-  .btn-primary .soon{ font-family: var(--font-body); font-style: italic; font-weight: 400; text-transform: none; letter-spacing: 0; opacity: 0.75; font-size: 0.88rem; }
+  .btn-primary .soon{ font-family: var(--font-body); font-style: italic; font-weight: 400; text-transform: none; letter-spacing: 0; opacity: 0.75; font-size: 1rem; }
   .btn-ghost{
     color: var(--text-muted);
     border-color: var(--border);
@@ -204,7 +204,7 @@
   .praefatio .lead{
     font-family: var(--font-display);
     font-style: italic;
-    font-size: clamp(1.4rem, 2.8vw, 1.85rem);
+    font-size: clamp(1.55rem, 3vw, 2.05rem);
     color: var(--gold-bright);
     line-height: 1.5;
   }
@@ -228,9 +228,9 @@
     border-left: 1px solid var(--border-soft);
   }
   .step:first-child{ border-left: none; padding-left: 0; }
-  .step-num{ font-family: var(--font-mono); color: var(--gold); font-size: 1.05rem; }
-  .step h3{ margin-top: 10px; font-size: 1.25rem; font-weight: 600; color: var(--text); }
-  .step p{ margin-top: 10px; font-size: 1.05rem; color: var(--text-muted); line-height: 1.6; }
+  .step-num{ font-family: var(--font-mono); color: var(--gold); font-size: 1.15rem; }
+  .step h3{ margin-top: 10px; font-size: 1.4rem; font-weight: 600; color: var(--text); }
+  .step p{ margin-top: 10px; font-size: 1.15rem; color: var(--text-muted); line-height: 1.6; }
 
   @media (max-width: 760px){
     .steps{ grid-template-columns: 1fr; gap: 28px; }
@@ -255,8 +255,8 @@
     align-items: flex-start;
   }
   .feature svg{ flex-shrink: 0; width: 26px; height: 26px; color: var(--gold); margin-top: 2px; }
-  .feature h3{ font-size: 1.12rem; font-weight: 600; }
-  .feature p{ margin-top: 6px; font-size: 1.02rem; color: var(--text-muted); line-height: 1.55; }
+  .feature h3{ font-size: 1.25rem; font-weight: 600; }
+  .feature p{ margin-top: 6px; font-size: 1.12rem; color: var(--text-muted); line-height: 1.55; }
 
   @media (max-width: 640px){
     .features{ grid-template-columns: 1fr; }
@@ -281,7 +281,7 @@
     margin: 0;
     font-family: var(--font-display);
     font-style: italic;
-    font-size: 1.18rem;
+    font-size: 1.3rem;
     color: var(--text);
     line-height: 1.6;
   }
@@ -320,20 +320,20 @@
     padding: 3px 9px;
     border-radius: 2px;
   }
-  .plan h3{ font-size: 1.08rem; font-weight: 600; color: var(--text-muted); }
+  .plan h3{ font-size: 1.2rem; font-weight: 600; color: var(--text-muted); }
   .plan.best h3{ color: var(--text); }
   .plan .price{
     margin-top: 14px;
     font-family: var(--font-mono);
     font-variant-numeric: tabular-nums;
-    font-size: 2.15rem;
+    font-size: 2.4rem;
     color: var(--gold-bright);
   }
-  .plan .price span{ font-size: 1.05rem; color: var(--text-muted); }
-  .plan .note{ margin-top: 8px; font-size: 0.95rem; color: var(--text-muted); }
+  .plan .price span{ font-size: 1.15rem; color: var(--text-muted); }
+  .plan .note{ margin-top: 8px; font-size: 1.05rem; color: var(--text-muted); }
 
   .plans-cta{ margin-top: 30px; text-align: center; }
-  .plans-fine{ margin-top: 16px; text-align: center; font-size: 0.92rem; color: var(--text-muted); }
+  .plans-fine{ margin-top: 16px; text-align: center; font-size: 1.02rem; color: var(--text-muted); }
 
   @media (max-width: 640px){ .plans{ grid-template-columns: 1fr; } }
 
@@ -353,7 +353,7 @@
     gap: 20px;
     font-family: var(--font-display);
     font-weight: 500;
-    font-size: 1.15rem;
+    font-size: 1.3rem;
     color: var(--text);
   }
   .faq summary::-webkit-details-marker{ display: none; }
@@ -361,24 +361,24 @@
     content: "+";
     font-family: var(--font-mono);
     color: var(--gold);
-    font-size: 1.3rem;
+    font-size: 1.4rem;
     flex-shrink: 0;
     transition: transform 0.2s ease;
   }
   .faq details[open] summary::after{ content: "\2212"; }
-  .faq .a{ margin-top: 14px; font-size: 1.05rem; color: var(--text-muted); line-height: 1.65; max-width: 62ch; }
+  .faq .a{ margin-top: 14px; font-size: 1.15rem; color: var(--text-muted); line-height: 1.65; max-width: 68ch; }
 
   /* ---------- colophon ---------- */
   .colophon{
     padding: 56px 0 64px;
     text-align: center;
   }
-  .colophon .mark{ font-family: var(--font-mono); font-size: 0.88rem; letter-spacing: 0.16em; color: var(--gold); text-transform: uppercase; }
-  .colophon nav{ margin-top: 18px; display: flex; gap: 22px; justify-content: center; flex-wrap: wrap; font-size: 0.95rem; color: var(--text-muted); }
+  .colophon .mark{ font-family: var(--font-mono); font-size: 0.98rem; letter-spacing: 0.16em; color: var(--gold); text-transform: uppercase; }
+  .colophon nav{ margin-top: 18px; display: flex; gap: 22px; justify-content: center; flex-wrap: wrap; font-size: 1.05rem; color: var(--text-muted); }
   .colophon nav a{ color: var(--text-muted); text-decoration: none; }
   .colophon nav a:hover{ color: var(--gold-bright); }
-  .colophon .greek{ margin-top: 22px; font-style: italic; font-size: 0.88rem; color: var(--text-dim); }
-  .colophon .copy{ margin-top: 10px; font-size: 0.85rem; color: var(--text-dim); }
+  .colophon .greek{ margin-top: 22px; font-style: italic; font-size: 0.98rem; color: var(--text-dim); }
+  .colophon .copy{ margin-top: 10px; font-size: 0.92rem; color: var(--text-dim); }
 
   h2.book-title{ margin-top: 12px; font-size: var(--fs-h2); }
 
@@ -407,7 +407,7 @@
   .site-badge .logo-mark{ width: 26px; height: 26px; }
   .site-badge span{
     font-family: var(--font-mono);
-    font-size: 0.75rem;
+    font-size: 0.82rem;
     letter-spacing: 0.1em;
     text-transform: uppercase;
     color: var(--text-muted);
