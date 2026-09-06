@@ -91,9 +91,11 @@
   }
 
   .eyebrow{
-    display: inline-flex;
+    display: flex;
+    justify-content: center;
     align-items: baseline;
     gap: 10px;
+    width: 100%;
     font-family: var(--font-mono);
     font-size: var(--fs-caption);
     letter-spacing: 0.16em;
@@ -380,7 +382,7 @@
   .colophon .greek{ margin-top: 22px; font-style: italic; font-size: 0.98rem; color: var(--text-dim); }
   .colophon .copy{ margin-top: 10px; font-size: 0.92rem; color: var(--text-dim); }
 
-  h2.book-title{ margin-top: 12px; font-size: var(--fs-h2); }
+  h2.book-title{ margin-top: 12px; font-size: var(--fs-h2); text-align: center; }
 
   .logo-mark{
     display: block;
