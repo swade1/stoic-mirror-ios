@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="Privacy Policy for The Stoic Mirror.">
+<title>Privacy Policy — The Stoic Mirror</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,500;0,600;0,700&family=Source+Serif+4:ital,wght@0,400;0,600;1,400&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+  :root{
+    color-scheme: dark;
+    --bg: #0f0e0c;
+    --border: #3d3830;
+    --border-soft: #2a2721;
+    --gold: #c9b97a;
+    --gold-bright: #ddc98f;
+    --gold-deep: #8f7a45;
+    --text: #f0ead6;
+    --text-muted: #c4b99e;
+    --text-dim: #8a7e6e;
+    --font-display: "Fraunces", "Iowan Old Style", Georgia, serif;
+    --font-body: "Source Serif 4", Georgia, "Times New Roman", serif;
+    --font-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  }
+  *{ box-sizing: border-box; }
+  body{
+    background: var(--bg);
+    color: var(--text-muted);
+    font-family: var(--font-body);
+    font-size: 1.0625rem;
+    line-height: 1.7;
+    -webkit-font-smoothing: antialiased;
+  }
+  a{ color: var(--gold); text-decoration: none; }
+  a:hover{ color: var(--gold-bright); text-decoration: underline; }
+  :focus-visible{ outline: 2px solid var(--gold-bright); outline-offset: 3px; }
+
+  .page{ max-width: 680px; margin: 0 auto; padding: 56px 28px 96px; }
+
+  .back{
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+  }
+  .back:hover{ color: var(--gold-bright); }
+
+  h1{
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: clamp(1.9rem, 4vw, 2.5rem);
+    color: var(--text);
+    margin: 28px 0 6px;
+    text-wrap: balance;
+  }
+  .updated{
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    letter-spacing: 0.06em;
+    color: var(--text-dim);
+    margin-bottom: 48px;
+  }
+
+  section{ margin-bottom: 34px; }
+  h2{
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: 1.15rem;
+    color: var(--gold);
+    margin: 0 0 10px;
+    letter-spacing: 0.01em;
+  }
+  section p{ margin: 0 0 14px; }
+  section p:last-child{ margin-bottom: 0; }
+  strong{ color: var(--text); font-weight: 600; }
+  ul{ margin: 0 0 14px; padding-left: 1.2em; }
+  li{ margin-bottom: 6px; }
+
+  hr{
+    border: none;
+    border-top: 1px solid var(--border-soft);
+    margin: 48px 0;
+  }
+</style>
+</head>
+<body>
+<div class="page">
+  <a class="back" href="/">← The Stoic Mirror</a>
+  <h1>Privacy Policy</h1>
+  <div class="updated">Last updated: August 2026</div>
+
+  <section>
+    <h2>Information We Collect</h2>
+    <p>We collect the following information when you use The Stoic Mirror:</p>
+    <ul>
+      <li><strong>Account information:</strong> Your email address and encrypted password when you create an account.</li>
+      <li><strong>Concerns and journal entries:</strong> The text you enter when seeking counsel. This content is stored securely and is only accessible to you.</li>
+      <li><strong>Saved quotes:</strong> Quotes and interpretations you choose to save to your personal history.</li>
+      <li><strong>Usage patterns:</strong> The categories of concerns you explore, used to generate your personal Insights.</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>How We Use Your Information</h2>
+    <p>Your information is used solely to provide and improve The Stoic Mirror experience:</p>
+    <ul>
+      <li>To authenticate your account and protect your data</li>
+      <li>To process your concerns and return relevant Stoic wisdom</li>
+      <li>To store your journal entries and saved quotes for your personal use</li>
+      <li>To generate your personal Insights showing patterns in your practice</li>
+      <li>To improve the accuracy and relevance of the philosophical counsel provided</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>Third Party Services</h2>
+    <p>The Stoic Mirror uses the following third party services to operate:</p>
+    <ul>
+      <li><strong>Supabase</strong> — Secure data storage and user authentication.</li>
+      <li><strong>Anthropic Claude API</strong> — When you submit a concern, the text is sent to Anthropic's Claude API to generate personalized philosophical interpretations.</li>
+      <li><strong>Voyage AI</strong> — Used to match your concerns with relevant Stoic passages.</li>
+      <li><strong>Expo</strong> — The framework used to build the app.</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>Data Security</h2>
+    <p>We implement industry-standard security measures to protect your data. All data is transmitted over encrypted HTTPS connections. Your personal concerns are encrypted end-to-end before being stored — we cannot read them, and neither can anyone else. Only you can decrypt your concerns, using your account credentials. Your saved quotes and insights are protected by Row Level Security — only you can access your own data. Passwords are encrypted and never stored in plain text.</p>
+  </section>
+
+  <section>
+    <h2>Data Retention</h2>
+    <p>Your data is retained for as long as your account is active. You may delete your account and all associated data at any time by contacting us. Upon deletion, all your journal entries, saved quotes, and account information will be permanently removed from our systems.</p>
+  </section>
+
+  <section>
+    <h2>Your Rights</h2>
+    <p>You have the right to:</p>
+    <ul>
+      <li>Access the personal data we hold about you</li>
+      <li>Request correction of inaccurate data</li>
+      <li>Request deletion of your data</li>
+      <li>Export your data in a portable format</li>
+      <li>Withdraw consent at any time by deleting your account</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>Children's Privacy</h2>
+    <p>The Stoic Mirror is not intended for children under the age of 13. We do not knowingly collect personal information from children under 13.</p>
+  </section>
+
+  <section>
+    <h2>Sensitive Content</h2>
+    <p>The Stoic Mirror is designed for personal reflection and philosophical counsel. Users may choose to share sensitive personal concerns within the app. This content is stored securely and is never shared with other users or used for advertising purposes.</p>
+    <p>The Stoic Mirror is not a substitute for professional mental health support. If you are experiencing a mental health crisis, please contact a qualified professional or emergency services.</p>
+  </section>
+
+  <hr>
+
+  <section>
+    <h2>Contact Us</h2>
+    <p>If you have any questions about this Privacy Policy, please contact us at <a href="mailto:susan.wade09@gmail.com">susan.wade09@gmail.com</a>.</p>
+  </section>
+</div>
+</body>
+</html>
