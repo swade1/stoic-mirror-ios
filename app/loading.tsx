@@ -130,8 +130,9 @@ export default function LoadingScreen() {
           'Authorization': `Bearer ${VOYAGE_API_KEY}`,
         },
         body: JSON.stringify({
-          model: 'voyage-3',
+          model: 'voyage-4',
           input: [`Stoic philosophy advice needed: ${concern}`],
+          output_dimension: 1024,
         }),
       });
       if (!embedRes.ok) {
