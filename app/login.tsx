@@ -107,11 +107,11 @@ export default function Login() {
         </TouchableOpacity>
 
         <View style={styles.policyRow}>
-          <TouchableOpacity>
+          <TouchableOpacity onPress={() => router.push('/privacy')}>
             <Text style={styles.policyLink}>Privacy Policy</Text>
           </TouchableOpacity>
           <Text style={styles.policySeparator}>·</Text>
-          <TouchableOpacity>
+          <TouchableOpacity onPress={() => router.push('/terms')}>
             <Text style={styles.policyLink}>Terms of Service</Text>
           </TouchableOpacity>
         </View>
