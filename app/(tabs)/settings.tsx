@@ -8,6 +8,7 @@ import {
   Image,
   ScrollView,
   ActivityIndicator,
+  Linking,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useFocusEffect } from 'expo-router';
@@ -94,6 +95,16 @@ export default function SettingsScreen() {
 
   const handleNotifications = () => {
     router.push('/notifications');
+  };
+
+  const handleManageSubscription = async () => {
+    // Apple doesn't let apps cancel a subscription programmatically —
+    // this deep-links to the native subscription management page, the
+    // only App-Store-compliant way to let someone cancel or change plan.
+    const itmsUrl = 'itms-apps://apps.apple.com/account/subscriptions';
+    const webUrl = 'https://apps.apple.com/account/subscriptions';
+    const canOpenItms = await Linking.canOpenURL(itmsUrl);
+    await Linking.openURL(canOpenItms ? itmsUrl : webUrl);
   };
 
   const handleDeleteAccount = () => {
@@ -202,12 +213,15 @@ export default function SettingsScreen() {
                 <Text style={styles.rowValue}>{totalSaved}</Text>
               </View>
               <View style={styles.divider} />
-              <View style={styles.row}>
+              <TouchableOpacity style={styles.row} onPress={handleManageSubscription}>
                 <Text style={styles.rowLabel}>Subscription</Text>
-                <Text style={[styles.rowValue, subscriptionStatus === 'Free' && styles.rowValueFree]}>
-                  {subscriptionStatus}
-                </Text>
-              </View>
+                <View style={styles.rowValueGroup}>
+                  <Text style={[styles.rowValue, subscriptionStatus === 'Free' && styles.rowValueFree]}>
+                    {subscriptionStatus}
+                  </Text>
+                  <IconSymbol name="chevron.right" size={12} color="#a89f88" />
+                </View>
+              </TouchableOpacity>
               <View style={styles.divider} />
               <TouchableOpacity style={styles.row} onPress={handleConcerns}>
                 <Text style={styles.rowLabel}>Your concerns</Text>
@@ -231,7 +245,7 @@ export default function SettingsScreen() {
           </View>
           {subscriptionStatus === 'Free' && (
             <TouchableOpacity style={styles.upgradeButton} onPress={() => router.push('/paywall')}>
-              <Text style={styles.upgradeButtonText}>Manage subscription</Text>
+              <Text style={styles.upgradeButtonText}>Upgrade</Text>
             </TouchableOpacity>
           )}
 
@@ -389,6 +403,11 @@ const styles = StyleSheet.create({
     color: '#a89f88',
     textAlign: 'right',
     flexShrink: 1,
+  },
+  rowValueGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
   },
   signOutText: {
     fontSize: 15,
