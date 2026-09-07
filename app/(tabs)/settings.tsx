@@ -101,10 +101,19 @@ export default function SettingsScreen() {
     // Apple doesn't let apps cancel a subscription programmatically —
     // this deep-links to the native subscription management page, the
     // only App-Store-compliant way to let someone cancel or change plan.
+    // Neither URL can open in the Simulator (no real App Store session),
+    // so this only actually works on a physical device.
     const itmsUrl = 'itms-apps://apps.apple.com/account/subscriptions';
     const webUrl = 'https://apps.apple.com/account/subscriptions';
-    const canOpenItms = await Linking.canOpenURL(itmsUrl);
-    await Linking.openURL(canOpenItms ? itmsUrl : webUrl);
+    try {
+      const canOpenItms = await Linking.canOpenURL(itmsUrl);
+      await Linking.openURL(canOpenItms ? itmsUrl : webUrl);
+    } catch {
+      Alert.alert(
+        'Unable to Open',
+        'Subscription management could not be opened. This requires a physical device signed into the App Store — it will not work in the Simulator.'
+      );
+    }
   };
 
   const handleDeleteAccount = () => {
@@ -216,7 +225,10 @@ export default function SettingsScreen() {
               <TouchableOpacity style={styles.row} onPress={handleManageSubscription}>
                 <Text style={styles.rowLabel}>Subscription</Text>
                 <View style={styles.rowValueGroup}>
-                  <Text style={[styles.rowValue, subscriptionStatus === 'Free' && styles.rowValueFree]}>
+                  <Text
+                    style={[styles.rowValue, styles.rowValueNoWrap, subscriptionStatus === 'Free' && styles.rowValueFree]}
+                    numberOfLines={1}
+                  >
                     {subscriptionStatus}
                   </Text>
                   <IconSymbol name="chevron.right" size={12} color="#a89f88" />
@@ -408,6 +420,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
+    flexShrink: 1,
+  },
+  rowValueNoWrap: {
+    maxWidth: undefined,
+    flexShrink: 0,
   },
   signOutText: {
     fontSize: 15,

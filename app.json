@@ -13,7 +13,8 @@
       "bundleIdentifier": "com.stoicmirror.app",
       "infoPlist": {
         "NSSpeechRecognitionUsageDescription": "Allow The Stoic Mirror to use speech recognition.",
-        "NSMicrophoneUsageDescription": "Allow The Stoic Mirror to use the microphone."
+        "NSMicrophoneUsageDescription": "Allow The Stoic Mirror to use the microphone.",
+        "LSApplicationQueriesSchemes": ["itms-apps"]
       }
     },
     "android": {
