@@ -70,29 +70,32 @@ export default function RootLayout() {
            animation: 'fade',
          }}
        >
-        {isSignedIn ? (
-          <>
-            <Stack.Screen name="(tabs)" />
-            <Stack.Screen name="loading" options={{ headerShown: false }} />
-            <Stack.Screen name="detail" options={{ headerShown: false }} />
-            <Stack.Screen name="+not-found" />
-            <Stack.Screen name="privacy" options={{ headerShown: false }} />
-            <Stack.Screen name="terms" options={{ headerShown: false }} />
-            <Stack.Screen name="paywall" options={{ headerShown: false }} />
-            <Stack.Screen name="concerns" options={{ headerShown: false }} />
-          </>
-        ) : (
-          <>
-            <Stack.Screen name="index" />
-            <Stack.Screen name="onboarding1" />
-            <Stack.Screen name="onboarding2" />
-            <Stack.Screen name="onboarding3" />
-            <Stack.Screen name="signup" />
-            <Stack.Screen name="login" />
-            <Stack.Screen name="+not-found" />
-            <Stack.Screen name="onboarding3" />
-          </>
-        )}
+        {/* Requires a signed-in session — Stack.Protected actually blocks
+            navigation when the guard is false, unlike conditionally
+            rendering different Stack.Screen sets. */}
+        <Stack.Protected guard={isSignedIn}>
+          <Stack.Screen name="(tabs)" />
+          <Stack.Screen name="loading" />
+          <Stack.Screen name="detail" />
+          <Stack.Screen name="concerns" />
+        </Stack.Protected>
+
+        {/* Only reachable before an account exists */}
+        <Stack.Protected guard={!isSignedIn}>
+          <Stack.Screen name="index" />
+          <Stack.Screen name="onboarding1" />
+          <Stack.Screen name="onboarding2" />
+          <Stack.Screen name="onboarding3" />
+          <Stack.Screen name="signup" />
+          <Stack.Screen name="login" />
+        </Stack.Protected>
+
+        {/* Reachable either way — paywall is part of the pre-account
+            onboarding funnel, and legal pages should stay public */}
+        <Stack.Screen name="paywall" />
+        <Stack.Screen name="privacy" />
+        <Stack.Screen name="terms" />
+        <Stack.Screen name="+not-found" />
       </Stack>
       <StatusBar style="light" />
     </ThemeProvider>

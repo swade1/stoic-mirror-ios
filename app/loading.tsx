@@ -80,29 +80,26 @@ export default function LoadingScreen() {
 
   const seekCounsel = async (concern: string) => {
     try {
-      // Step 1: Get current user (may be null for anonymous/free tier)
+      // Step 1: Get the current user — every account is authenticated now
       const { data: { session } } = await supabase.auth.getSession();
-      const user = session?.user ?? null;
+      if (!session) throw new Error('Not signed in');
+      const user = session.user;
 
-      // Step 1b: Load the user's standing concerns, if any, for extra context
-      let userConcerns: string[] = [];
+      // Step 1b: Load the user's standing concerns, for extra context
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('concerns')
+        .eq('id', user.id)
+        .single();
+      const userConcerns: string[] = profile?.concerns ?? [];
+
       // Passages already shown to this user, so retrieval can favor fresh material
-      let excludePassageIds: string[] = [];
-      if (user) {
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('concerns')
-          .eq('id', user.id)
-          .single();
-        userConcerns = profile?.concerns ?? [];
-
-        const { data: shownQuotes } = await supabase
-          .from('entry_quotes')
-          .select('passage_id')
-          .eq('user_id', user.id)
-          .not('passage_id', 'is', null);
-        excludePassageIds = [...new Set((shownQuotes ?? []).map((r) => r.passage_id as string))];
-      }
+      const { data: shownQuotes } = await supabase
+        .from('entry_quotes')
+        .select('passage_id')
+        .eq('user_id', user.id)
+        .not('passage_id', 'is', null);
+      const excludePassageIds: string[] = [...new Set((shownQuotes ?? []).map((r) => r.passage_id as string))];
 
       // Step 2: Embed the concern via Voyage AI
       const embedRes = await fetch('https://api.voyageai.com/v1/embeddings', {
@@ -212,50 +209,42 @@ export default function LoadingScreen() {
       const quotes: Quote[] = parsed.quotes.slice(0, 5);
       const category: string = parsed.category || 'General';
 
-      // Step 6: Save to database only if user is authenticated
-      if (user) {
-        const { encryptConcern } = await import('@/lib/encryption');
-        const encryptedConcern = await encryptConcern(concern, user.id);
+      // Step 6: Save to database
+      const { encryptConcern } = await import('@/lib/encryption');
+      const encryptedConcern = await encryptConcern(concern, user.id);
 
-        const { data: entry, error: entryError } = await supabase
-          .from('entries')
-          .insert({
-            user_id: user.id,
-            concern: encryptedConcern,
-            category,
-          })
-          .select()
-          .single();
+      const { data: entry, error: entryError } = await supabase
+        .from('entries')
+        .insert({
+          user_id: user.id,
+          concern: encryptedConcern,
+          category,
+        })
+        .select()
+        .single();
 
-        if (entryError) throw entryError;
+      if (entryError) throw entryError;
 
-        const quoteRows = quotes.map((q) => {
-          // Match Claude's returned quote back to the passage it came from,
-          // from this same request's candidate list, so we can exclude it
-          // from future retrieval for this user.
-          const sourcePassage = passages.find((p: any) => p.passage === q.quote);
-          return {
-            entry_id: entry.id,
-            user_id: user.id,
-            passage_id: sourcePassage?.id ?? null,
-            quote: q.quote,
-            author: q.author,
-            source: q.source,
-            interpretation: q.interpretation,
-          };
-        });
+      const quoteRows = quotes.map((q) => {
+        // Match Claude's returned quote back to the passage it came from,
+        // from this same request's candidate list, so we can exclude it
+        // from future retrieval for this user.
+        const sourcePassage = passages.find((p: any) => p.passage === q.quote);
+        return {
+          entry_id: entry.id,
+          user_id: user.id,
+          passage_id: sourcePassage?.id ?? null,
+          quote: q.quote,
+          author: q.author,
+          source: q.source,
+          interpretation: q.interpretation,
+        };
+      });
 
-        await supabase.from('entry_quotes').insert(quoteRows);
+      await supabase.from('entry_quotes').insert(quoteRows);
 
-        // Navigate to results with entry id
-        router.replace(`/detail?id=${entry.id}`);
-      } else {
-        // Anonymous user — pass quotes directly via params
-        const quotesParam = encodeURIComponent(JSON.stringify(quotes));
-        const concernParam = encodeURIComponent(concern);
-        const categoryParam = encodeURIComponent(category);
-        router.replace(`/detail?quotes=${quotesParam}&concern=${concernParam}&category=${categoryParam}`);
-      }
+      // Navigate to results with entry id
+      router.replace(`/detail?id=${entry.id}`);
 
     } catch (error) {
       Alert.alert('Error', (error as Error).message);
