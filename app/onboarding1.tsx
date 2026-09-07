@@ -32,6 +32,7 @@ export default function Onboarding1() {
         <View style={styles.progressRow}>
           <View style={[styles.dot, styles.dotActive]} />
           <View style={styles.dot} />
+          <View style={styles.dot} />
         </View>
         <TouchableOpacity style={styles.button} onPress={() => router.push('/onboarding2')}>
           <Text style={styles.buttonText}>See how it works</Text>

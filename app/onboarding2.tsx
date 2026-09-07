@@ -67,6 +67,7 @@ export default function Onboarding2() {
         <View style={styles.progressRow}>
           <View style={styles.dot} />
           <View style={[styles.dot, styles.dotActive]} />
+          <View style={styles.dot} />
         </View>
         <TouchableOpacity
           style={[styles.button, selected.length === 0 && styles.buttonDisabled]}
