@@ -91,7 +91,7 @@ export default function SettingsScreen() {
   const handleDeleteAccount = () => {
     Alert.alert(
       'Delete Account',
-      'This permanently deletes your account, including every reflection and saved quote. This cannot be undone.',
+      'This permanently deletes your account, including every reflection and saved quote. Export your data first if you\'d like to keep it — this cannot be undone.',
       [
         { text: 'Cancel', style: 'cancel' },
         {
