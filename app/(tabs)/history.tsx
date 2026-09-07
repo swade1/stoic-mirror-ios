@@ -1,6 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect , useCallback } from 'react';
 import { useFocusEffect } from 'expo-router';
-import { useCallback } from 'react';
 import {
   View,
   Text,
@@ -153,7 +152,7 @@ export default function HistoryScreen() {
         />
         <View style={styles.headerText}>
           <Text style={styles.headerTitle}>Saved Wisdom</Text>
-          <Text style={styles.headerSubtitle}>Quotes you've chosen to keep</Text>
+          <Text style={styles.headerSubtitle}>Quotes you&apos;ve chosen to keep</Text>
         </View>
         <TouchableOpacity
           onPress={() => {
@@ -270,7 +269,7 @@ export default function HistoryScreen() {
           <IconSymbol name="bookmark" size={48} color="#6a6050" />
           <Text style={styles.emptyTitle}>No saved wisdom yet</Text>
           <Text style={styles.emptySubtitle}>
-            Tap "Save this wisdom" on any quote to add it here
+            Tap &quot;Save this wisdom&quot; on any quote to add it here
           </Text>
         </View>
       ) : (
@@ -333,7 +332,7 @@ export default function HistoryScreen() {
                 <IconSymbol name="text.quote" size={12} color="#c9b97a" />
                 <Text style={styles.quoteLabel}>The Philosophers</Text>
               </View>
-              <Text style={styles.quoteText}>"{currentQuote.quote}"</Text>
+              <Text style={styles.quoteText}>&ldquo;{currentQuote.quote}&rdquo;</Text>
               <Text style={styles.author}>— {currentQuote.author}</Text>
               <Text style={styles.source}>{currentQuote.source}</Text>
             </View>

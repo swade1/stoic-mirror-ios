@@ -23,7 +23,7 @@ export default function Start() {
       </Text>
 
       <Text style={styles.description}>
-        Describe what's troubling you and receive personalized wisdom from Marcus Aurelius, Epictetus, and Seneca.
+        Describe what&apos;s troubling you and receive personalized wisdom from Marcus Aurelius, Epictetus, and Seneca.
       </Text>
 
       <Text style={styles.attribution}>

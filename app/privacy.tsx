@@ -52,7 +52,7 @@ export default function PrivacyScreen() {
         <Section title="Third Party Services">
           The Stoic Mirror uses the following third party services to operate:{'\n\n'}
           • <Bold>Supabase</Bold> — Secure data storage and user authentication.{'\n\n'}
-          • <Bold>Anthropic Claude API</Bold> — When you submit a concern, the text is sent to Anthropic's Claude API to generate personalized philosophical interpretations.{'\n\n'}
+          • <Bold>Anthropic Claude API</Bold> — When you submit a concern, the text is sent to Anthropic&apos;s Claude API to generate personalized philosophical interpretations.{'\n\n'}
           • <Bold>Voyage AI</Bold> — Used to match your concerns with relevant Stoic passages.{'\n\n'}
           • <Bold>Expo</Bold> — The framework used to build the app.
         </Section>

@@ -119,7 +119,7 @@ export default function Login() {
 
     <TouchableOpacity onPress={() => router.push('/onboarding1')}>
       <Text style={styles.signUpText}>
-        Don't have an account? Create one
+        Don&apos;t have an account? Create one
       </Text>
     </TouchableOpacity>
     

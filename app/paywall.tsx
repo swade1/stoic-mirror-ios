@@ -146,7 +146,7 @@ export default function PaywallScreen() {
         <View style={styles.socialProof}>
           {SOCIAL_PROOF.map((item, index) => (
             <View key={index} style={styles.testimonial}>
-              <Text style={styles.testimonialQuote}>"{item.quote}"</Text>
+              <Text style={styles.testimonialQuote}>&ldquo;{item.quote}&rdquo;</Text>
               <Text style={styles.testimonialInitials}>— {item.initials}</Text>
             </View>
           ))}

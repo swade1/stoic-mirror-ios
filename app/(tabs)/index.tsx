@@ -122,9 +122,9 @@ export default function CounselScreen() {
         { /* Daily quote */ }
         {dailyQuote && (
           <View style={styles.dailyQuoteBox}>
-            <Text style={styles.dailyQuoteLabel}>Today's reflection</Text>
+            <Text style={styles.dailyQuoteLabel}>Today&apos;s reflection</Text>
             <Text style={styles.dailyQuoteText}>
-              "{dailyQuote.quote}"
+              &ldquo;{dailyQuote.quote}&rdquo;
             </Text>
             <Text style={styles.dailyQuoteAuthor}>— {dailyQuote.author}</Text>
           </View>

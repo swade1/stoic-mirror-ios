@@ -63,7 +63,7 @@ export default function TermsScreen() {
         </Section>
 
         <Section title="7. Disclaimer of Warranties">
-          The Stoic Mirror is provided "as is" without warranties of any kind. We do not warrant that the app will be error-free or uninterrupted, or that the philosophical counsel provided will be accurate or suitable for your particular situation.
+          The Stoic Mirror is provided &quot;as is&quot; without warranties of any kind. We do not warrant that the app will be error-free or uninterrupted, or that the philosophical counsel provided will be accurate or suitable for your particular situation.
         </Section>
 
         <Section title="8. Limitation of Liability">
@@ -71,7 +71,7 @@ export default function TermsScreen() {
         </Section>
 
         <Section title="9. Termination">
-          We reserve the right to suspend or terminate your account if you violate these Terms of Service. You may delete your account at any time through the app's Settings screen.
+          We reserve the right to suspend or terminate your account if you violate these Terms of Service. You may delete your account at any time through the app&apos;s Settings screen.
         </Section>
 
         <Section title="10. Governing Law">

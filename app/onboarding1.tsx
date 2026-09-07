@@ -13,18 +13,18 @@ export default function Onboarding1() {
           style={styles.mirrorImage}
         />
 
-        <Text style={styles.title}>Your mind won't stop.</Text>
+        <Text style={styles.title}>Your mind won&apos;t stop.</Text>
 
         <Text style={styles.body}>
-          You keep thinking about it. The thing you can't fix. The future you can't predict. The thing you should've said but didn't think of in time.
+          You keep thinking about it. The thing you can&apos;t fix. The future you can&apos;t predict. The thing you should&apos;ve said but didn&apos;t think of in time.
         </Text>
-        
+
         <Text style={styles.body}>
-          You're not broken. You're human. But there's a better way.
+          You&apos;re not broken. You&apos;re human. But there&apos;s a better way.
         </Text>
-        
+
         <Text style={styles.body}>
-          The Stoics believed wisdom begins with seeing yourself clearly — like looking into a mirror. That's why Marcus Aurelius kept a journal we know today as Meditations. That's why this app is called The Stoic Mirror.
+          The Stoics believed wisdom begins with seeing yourself clearly — like looking into a mirror. That&apos;s why Marcus Aurelius kept a journal we know today as Meditations. That&apos;s why this app is called The Stoic Mirror.
          </Text>
       </ScrollView>
 

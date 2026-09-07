@@ -1,6 +1,5 @@
-import React, { useState } from 'react';
-import { useFocusEffect } from 'expo-router';
-import { useCallback } from 'react';
+import React, { useState , useCallback } from 'react';
+import { useFocusEffect , useRouter, useLocalSearchParams } from 'expo-router';
 import {
   View,
   Text,
@@ -8,12 +7,10 @@ import {
   StyleSheet,
   TouchableOpacity,
   ActivityIndicator,
-} from 'react-native';
-import { useRouter, useLocalSearchParams } from 'expo-router';
+ Animated } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { supabase } from '@/lib/supabase';
 import { IconSymbol } from '@/components/ui/IconSymbol';
-import { Animated } from 'react-native';
 import { maybeRequestReview } from '@/lib/reviewPrompt';
 
 interface Quote {
@@ -283,7 +280,7 @@ export default function ResultsScreen() {
               <Text style={styles.quoteNumber}>
                 {index + 1} of {quotes.length}
               </Text>
-              <Text style={styles.quoteText}>"{quote.quote}"</Text>
+              <Text style={styles.quoteText}>&ldquo;{quote.quote}&rdquo;</Text>
               <View style={styles.attribution}>
                 <Text style={styles.author}>{quote.author}</Text>
                 <Text style={styles.source}>{quote.source}</Text>
