@@ -13,6 +13,7 @@ import {
   Image,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { IconSymbol } from '@/components/ui/IconSymbol';
 
 export default function SignUp() {
   const router = useRouter();
@@ -20,6 +21,8 @@ export default function SignUp() {
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
 
   const handleSignUp = async () => {
     if (password !== confirm) {
@@ -80,28 +83,46 @@ export default function SignUp() {
         />
 
         <Text style={styles.label}>Password</Text>
-        <TextInput
-          style={styles.input}
-          placeholder="choose a secure password"
-          placeholderTextColor="#8a7e6e"
-          secureTextEntry
-          textContentType="oneTimeCode"
-          autoComplete="off"
-          value={password}
-          onChangeText={setPassword}
-        />
+        <View style={styles.passwordWrapper}>
+          <TextInput
+            style={[styles.input, styles.passwordInput]}
+            placeholder="choose a secure password"
+            placeholderTextColor="#8a7e6e"
+            secureTextEntry={!showPassword}
+            textContentType="oneTimeCode"
+            autoComplete="off"
+            value={password}
+            onChangeText={setPassword}
+          />
+          <TouchableOpacity
+            style={styles.eyeButton}
+            onPress={() => setShowPassword((v) => !v)}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
+            <IconSymbol name={showPassword ? 'eye.slash' : 'eye'} size={18} color="#8a7e6e" />
+          </TouchableOpacity>
+        </View>
 
         <Text style={styles.label}>Confirm Password</Text>
-        <TextInput
-           style={styles.input}
-           placeholder="confirm your password"
-           placeholderTextColor="#8a7e6e"
-           secureTextEntry
-           textContentType="oneTimeCode"
-           autoComplete="off"
-           value={confirm}
-           onChangeText={setConfirm}
-        />
+        <View style={styles.passwordWrapper}>
+          <TextInput
+            style={[styles.input, styles.passwordInput]}
+            placeholder="confirm your password"
+            placeholderTextColor="#8a7e6e"
+            secureTextEntry={!showConfirm}
+            textContentType="oneTimeCode"
+            autoComplete="off"
+            value={confirm}
+            onChangeText={setConfirm}
+          />
+          <TouchableOpacity
+            style={styles.eyeButton}
+            onPress={() => setShowConfirm((v) => !v)}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
+            <IconSymbol name={showConfirm ? 'eye.slash' : 'eye'} size={18} color="#8a7e6e" />
+          </TouchableOpacity>
+        </View>
 
         <TouchableOpacity
           style={[styles.button, loading && styles.buttonDisabled]}
@@ -173,6 +194,23 @@ const styles = StyleSheet.create({
     color: '#f0ead6',
     fontSize: 16,
     marginBottom: 20,
+  },
+  passwordWrapper: {
+    position: 'relative',
+    marginBottom: 20,
+  },
+  passwordInput: {
+    marginBottom: 0,
+    paddingRight: 48,
+  },
+  eyeButton: {
+    position: 'absolute',
+    right: 14,
+    top: 0,
+    bottom: 0,
+    width: 32,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   button: {
     backgroundColor: '#2a2720',
