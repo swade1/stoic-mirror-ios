@@ -96,9 +96,6 @@ export default function Onboarding3() {
         >
           <Text style={styles.buttonText}>See my plan</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.skip} onPress={() => router.push('/signup')}>
-          <Text style={styles.skipText}>Skip — try 3 sessions free</Text>
-        </TouchableOpacity>
         <View style={styles.spacer} />
       </View>
     </View>
@@ -215,14 +212,6 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     textAlign: 'center',
     letterSpacing: 2,
-  },
-  skip: {
-    marginTop: 16,
-  },
-  skipText: {
-    fontSize: 14,
-    color: '#5a5446',
-    textDecorationLine: 'underline',
   },
   spacer: { height: 40 },
 });
