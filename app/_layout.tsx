@@ -78,6 +78,7 @@ export default function RootLayout() {
           <Stack.Screen name="loading" />
           <Stack.Screen name="detail" />
           <Stack.Screen name="concerns" />
+          <Stack.Screen name="change-password" />
         </Stack.Protected>
 
         {/* Only reachable before an account exists */}
