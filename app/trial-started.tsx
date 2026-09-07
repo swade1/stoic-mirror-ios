@@ -25,10 +25,12 @@ export default function TrialStartedScreen() {
         <Image
           source={require('../assets/images/mirror-welcome.png')}
           style={styles.mirrorImage}
+          accessibilityElementsHidden
+          importantForAccessibility="no"
         />
 
         <View style={styles.iconBadge}>
-          <IconSymbol name="checkmark.circle.fill" size={28} color="#c9b97a" />
+          <IconSymbol name="checkmark.circle.fill" size={28} color="#c9b97a" accessibilityElementsHidden importantForAccessibility="no" />
         </View>
 
         <Text style={styles.headline}>You&apos;re all set.</Text>
@@ -64,6 +66,7 @@ export default function TrialStartedScreen() {
         <TouchableOpacity
           style={styles.button}
           onPress={() => router.replace('/(tabs)')}
+          accessibilityRole="button"
         >
           <Text style={styles.buttonText}>Begin your practice</Text>
         </TouchableOpacity>

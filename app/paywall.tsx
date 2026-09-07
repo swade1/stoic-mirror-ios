@@ -57,7 +57,7 @@ export default function PaywallScreen() {
 
         {/* Privacy differentiator */}
         <View style={styles.privacyBadge}>
-          <IconSymbol name="lock.shield.fill" size={20} color="#c9b97a" />
+          <IconSymbol name="lock.shield.fill" size={20} color="#c9b97a" accessibilityElementsHidden importantForAccessibility="no" />
           <Text style={styles.privacyBadgeText}>
             Unlike many popular meditation and wellness apps, we never sell your data or share it with advertisers.
           </Text>
@@ -97,6 +97,9 @@ export default function PaywallScreen() {
           <TouchableOpacity
             style={[styles.planButton, selected === 'annual' && styles.planButtonSelected]}
             onPress={() => setSelected('annual')}
+            accessibilityRole="radio"
+            accessibilityState={{ selected: selected === 'annual' }}
+            accessibilityLabel="Annual plan, $39.99 per year, 7 days free, save 33%"
           >
             <View style={styles.planBadge}>
               <Text style={styles.planBadgeText}>BEST VALUE</Text>
@@ -113,7 +116,7 @@ export default function PaywallScreen() {
             </View>
             {selected === 'annual' && (
               <View style={styles.selectedCheck}>
-                <IconSymbol name="checkmark.circle.fill" size={20} color="#c9b97a" />
+                <IconSymbol name="checkmark.circle.fill" size={20} color="#c9b97a" accessibilityElementsHidden importantForAccessibility="no" />
               </View>
             )}
           </TouchableOpacity>
@@ -121,6 +124,9 @@ export default function PaywallScreen() {
           <TouchableOpacity
             style={[styles.planButton, selected === 'monthly' && styles.planButtonSelected]}
             onPress={() => setSelected('monthly')}
+            accessibilityRole="radio"
+            accessibilityState={{ selected: selected === 'monthly' }}
+            accessibilityLabel="Monthly plan, $4.99 per month, 7 days free"
           >
             <View style={styles.planRow}>
               <View style={styles.planLeft}>
@@ -134,7 +140,7 @@ export default function PaywallScreen() {
             </View>
             {selected === 'monthly' && (
               <View style={styles.selectedCheck}>
-                <IconSymbol name="checkmark.circle.fill" size={20} color="#c9b97a" />
+                <IconSymbol name="checkmark.circle.fill" size={20} color="#c9b97a" accessibilityElementsHidden importantForAccessibility="no" />
               </View>
             )}
           </TouchableOpacity>
@@ -144,6 +150,7 @@ export default function PaywallScreen() {
         <TouchableOpacity
           style={styles.ctaButton}
           onPress={() => router.push({ pathname: '/signup', params: { plan: selected } })}
+          accessibilityRole="button"
         >
           <Text style={styles.ctaText}>Start free trial</Text>
           <Text style={styles.ctaSubtext}>
@@ -166,7 +173,7 @@ export default function PaywallScreen() {
         <View style={styles.features}>
           {FEATURES.map((feature) => (
             <View key={feature.text} style={styles.featureRow}>
-              <IconSymbol name={feature.icon as any} size={16} color="#c9b97a" />
+              <IconSymbol name={feature.icon as any} size={16} color="#c9b97a" accessibilityElementsHidden importantForAccessibility="no" />
               <Text style={styles.featureText}>{feature.text}</Text>
             </View>
           ))}
