@@ -1,5 +1,6 @@
 import * as Notifications from 'expo-notifications';
 import { supabase } from '@/lib/supabase';
+import { getDailyQuoteId } from '@/lib/dailyQuote';
 
 export const DAILY_REMINDER_ID = 'daily-reminder';
 export const REENGAGEMENT_ID = 'reengagement-nudge';
@@ -36,8 +37,9 @@ export async function requestNotificationPermission(): Promise<boolean> {
 
 /**
  * Same deterministic day -> daily_quotes row selection used by the
- * Counsel tab's "quote of the day" (app/(tabs)/index.tsx), duplicated
- * here so scheduling doesn't depend on that screen being mounted.
+ * Counsel tab's "quote of the day" (app/(tabs)/index.tsx), via the
+ * shared lib/dailyQuote.ts helper so scheduling doesn't depend on that
+ * screen being mounted, and the two can't drift apart.
  */
 async function getTodaysQuote(): Promise<string | null> {
   const { count } = await supabase
@@ -45,9 +47,7 @@ async function getTodaysQuote(): Promise<string | null> {
     .select('*', { count: 'exact', head: true });
   if (!count) return null;
 
-  const today = new Date();
-  const seed = today.getFullYear() * 10000 + (today.getMonth() + 1) * 100 + today.getDate();
-  const index = (seed % count) + 1;
+  const index = getDailyQuoteId(new Date(), count);
 
   const { data } = await supabase
     .from('daily_quotes')

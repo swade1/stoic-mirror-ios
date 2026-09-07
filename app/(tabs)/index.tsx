@@ -16,6 +16,7 @@ import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import { supabase } from '@/lib/supabase';
+import { getDailyQuoteId } from '@/lib/dailyQuote';
 
 export default function CounselScreen() {
   const router = useRouter();
@@ -37,9 +38,7 @@ export default function CounselScreen() {
 
     if (!count) return;
 
-    const today = new Date();
-    const seed = today.getFullYear() * 10000 + (today.getMonth() + 1) * 100 + today.getDate();
-    const index = (seed % count) + 1;
+    const index = getDailyQuoteId(new Date(), count);
 
     const { data } = await supabase
       .from('daily_quotes')

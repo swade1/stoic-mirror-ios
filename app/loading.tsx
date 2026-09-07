@@ -8,6 +8,7 @@ import {
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { supabase } from '@/lib/supabase';
+import { isNetworkError } from '@/lib/networkError';
 
 const ANTHROPIC_API_KEY = process.env.EXPO_PUBLIC_ANTHROPIC_API_KEY;
 console.log('API KEY:', ANTHROPIC_API_KEY ? 'found' : 'missing');
@@ -27,14 +28,6 @@ const SYSTEM_PROMPT = `You are a Stoic philosophy scholar. Given a person's conc
 {"quotes":[{"quote":"exact text","author":"name","source":"work","interpretation":"your counsel"}],"category":"one of: ${CATEGORIES.join(', ')}"}
 The category value MUST be copied exactly as written above — do not reorder, abbreviate, or modify the category string.`;
 
-// True when `fetch` never reached the network at all (no connection,
-// airplane mode, DNS failure, etc.) — distinct from a request that
-// completed but returned a non-ok HTTP status, which is a real API
-// failure and should keep showing its own specific message.
-function isNetworkError(error: unknown): boolean {
-  if (!(error instanceof Error)) return false;
-  return /network request failed|failed to fetch|network error/i.test(error.message);
-}
 
 
 interface Quote {
