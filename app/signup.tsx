@@ -51,6 +51,22 @@ export default function SignUp() {
       return;
     }
 
+    // A real new account with no error but also no session means Supabase
+    // is waiting on email confirmation before it will sign the user in.
+    // Without this check, this case was silent: the account row exists,
+    // but nothing happens on screen and no SIGNED_IN event ever fires
+    // (there's no session for _layout.tsx's listener to react to), so
+    // navigation never happens.
+    if (data.user && !data.session) {
+      setLoading(false);
+      Alert.alert(
+        'Check Your Email',
+        `We sent a confirmation link to ${email}. Confirm your email, then sign in.`,
+        [{ text: 'OK', onPress: () => router.push('/login') }]
+      );
+      return;
+    }
+
     if (data.user) {
       const storedConcerns = await AsyncStorage.getItem('user_primary_concern');
       if (storedConcerns) {
