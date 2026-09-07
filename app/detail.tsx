@@ -224,7 +224,7 @@ export default function ResultsScreen() {
   if (!entry) {
     return (
       <View style={[styles.loadingContainer, { paddingTop: insets.top }]}>
-        <IconSymbol name="scroll.fill" size={48} color="#6a6050" />
+        <IconSymbol name="scroll.fill" size={48} color="#6a6050" accessibilityElementsHidden importantForAccessibility="no" />
         <Text style={styles.emptyTitle}>No results yet</Text>
         <Text style={styles.emptySubtitle}>
           Seek counsel from the Counsel tab and your wisdom will appear here
@@ -241,7 +241,7 @@ export default function ResultsScreen() {
         <Text style={styles.headerSubtitle}>{entry.category}</Text>
         {sessionSaved && (
           <View style={styles.savedIndicator}>
-            <IconSymbol name="checkmark.circle.fill" size={14} color="#4caf50" />
+            <IconSymbol name="checkmark.circle.fill" size={14} color="#4caf50" accessibilityElementsHidden importantForAccessibility="no" />
             <Text style={styles.savedIndicatorText}>Session saved</Text>
           </View>
         )}
@@ -292,6 +292,8 @@ export default function ResultsScreen() {
               <TouchableOpacity
                 style={[styles.saveButton, saved.includes(quote.id) && styles.saveButtonActive]}
                 onPress={() => toggleSave(quote)}
+                accessibilityRole="button"
+                accessibilityState={{ selected: saved.includes(quote.id) }}
               >
                 <Animated.View style={{ transform: [{ scale: getSaveAnim(quote.id) }] }}>
                   <IconSymbol
@@ -316,13 +318,15 @@ export default function ResultsScreen() {
           <TouchableOpacity
             style={styles.saveAllButton}
             onPress={saveAll}
+            accessibilityRole="button"
           >
-            <IconSymbol name="bookmark.fill" size={14} color="#0f0e0c" />
+            <IconSymbol name="bookmark.fill" size={14} color="#0f0e0c" accessibilityElementsHidden importantForAccessibility="no" />
             <Text style={styles.saveAllButtonText}>Save all</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.doneButton}
             onPress={() => router.replace('/(tabs)/history')}
+            accessibilityRole="button"
           >
             <Text style={styles.doneButtonText}>Done</Text>
           </TouchableOpacity>

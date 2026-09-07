@@ -131,6 +131,8 @@ export default function CounselScreen() {
         <Image
           source={require('../../assets/images/mirror-small.png')}
           style={styles.wreathSmall}
+          accessibilityElementsHidden
+          importantForAccessibility="no"
         />
         <View>
           <Text style={styles.headerTitle}>The Stoic Mirror</Text>
@@ -167,10 +169,14 @@ export default function CounselScreen() {
         multiline
         maxLength={2000}
         textAlignVertical="top"
+        accessibilityLabel="Describe your concern"
       />
       <TouchableOpacity
         style={[styles.micButton, listening && styles.micButtonActive]}
         onPress={handleMic}
+        accessibilityRole="button"
+        accessibilityLabel={listening ? 'Stop voice input' : 'Start voice input'}
+        accessibilityState={{ selected: listening }}
       >
         <IconSymbol
           name={listening ? 'stop.fill' : 'mic.fill'}
@@ -179,11 +185,12 @@ export default function CounselScreen() {
         />
       </TouchableOpacity>
     </View>
-    
+
     <TouchableOpacity
       style={[styles.sendButton, !input.trim() && styles.sendButtonDisabled]}
       onPress={handleSeekCounsel}
       disabled={!input.trim()}
+      accessibilityRole="button"
     >
       <Text style={[styles.sendButtonText, !input.trim() && styles.sendButtonTextDisabled]}>
         Seek Counsel

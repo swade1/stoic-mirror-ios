@@ -7,12 +7,16 @@ export function IconSymbol({
   color,
   style,
   weight = 'regular',
+  accessibilityElementsHidden,
+  importantForAccessibility,
 }: {
   name: SymbolViewProps['name'];
   size?: number;
   color: string;
   style?: StyleProp<ViewStyle>;
   weight?: SymbolWeight;
+  accessibilityElementsHidden?: boolean;
+  importantForAccessibility?: 'auto' | 'yes' | 'no' | 'no-hide-descendants';
 }) {
   return (
     <SymbolView
@@ -27,6 +31,8 @@ export function IconSymbol({
         },
         style,
       ]}
+      accessibilityElementsHidden={accessibilityElementsHidden}
+      importantForAccessibility={importantForAccessibility}
     />
   );
 }

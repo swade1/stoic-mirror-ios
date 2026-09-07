@@ -149,6 +149,8 @@ export default function HistoryScreen() {
         <Image
           source={require('../../assets/images/mirror-small.png')}
           style={styles.wreathSmall}
+          accessibilityElementsHidden
+          importantForAccessibility="no"
         />
         <View style={styles.headerText}>
           <Text style={styles.headerTitle}>Saved Wisdom</Text>
@@ -159,6 +161,8 @@ export default function HistoryScreen() {
             setSearchVisible(!searchVisible);
             setSearchQuery('');
           }}
+          accessibilityRole="button"
+          accessibilityLabel={searchVisible ? 'Close search' : 'Search saved wisdom'}
         >
           <IconSymbol
             name={searchVisible ? 'xmark' : 'magnifyingglass'}
@@ -181,9 +185,14 @@ export default function HistoryScreen() {
             autoFocus
             autoCapitalize="none"
             autoCorrect={false}
+            accessibilityLabel="Search concerns, quotes, authors"
           />
           {searchQuery.length > 0 && (
-            <TouchableOpacity onPress={() => setSearchQuery('')}>
+            <TouchableOpacity
+              onPress={() => setSearchQuery('')}
+              accessibilityRole="button"
+              accessibilityLabel="Clear search"
+            >
               <IconSymbol name="xmark.circle.fill" size={16} color="#8a7e6e" />
             </TouchableOpacity>
           )}
@@ -214,6 +223,8 @@ export default function HistoryScreen() {
                     setCurrentIndex(0);
                     setExpandedConcern(false);
                   }}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: filter === cat }}
                 >
                   <Text style={[styles.filterChipText, filter === cat && styles.filterChipTextActive]}>
                     {cat ?? 'All'} ({count})
@@ -226,6 +237,8 @@ export default function HistoryScreen() {
             <TouchableOpacity
               style={styles.showMoreButton}
               onPress={() => setShowAllCategories(!showAllCategories)}
+              accessibilityRole="button"
+              accessibilityState={{ expanded: showAllCategories }}
             >
               <Text style={styles.showMoreText}>
                 {showAllCategories ? 'Show less' : `${categories.length - 5} more`}
@@ -250,6 +263,8 @@ export default function HistoryScreen() {
                       setCurrentIndex(0);
                       setExpandedConcern(false);
                     }}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected: filter === cat }}
                   >
                     <Text style={[styles.filterChipText, filter === cat && styles.filterChipTextActive]}>
                       {cat} ({count})
@@ -266,7 +281,7 @@ export default function HistoryScreen() {
         <ActivityIndicator size="large" color="#c9b97a" style={{ marginTop: 60 }} />
       ) : filteredQuotes.length === 0 ? (
         <View style={styles.emptyContainer}>
-          <IconSymbol name="bookmark" size={48} color="#6a6050" />
+          <IconSymbol name="bookmark" size={48} color="#6a6050" accessibilityElementsHidden importantForAccessibility="no" />
           <Text style={styles.emptyTitle}>No saved wisdom yet</Text>
           <Text style={styles.emptySubtitle}>
             Tap &quot;Save this wisdom&quot; on any quote to add it here
@@ -292,6 +307,8 @@ export default function HistoryScreen() {
                 <TouchableOpacity
                   onPress={() => deleteQuote(currentQuote.id)}
                   hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  accessibilityRole="button"
+                  accessibilityLabel="Delete saved quote"
                 >
                   <IconSymbol name="trash" size={16} color="#c9b97a" />
                 </TouchableOpacity>
@@ -312,6 +329,8 @@ export default function HistoryScreen() {
                   <Text
                     style={styles.showMore}
                     onPress={() => setExpandedConcern(true)}
+                    accessibilityRole="button"
+                    accessibilityLabel="Show full concern"
                   > ...Show more</Text>
                 )}
               </Text>
@@ -362,6 +381,9 @@ export default function HistoryScreen() {
             style={[styles.fixedNavLeft, currentIndex === 0 && styles.navButtonDisabled]}
             onPress={goPrev}
             disabled={currentIndex === 0}
+            accessibilityRole="button"
+            accessibilityLabel="Previous saved quote"
+            accessibilityState={{ disabled: currentIndex === 0 }}
           >
             <IconSymbol name="chevron.left" size={16} color={currentIndex === 0 ? '#6a6050' : '#c9b97a'} />
           </TouchableOpacity>
@@ -371,6 +393,9 @@ export default function HistoryScreen() {
             style={[styles.fixedNavRight, currentIndex === total - 1 && styles.navButtonDisabled]}
             onPress={goNext}
             disabled={currentIndex === total - 1}
+            accessibilityRole="button"
+            accessibilityLabel="Next saved quote"
+            accessibilityState={{ disabled: currentIndex === total - 1 }}
           >
             <IconSymbol name="chevron.right" size={16} color={currentIndex === total - 1 ? '#6a6050' : '#c9b97a'} />
           </TouchableOpacity>
