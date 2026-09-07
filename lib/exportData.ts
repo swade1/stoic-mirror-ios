@@ -143,11 +143,26 @@ export async function exportUserData(): Promise<void> {
     entryQuotesByEntry.set(q.entry_id, list);
   }
 
+  // Both entries.concern and saved_quotes.concern are stored encrypted
+  const { decryptConcern } = await import('@/lib/encryption');
+  const decryptedEntries = await Promise.all(
+    ((entries ?? []) as EntryRow[]).map(async (e) => ({
+      ...e,
+      concern: await decryptConcern(e.concern, userId),
+    }))
+  );
+  const decryptedSavedQuotes = await Promise.all(
+    ((savedQuotes ?? []) as SavedQuoteRow[]).map(async (q) => ({
+      ...q,
+      concern: q.concern ? await decryptConcern(q.concern, userId) : q.concern,
+    }))
+  );
+
   const markdown = buildMarkdown(
     profile?.concerns ?? [],
-    (entries ?? []) as EntryRow[],
+    decryptedEntries,
     entryQuotesByEntry,
-    (savedQuotes ?? []) as SavedQuoteRow[]
+    decryptedSavedQuotes
   );
 
   const file = new File(Paths.cache, 'stoic-mirror-export.md');

@@ -149,6 +149,10 @@ export default function ResultsScreen() {
       setSaved((prev) => prev.filter((savedId) => savedId !== quote.id));
     } else {
       const session = (await supabase.auth.getSession()).data.session;
+      const { encryptConcern } = await import('@/lib/encryption');
+      const encryptedConcern = entry?.concern && session
+        ? await encryptConcern(entry.concern, session.user.id)
+        : entry?.concern;
       const { error } = await supabase.from('saved_quotes').insert({
         user_id: session?.user.id,
         entry_id: entry?.id,
@@ -156,7 +160,7 @@ export default function ResultsScreen() {
         author: quote.author,
         source: quote.source,
         interpretation: quote.interpretation,
-        concern: entry?.concern,
+        concern: encryptedConcern,
       });
       if (!error || error.code === '23505') {
         setSaved((prev) => [...prev, quote.id]);
@@ -169,6 +173,10 @@ export default function ResultsScreen() {
     if (unsaved.length === 0) return;
     const session = (await supabase.auth.getSession()).data.session;
     if (!session) return;
+    const { encryptConcern } = await import('@/lib/encryption');
+    const encryptedConcern = entry?.concern
+      ? await encryptConcern(entry.concern, session.user.id)
+      : entry?.concern;
     const rows = unsaved.map((q) => ({
       user_id: session.user.id,
       entry_id: entry?.id,
@@ -176,7 +184,7 @@ export default function ResultsScreen() {
       author: q.author,
       source: q.source,
       interpretation: q.interpretation,
-      concern: entry?.concern,
+      concern: encryptedConcern,
     }));
     await supabase.from('saved_quotes').upsert(rows, { onConflict: 'user_id,entry_id,quote' });
     setSaved(quotes.map((q) => q.id));
