@@ -32,7 +32,12 @@ export default function RootLayout() {
     SpaceMono: require('../assets/fonts/SpaceMono-Regular.ttf'),
   });
   const [isSignedIn, setIsSignedIn] = useState<boolean | null>(null);
- 
+  // Tracks the previous signed-in state so we can tell a genuine sign-in
+  // (was signed out, now signed in) apart from a SIGNED_IN event fired by
+  // re-authenticating while already signed in (e.g. change-password's
+  // current-password verification step).
+  const wasSignedInRef = React.useRef<boolean | null>(null);
+
   useEffect(() => {
     Purchases.configure({
       apiKey: 'test_YogsUwNBuOrctiWVgJBBcqyhRSL',
@@ -42,14 +47,18 @@ export default function RootLayout() {
   useEffect(() => {
     const checkSession = async () => {
       const { data } = await supabase.auth.getSession();
-      setIsSignedIn(!!data.session && !!data.session.user);
+      const signedIn = !!data.session && !!data.session.user;
+      wasSignedInRef.current = signedIn;
+      setIsSignedIn(signedIn);
     };
     checkSession();
 
     const { data: listener } = supabase.auth.onAuthStateChange((event, session) => {
       const isAuthenticated = !!session && !!session.user;
+      const wasSignedIn = wasSignedInRef.current;
+      wasSignedInRef.current = isAuthenticated;
       setIsSignedIn(isAuthenticated);
-      if (event === 'SIGNED_IN' && isAuthenticated) {
+      if (event === 'SIGNED_IN' && isAuthenticated && wasSignedIn === false) {
         router.replace('/(tabs)');
       }
     });
