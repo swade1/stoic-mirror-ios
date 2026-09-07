@@ -55,6 +55,14 @@ export default function PaywallScreen() {
           </Text>
         </View>
 
+        {/* Privacy differentiator */}
+        <View style={styles.privacyBadge}>
+          <IconSymbol name="lock.shield.fill" size={20} color="#c9b97a" />
+          <Text style={styles.privacyBadgeText}>
+            Unlike many popular meditation and wellness apps, we never sell your data or share it with advertisers — even though you&apos;re already paying a subscription.
+          </Text>
+        </View>
+
         {/* Trial timeline */}
         <View style={styles.timeline}>
           <View style={styles.timelineStep}>
@@ -199,6 +207,23 @@ const styles = StyleSheet.create({
     color: '#a89f88',
     textAlign: 'center',
     lineHeight: 24,
+  },
+  privacyBadge: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
+    backgroundColor: '#1e1c18',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 24,
+    borderWidth: 1,
+    borderColor: '#c9b97a',
+  },
+  privacyBadgeText: {
+    flex: 1,
+    fontSize: 13,
+    color: '#c4b99e',
+    lineHeight: 20,
   },
   timeline: {
     backgroundColor: '#1e1c18',
