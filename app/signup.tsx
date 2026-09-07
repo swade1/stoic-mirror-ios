@@ -31,9 +31,27 @@ export default function SignUp() {
       return;
     }
     setLoading(true);
+
+    // Written *before* calling signUp() — not after it resolves — because
+    // _layout.tsx's onAuthStateChange listener can react to the new
+    // session and navigate to (tabs) before this function's own
+    // continuation resumes. (tabs)/index.tsx checks for this flag on
+    // focus and would sometimes find nothing yet, since the write hadn't
+    // happened. Writing it first guarantees it exists no matter how fast
+    // the listener fires; every failure branch below removes it again so
+    // a failed or already-registered attempt doesn't leave it dangling
+    // for some unrelated later sign-in to pick up.
+    const trialEnd = new Date();
+    trialEnd.setDate(trialEnd.getDate() + 7);
+    await AsyncStorage.setItem('pending_trial_welcome', JSON.stringify({
+      plan: plan === 'monthly' ? 'monthly' : 'annual',
+      trialEnd: trialEnd.toISOString(),
+    }));
+
     const { data, error } = await supabase.auth.signUp({ email, password });
     if (error) {
       setLoading(false);
+      await AsyncStorage.removeItem('pending_trial_welcome');
       Alert.alert('Error', error.message);
       return;
     }
@@ -45,6 +63,7 @@ export default function SignUp() {
     // nothing.
     if (data.user && data.user.identities && data.user.identities.length === 0) {
       setLoading(false);
+      await AsyncStorage.removeItem('pending_trial_welcome');
       Alert.alert(
         'Account Already Exists',
         'An account with this email already exists. Try signing in instead.'
@@ -60,6 +79,7 @@ export default function SignUp() {
     // navigation never happens.
     if (data.user && !data.session) {
       setLoading(false);
+      await AsyncStorage.removeItem('pending_trial_welcome');
       Alert.alert(
         'Check Your Email',
         `We sent a confirmation link to ${email}. Confirm your email, then sign in.`,
@@ -76,19 +96,6 @@ export default function SignUp() {
           .update({ concerns: JSON.parse(storedConcerns) })
           .eq('id', data.user.id);
       }
-
-      // Picked up by (tabs)/index.tsx on its first focus after this, which
-      // navigates to /trial-started and clears the flag. Not done directly
-      // here — the onAuthStateChange listener in _layout.tsx is what
-      // navigates to (tabs) once isSignedIn actually updates, and racing
-      // it with our own navigation gets blocked by Stack.Protected's guard
-      // (the same issue fixed for the plain post-signup redirect).
-      const trialEnd = new Date();
-      trialEnd.setDate(trialEnd.getDate() + 7);
-      await AsyncStorage.setItem('pending_trial_welcome', JSON.stringify({
-        plan: plan === 'monthly' ? 'monthly' : 'annual',
-        trialEnd: trialEnd.toISOString(),
-      }));
     }
 
     // Don't navigate here — the onAuthStateChange listener in
