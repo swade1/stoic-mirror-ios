@@ -1,5 +1,5 @@
 import { supabase } from '@/lib/supabase';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import React, { useState } from 'react';
 import {
   Alert,
@@ -17,6 +17,7 @@ import { IconSymbol } from '@/components/ui/IconSymbol';
 
 export default function SignUp() {
   const router = useRouter();
+  const { plan } = useLocalSearchParams<{ plan?: string }>();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
@@ -75,6 +76,19 @@ export default function SignUp() {
           .update({ concerns: JSON.parse(storedConcerns) })
           .eq('id', data.user.id);
       }
+
+      // Picked up by (tabs)/index.tsx on its first focus after this, which
+      // navigates to /trial-started and clears the flag. Not done directly
+      // here — the onAuthStateChange listener in _layout.tsx is what
+      // navigates to (tabs) once isSignedIn actually updates, and racing
+      // it with our own navigation gets blocked by Stack.Protected's guard
+      // (the same issue fixed for the plain post-signup redirect).
+      const trialEnd = new Date();
+      trialEnd.setDate(trialEnd.getDate() + 7);
+      await AsyncStorage.setItem('pending_trial_welcome', JSON.stringify({
+        plan: plan === 'monthly' ? 'monthly' : 'annual',
+        trialEnd: trialEnd.toISOString(),
+      }));
     }
 
     // Don't navigate here — the onAuthStateChange listener in

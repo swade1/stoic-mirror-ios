@@ -15,6 +15,7 @@ import {
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '@/lib/supabase';
 import { getDailyQuoteId } from '@/lib/dailyQuote';
 
@@ -58,7 +59,23 @@ export default function CounselScreen() {
 
   useEffect(() => {
     loadDailyQuote();
-  }, []); 
+  }, []);
+
+  // Right after a fresh signup, show the trial-started welcome once. Not
+  // triggered from signup.tsx directly — that would race
+  // _layout.tsx's own post-SIGNED_IN navigation to (tabs) and lose. Instead
+  // signup.tsx leaves this flag, and it's picked up and cleared here on
+  // the Counsel tab's first mount after landing.
+  useEffect(() => {
+    const checkPendingWelcome = async () => {
+      const stored = await AsyncStorage.getItem('pending_trial_welcome');
+      if (!stored) return;
+      await AsyncStorage.removeItem('pending_trial_welcome');
+      const { plan, trialEnd } = JSON.parse(stored);
+      router.push({ pathname: '/trial-started', params: { plan, trialEnd } });
+    };
+    checkPendingWelcome();
+  }, []);
 
   const handleMic = async () => {
     try {

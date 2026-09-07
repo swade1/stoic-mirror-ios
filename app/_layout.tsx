@@ -122,6 +122,7 @@ export default function RootLayout() {
           <Stack.Screen name="concerns" />
           <Stack.Screen name="change-password" />
           <Stack.Screen name="notifications" />
+          <Stack.Screen name="trial-started" />
         </Stack.Protected>
 
         {/* Only reachable before an account exists */}
