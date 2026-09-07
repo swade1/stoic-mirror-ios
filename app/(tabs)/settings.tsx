@@ -14,6 +14,7 @@ import { useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { supabase } from '@/lib/supabase';
 import { IconSymbol } from '@/components/ui/IconSymbol';
+import { exportUserData } from '@/lib/exportData';
 
 export default function SettingsScreen() {
   const router = useRouter();
@@ -24,6 +25,7 @@ export default function SettingsScreen() {
   const [totalSaved, setTotalSaved] = useState(0);
   const [profileLoading, setProfileLoading] = useState(true);
   const [subscriptionStatus, setSubscriptionStatus] = useState<string>('Free');
+  const [exporting, setExporting] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
@@ -83,6 +85,18 @@ export default function SettingsScreen() {
 
   const handleConcerns = () => {
     router.push('/concerns');
+  };
+
+  const handleExportData = async () => {
+    if (exporting) return;
+    setExporting(true);
+    try {
+      await exportUserData();
+    } catch (err) {
+      Alert.alert('Export Failed', err instanceof Error ? err.message : 'Something went wrong.');
+    } finally {
+      setExporting(false);
+    }
   };
 
   const handlePrivacyPolicy = () => {
@@ -159,6 +173,15 @@ export default function SettingsScreen() {
               <TouchableOpacity style={styles.row} onPress={handleConcerns}>
                 <Text style={styles.rowLabel}>Your concerns</Text>
                 <IconSymbol name="chevron.right" size={12} color="#a89f88" />
+              </TouchableOpacity>
+              <View style={styles.divider} />
+              <TouchableOpacity style={styles.row} onPress={handleExportData} disabled={exporting}>
+                <Text style={styles.rowLabel}>Export your data</Text>
+                {exporting ? (
+                  <ActivityIndicator size="small" color="#a89f88" />
+                ) : (
+                  <IconSymbol name="square.and.arrow.up" size={14} color="#a89f88" />
+                )}
               </TouchableOpacity>
             </View>
           </View>
