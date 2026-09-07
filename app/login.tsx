@@ -39,7 +39,9 @@ export default function Login() {
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     setLoading(false);
     if (error) Alert.alert('Error', error.message);
-    else router.replace('/(tabs)');
+    // No navigation on success — the onAuthStateChange listener in
+    // _layout.tsx handles it once isSignedIn actually updates, avoiding
+    // a race with Stack.Protected's guard.
   };
 
   return (

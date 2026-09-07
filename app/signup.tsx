@@ -44,8 +44,11 @@ export default function SignUp() {
       }
     }
 
+    // Don't navigate here — the onAuthStateChange listener in
+    // _layout.tsx does it once isSignedIn actually updates. Calling
+    // router.replace('/(tabs)') here too races that update and gets
+    // blocked by Stack.Protected's guard.
     setLoading(false);
-    router.replace('/(tabs)');
   };
 
   return (
