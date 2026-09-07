@@ -60,6 +60,8 @@ export default function Onboarding3() {
         <Image
           source={require('../assets/images/mirror-welcome.png')}
           style={styles.mirrorImage}
+          accessibilityElementsHidden
+          importantForAccessibility="no"
         />
 
         <Text style={styles.title}>Your practice, personalized.</Text>
@@ -72,7 +74,7 @@ export default function Onboarding3() {
           {FEATURES.map((feature) => (
             <View key={feature.title} style={styles.featureRow}>
               <View style={styles.featureIcon}>
-                <IconSymbol name={feature.icon as any} size={20} color="#c9b97a" />
+                <IconSymbol name={feature.icon as any} size={20} color="#c9b97a" accessibilityElementsHidden importantForAccessibility="no" />
               </View>
               <View style={styles.featureText}>
                 <Text style={styles.featureTitle}>{feature.title}</Text>
@@ -85,7 +87,7 @@ export default function Onboarding3() {
       </ScrollView>
 
       <View style={styles.footer}>
-        <View style={styles.progressRow}>
+        <View style={styles.progressRow} accessible accessibilityLabel="Step 3 of 3">
           <View style={styles.dot} />
           <View style={styles.dot} />
           <View style={[styles.dot, styles.dotActive]} />
@@ -93,6 +95,7 @@ export default function Onboarding3() {
         <TouchableOpacity
           style={styles.button}
           onPress={() => router.push('/paywall')}
+          accessibilityRole="button"
         >
           <Text style={styles.buttonText}>See my plan</Text>
         </TouchableOpacity>

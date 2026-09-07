@@ -30,6 +30,8 @@ export default function Onboarding2() {
         <Image
           source={require('../assets/images/mirror-welcome.png')}
           style={styles.mirrorImage}
+          accessibilityElementsHidden
+          importantForAccessibility="no"
         />
 
         <Text style={styles.title}>What brings you here?</Text>
@@ -50,12 +52,14 @@ export default function Onboarding2() {
                     : [...prev, reason]
                 );
               }}
+              accessibilityRole="checkbox"
+              accessibilityState={{ checked: selected.includes(reason) }}
             >
               <Text style={[styles.optionText, selected.includes(reason) && styles.optionTextSelected]}>
                 {reason}
               </Text>
               {selected.includes(reason) && (
-                <Text style={styles.checkmark}>✓</Text>
+                <Text style={styles.checkmark} importantForAccessibility="no">✓</Text>
               )}
             </TouchableOpacity>
           ))}
@@ -64,7 +68,7 @@ export default function Onboarding2() {
       </ScrollView>
 
       <View style={styles.footer}>
-        <View style={styles.progressRow}>
+        <View style={styles.progressRow} accessible accessibilityLabel="Step 2 of 3">
           <View style={styles.dot} />
           <View style={[styles.dot, styles.dotActive]} />
           <View style={styles.dot} />
@@ -73,12 +77,14 @@ export default function Onboarding2() {
           style={[styles.button, selected.length === 0 && styles.buttonDisabled]}
           onPress={handleContinue}
           disabled={selected.length === 0}
+          accessibilityRole="button"
+          accessibilityState={{ disabled: selected.length === 0 }}
         >
           <Text style={[styles.buttonText, selected.length === 0 && styles.buttonTextDisabled]}>
             Continue
           </Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.skip} onPress={() => router.push('/onboarding3')}>
+        <TouchableOpacity style={styles.skip} onPress={() => router.push('/onboarding3')} accessibilityRole="button">
           <Text style={styles.skipText}>Skip</Text>
         </TouchableOpacity>
         <View style={styles.spacer} />

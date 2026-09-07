@@ -11,6 +11,8 @@ export default function Onboarding1() {
         <Image
           source={require('../assets/images/mirror-welcome.png')}
           style={styles.mirrorImage}
+          accessibilityElementsHidden
+          importantForAccessibility="no"
         />
 
         <Text style={styles.title}>Your mind won&apos;t stop.</Text>
@@ -29,12 +31,12 @@ export default function Onboarding1() {
       </ScrollView>
 
       <View style={styles.footer}>
-        <View style={styles.progressRow}>
+        <View style={styles.progressRow} accessible accessibilityLabel="Step 1 of 3">
           <View style={[styles.dot, styles.dotActive]} />
           <View style={styles.dot} />
           <View style={styles.dot} />
         </View>
-        <TouchableOpacity style={styles.button} onPress={() => router.push('/onboarding2')}>
+        <TouchableOpacity style={styles.button} onPress={() => router.push('/onboarding2')} accessibilityRole="button">
           <Text style={styles.buttonText}>See how it works</Text>
         </TouchableOpacity>
         <View style={styles.spacer} />
