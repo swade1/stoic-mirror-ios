@@ -86,6 +86,8 @@ export default function LoadingScreen() {
 
       // Step 1b: Load the user's standing concerns, if any, for extra context
       let userConcerns: string[] = [];
+      // Passages already shown to this user, so retrieval can favor fresh material
+      let excludePassageIds: string[] = [];
       if (user) {
         const { data: profile } = await supabase
           .from('profiles')
@@ -93,6 +95,13 @@ export default function LoadingScreen() {
           .eq('id', user.id)
           .single();
         userConcerns = profile?.concerns ?? [];
+
+        const { data: shownQuotes } = await supabase
+          .from('entry_quotes')
+          .select('passage_id')
+          .eq('user_id', user.id)
+          .not('passage_id', 'is', null);
+        excludePassageIds = [...new Set((shownQuotes ?? []).map((r) => r.passage_id as string))];
       }
 
       // Step 2: Embed the concern via Voyage AI
@@ -127,8 +136,9 @@ export default function LoadingScreen() {
           },
           body: JSON.stringify({
             query_embedding: embedding,
-            match_count: 8,
+            match_count: 10,
             match_threshold: 0.1,
+            exclude_ids: excludePassageIds,
           }),
         }
       );
@@ -148,8 +158,9 @@ export default function LoadingScreen() {
             },
             body: JSON.stringify({
               query_embedding: embedding,
-              match_count: 8,
+              match_count: 10,
               match_threshold: 0.1,
+              exclude_ids: excludePassageIds,
             }),
           }
         );
@@ -218,14 +229,21 @@ export default function LoadingScreen() {
 
         if (entryError) throw entryError;
 
-        const quoteRows = quotes.map((q) => ({
-          entry_id: entry.id,
-          user_id: user.id,
-          quote: q.quote,
-          author: q.author,
-          source: q.source,
-          interpretation: q.interpretation,
-        }));
+        const quoteRows = quotes.map((q) => {
+          // Match Claude's returned quote back to the passage it came from,
+          // from this same request's candidate list, so we can exclude it
+          // from future retrieval for this user.
+          const sourcePassage = passages.find((p: any) => p.passage === q.quote);
+          return {
+            entry_id: entry.id,
+            user_id: user.id,
+            passage_id: sourcePassage?.id ?? null,
+            quote: q.quote,
+            author: q.author,
+            source: q.source,
+            interpretation: q.interpretation,
+          };
+        });
 
         await supabase.from('entry_quotes').insert(quoteRows);
 
