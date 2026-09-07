@@ -1,6 +1,6 @@
 import React from 'react';
 import { render, screen } from '@testing-library/react-native';
-import CounselScreen from './index';
+import CounselScreen from '@/app/(tabs)/index';
 
 jest.mock('expo-speech-recognition', () => ({
   ExpoSpeechRecognitionModule: {

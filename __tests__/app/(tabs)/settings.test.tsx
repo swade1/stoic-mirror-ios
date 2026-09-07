@@ -1,6 +1,6 @@
 import React from 'react';
 import { render, screen, waitFor } from '@testing-library/react-native';
-import SettingsScreen from './settings';
+import SettingsScreen from '@/app/(tabs)/settings';
 
 const mockReact = React;
 

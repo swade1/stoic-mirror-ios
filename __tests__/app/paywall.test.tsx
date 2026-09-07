@@ -1,6 +1,6 @@
 import React from 'react';
 import { render, fireEvent, screen } from '@testing-library/react-native';
-import PaywallScreen from './paywall';
+import PaywallScreen from '@/app/paywall';
 
 jest.mock('expo-router', () => ({
   useRouter: () => ({ push: jest.fn() }),
