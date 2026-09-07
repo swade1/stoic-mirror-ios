@@ -78,7 +78,7 @@ export default function Onboarding2() {
             Continue
           </Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.skip} onPress={() => router.push('/signup')}>
+        <TouchableOpacity style={styles.skip} onPress={() => router.push('/onboarding3')}>
           <Text style={styles.skipText}>Skip</Text>
         </TouchableOpacity>
         <View style={styles.spacer} />
