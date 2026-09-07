@@ -8,7 +8,8 @@ import 'react-native-reanimated';
 import { supabase } from '@/lib/supabase';
 import * as SplashScreen from 'expo-splash-screen';
 import Purchases from 'react-native-purchases';
-import { syncNotificationSchedule } from '@/lib/notifications';
+import * as Notifications from 'expo-notifications';
+import { syncNotificationSchedule, isReminderNotificationId } from '@/lib/notifications';
 
 const DarkTheme: Theme = {
   dark: true,
@@ -85,6 +86,20 @@ export default function RootLayout() {
     });
     return () => subscription.remove();
   }, [isSignedIn]);
+
+  // Tapping the daily reminder or re-engagement nudge should always open
+  // straight to the Counsel tab, not wherever the app happened to be left
+  // open. Without this, tapping a notification just resumes the last
+  // screen (e.g. Settings), which isn't useful. Covers both a live tap
+  // (app already running/backgrounded) and a cold-start tap.
+  const lastNotificationResponse = Notifications.useLastNotificationResponse();
+  useEffect(() => {
+    const identifier = lastNotificationResponse?.notification.request.identifier;
+    if (isSignedIn && isReminderNotificationId(identifier)) {
+      router.replace('/(tabs)');
+      Notifications.clearLastNotificationResponse();
+    }
+  }, [lastNotificationResponse, isSignedIn]);
 
   if (!loaded || isSignedIn === null) {
     return null;

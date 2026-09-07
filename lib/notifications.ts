@@ -1,8 +1,14 @@
 import * as Notifications from 'expo-notifications';
 import { supabase } from '@/lib/supabase';
 
-const DAILY_REMINDER_ID = 'daily-reminder';
-const REENGAGEMENT_ID = 'reengagement-nudge';
+export const DAILY_REMINDER_ID = 'daily-reminder';
+export const REENGAGEMENT_ID = 'reengagement-nudge';
+
+/** True for notification request identifiers this module schedules, so
+ * a tap on either can be routed to the right place in the app. */
+export function isReminderNotificationId(identifier: string | undefined | null): boolean {
+  return identifier === DAILY_REMINDER_ID || identifier === REENGAGEMENT_ID;
+}
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
