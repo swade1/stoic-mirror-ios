@@ -67,7 +67,7 @@ export default function PrivacyScreen() {
         </Section>
 
         <Section title="Data Retention">
-          Your data is retained for as long as your account is active. You may delete your account and all associated data at any time by contacting us. Upon deletion, all your journal entries, saved quotes, and account information will be permanently removed from our systems.
+          Your data is retained for as long as your account is active. You may delete your account and all associated data at any time from Settings within the app. Upon deletion, all your journal entries, saved quotes, and account information will be permanently removed from our systems.
         </Section>
 
         <Section title="Your Rights">

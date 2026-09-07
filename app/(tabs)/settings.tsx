@@ -26,6 +26,7 @@ export default function SettingsScreen() {
   const [profileLoading, setProfileLoading] = useState(true);
   const [subscriptionStatus, setSubscriptionStatus] = useState<string>('Free');
   const [exporting, setExporting] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
@@ -87,6 +88,31 @@ export default function SettingsScreen() {
     router.push('/concerns');
   };
 
+  const handleDeleteAccount = () => {
+    Alert.alert(
+      'Delete Account',
+      'This permanently deletes your account, including every reflection and saved quote. This cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete Account',
+          style: 'destructive',
+          onPress: async () => {
+            setDeleting(true);
+            const { error } = await supabase.rpc('delete_own_account');
+            if (error) {
+              setDeleting(false);
+              Alert.alert('Something went wrong', error.message);
+              return;
+            }
+            await supabase.auth.signOut();
+            router.replace('/login');
+          },
+        },
+      ]
+    );
+  };
+
   const handleExportData = async () => {
     if (exporting) return;
     setExporting(true);
@@ -135,6 +161,17 @@ export default function SettingsScreen() {
               <TouchableOpacity style={styles.row} onPress={handleSignOut}>
                 <Text style={styles.signOutText}>Sign Out</Text>
                 <IconSymbol name="chevron.right" size={12} color="#a89f88" />
+              </TouchableOpacity>
+              <View style={styles.divider} />
+              <TouchableOpacity style={styles.row} onPress={handleDeleteAccount} disabled={deleting}>
+                <Text style={styles.deleteAccountText}>
+                  {deleting ? 'Deleting...' : 'Delete Account'}
+                </Text>
+                {deleting ? (
+                  <ActivityIndicator size="small" color="#a85c5c" />
+                ) : (
+                  <IconSymbol name="chevron.right" size={12} color="#a89f88" />
+                )}
               </TouchableOpacity>
             </View>
           </View>
@@ -319,6 +356,10 @@ const styles = StyleSheet.create({
   signOutText: {
     fontSize: 15,
     color: '#c9b97a',
+  },
+  deleteAccountText: {
+    fontSize: 15,
+    color: '#a85c5c',
   },
   disclaimer: {
     fontSize: 12,
