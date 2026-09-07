@@ -27,6 +27,15 @@ const SYSTEM_PROMPT = `You are a Stoic philosophy scholar. Given a person's conc
 {"quotes":[{"quote":"exact text","author":"name","source":"work","interpretation":"your counsel"}],"category":"one of: ${CATEGORIES.join(', ')}"}
 The category value MUST be copied exactly as written above — do not reorder, abbreviate, or modify the category string.`;
 
+// True when `fetch` never reached the network at all (no connection,
+// airplane mode, DNS failure, etc.) — distinct from a request that
+// completed but returned a non-ok HTTP status, which is a real API
+// failure and should keep showing its own specific message.
+function isNetworkError(error: unknown): boolean {
+  if (!(error instanceof Error)) return false;
+  return /network request failed|failed to fetch|network error/i.test(error.message);
+}
+
 
 interface Quote {
   quote: string;
@@ -247,7 +256,14 @@ export default function LoadingScreen() {
       router.replace(`/detail?id=${entry.id}`);
 
     } catch (error) {
-      Alert.alert('Error', (error as Error).message);
+      if (isNetworkError(error)) {
+        Alert.alert(
+          'No Connection',
+          "The Stoic Mirror needs an internet connection to seek counsel. Check your connection and try again."
+        );
+      } else {
+        Alert.alert('Error', (error as Error).message);
+      }
       router.replace('/(tabs)');
     }
   };
