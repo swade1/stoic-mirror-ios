@@ -37,6 +37,20 @@ export default function SignUp() {
       return;
     }
 
+    // Supabase returns a "successful" response with no error but an empty
+    // identities array when the email is already registered — deliberately
+    // indistinguishable from a real signup, to prevent attackers probing
+    // which emails exist. Without this check, this case just silently did
+    // nothing.
+    if (data.user && data.user.identities && data.user.identities.length === 0) {
+      setLoading(false);
+      Alert.alert(
+        'Account Already Exists',
+        'An account with this email already exists. Try signing in instead.'
+      );
+      return;
+    }
+
     if (data.user) {
       const storedConcerns = await AsyncStorage.getItem('user_primary_concern');
       if (storedConcerns) {
