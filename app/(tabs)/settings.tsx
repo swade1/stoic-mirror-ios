@@ -92,6 +92,10 @@ export default function SettingsScreen() {
     router.push('/change-password');
   };
 
+  const handleNotifications = () => {
+    router.push('/notifications');
+  };
+
   const handleDeleteAccount = () => {
     Alert.alert(
       'Delete Account',
@@ -207,6 +211,11 @@ export default function SettingsScreen() {
               <View style={styles.divider} />
               <TouchableOpacity style={styles.row} onPress={handleConcerns}>
                 <Text style={styles.rowLabel}>Your concerns</Text>
+                <IconSymbol name="chevron.right" size={12} color="#a89f88" />
+              </TouchableOpacity>
+              <View style={styles.divider} />
+              <TouchableOpacity style={styles.row} onPress={handleNotifications}>
+                <Text style={styles.rowLabel}>Notifications</Text>
                 <IconSymbol name="chevron.right" size={12} color="#a89f88" />
               </TouchableOpacity>
               <View style={styles.divider} />

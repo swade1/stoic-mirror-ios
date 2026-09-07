@@ -3,10 +3,12 @@ import { useFonts } from 'expo-font';
 import { router, Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import React, { useEffect, useState } from 'react';
+import { AppState } from 'react-native';
 import 'react-native-reanimated';
 import { supabase } from '@/lib/supabase';
 import * as SplashScreen from 'expo-splash-screen';
 import Purchases from 'react-native-purchases';
+import { syncNotificationSchedule } from '@/lib/notifications';
 
 const DarkTheme: Theme = {
   dark: true,
@@ -68,6 +70,22 @@ export default function RootLayout() {
     };
   }, []);
 
+  // Keeps scheduled local notifications (daily reminder, re-engagement
+  // nudge) in sync — refreshed on sign-in and every time the app returns
+  // to the foreground, so the daily quote stays current and the
+  // re-engagement nudge keeps getting pushed out while the app is in use.
+  useEffect(() => {
+    if (!isSignedIn) return;
+    syncNotificationSchedule();
+
+    const subscription = AppState.addEventListener('change', (nextState) => {
+      if (nextState === 'active') {
+        syncNotificationSchedule();
+      }
+    });
+    return () => subscription.remove();
+  }, [isSignedIn]);
+
   if (!loaded || isSignedIn === null) {
     return null;
   }
@@ -88,6 +106,7 @@ export default function RootLayout() {
           <Stack.Screen name="detail" />
           <Stack.Screen name="concerns" />
           <Stack.Screen name="change-password" />
+          <Stack.Screen name="notifications" />
         </Stack.Protected>
 
         {/* Only reachable before an account exists */}
