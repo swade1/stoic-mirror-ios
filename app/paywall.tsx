@@ -133,7 +133,7 @@ export default function PaywallScreen() {
         </View>
 
         {/* CTA Button */}
-        <TouchableOpacity style={styles.ctaButton}>
+        <TouchableOpacity style={styles.ctaButton} onPress={() => router.push('/signup')}>
           <Text style={styles.ctaText}>Start free trial</Text>
           <Text style={styles.ctaSubtext}>
             {selected === 'annual'
