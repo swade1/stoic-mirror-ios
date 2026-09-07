@@ -162,17 +162,6 @@ export default function SettingsScreen() {
                 <Text style={styles.signOutText}>Sign Out</Text>
                 <IconSymbol name="chevron.right" size={12} color="#a89f88" />
               </TouchableOpacity>
-              <View style={styles.divider} />
-              <TouchableOpacity style={styles.row} onPress={handleDeleteAccount} disabled={deleting}>
-                <Text style={styles.deleteAccountText}>
-                  {deleting ? 'Deleting...' : 'Delete Account'}
-                </Text>
-                {deleting ? (
-                  <ActivityIndicator size="small" color="#a85c5c" />
-                ) : (
-                  <IconSymbol name="chevron.right" size={12} color="#a89f88" />
-                )}
-              </TouchableOpacity>
             </View>
           </View>
 
@@ -265,6 +254,22 @@ export default function SettingsScreen() {
             </View>
           </View>
 
+          {/* Danger Zone — kept separate from Account/Sign Out to avoid accidental taps */}
+          <View style={styles.section}>
+            <Text style={styles.dangerSectionLabel}>Danger Zone</Text>
+            <View style={styles.dangerCard}>
+              <TouchableOpacity style={styles.row} onPress={handleDeleteAccount} disabled={deleting}>
+                <Text style={styles.deleteAccountText}>
+                  {deleting ? 'Deleting...' : 'Delete Account'}
+                </Text>
+                {deleting ? (
+                  <ActivityIndicator size="small" color="#a85c5c" />
+                ) : (
+                  <IconSymbol name="chevron.right" size={12} color="#a85c5c" />
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
 
           {/* Disclaimer */}
           <Text style={styles.disclaimer}>
@@ -323,6 +328,20 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     borderWidth: 1,
     borderColor: '#4a4540',
+    overflow: 'hidden',
+  },
+  dangerSectionLabel: {
+    fontSize: 11,
+    color: '#a85c5c',
+    letterSpacing: 1,
+    textTransform: 'uppercase',
+    marginBottom: 8,
+  },
+  dangerCard: {
+    backgroundColor: '#1e1c18',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#5a3a3a',
     overflow: 'hidden',
   },
   row: {
