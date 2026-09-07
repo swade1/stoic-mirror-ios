@@ -14,6 +14,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { supabase } from '@/lib/supabase';
 import { IconSymbol } from '@/components/ui/IconSymbol';
 import { Animated } from 'react-native';
+import { maybeRequestReview } from '@/lib/reviewPrompt';
 
 interface Quote {
   id: string;
@@ -68,7 +69,9 @@ export default function ResultsScreen() {
       setSaved([]);
 
       if (id) {
-        loadResults(id);
+        // Reached fresh from loading.tsx right after a new entry was
+        // created — the one moment we consider prompting for a review.
+        loadResults(id, true);
       } else {
         loadMostRecent();
       }
@@ -92,7 +95,7 @@ export default function ResultsScreen() {
     }
   };
 
-  const loadResults = async (entryId: string) => {
+  const loadResults = async (entryId: string, checkForReview: boolean = false) => {
     try {
       const { data: entryData } = await supabase
         .from('entries')
@@ -129,6 +132,21 @@ export default function ResultsScreen() {
       setLoading(false);
       setSessionSaved(true);
       setTimeout(() => setSessionSaved(false), 3000);
+    }
+
+    if (checkForReview) {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        const { count } = await supabase
+          .from('entries')
+          .select('*', { count: 'exact', head: true })
+          .eq('user_id', session.user.id);
+        // Give the results a moment to render before any system UI
+        // could appear on top of them.
+        setTimeout(() => {
+          maybeRequestReview(count ?? 0);
+        }, 2000);
+      }
     }
   };
 
