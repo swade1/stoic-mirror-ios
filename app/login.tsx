@@ -12,12 +12,14 @@ import {
   Platform,
   Image,
 } from 'react-native';
+import { IconSymbol } from '@/components/ui/IconSymbol';
 
 export default function Login() {
   const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   const handleForgotPassword = async () => {
     if (!email) {
@@ -73,16 +75,25 @@ export default function Login() {
         />
 
         <Text style={styles.label}>Password</Text>
-        <TextInput
-          style={styles.input}
-          placeholder="your password"
-          placeholderTextColor="#8a7e6e"
-          secureTextEntry
-          textContentType="oneTimeCode"
-          autoComplete="off"
-          value={password}
-          onChangeText={setPassword}
-        />
+        <View style={styles.passwordWrapper}>
+          <TextInput
+            style={[styles.input, styles.passwordInput]}
+            placeholder="your password"
+            placeholderTextColor="#8a7e6e"
+            secureTextEntry={!showPassword}
+            textContentType="oneTimeCode"
+            autoComplete="off"
+            value={password}
+            onChangeText={setPassword}
+          />
+          <TouchableOpacity
+            style={styles.eyeButton}
+            onPress={() => setShowPassword((v) => !v)}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
+            <IconSymbol name={showPassword ? 'eye.slash' : 'eye'} size={18} color="#8a7e6e" />
+          </TouchableOpacity>
+        </View>
 
         <TouchableOpacity
           style={[styles.button, loading && styles.buttonDisabled]}
@@ -160,6 +171,23 @@ const styles = StyleSheet.create({
     color: '#f0ead6',
     fontSize: 16,
     marginBottom: 20,
+  },
+  passwordWrapper: {
+    position: 'relative',
+    marginBottom: 20,
+  },
+  passwordInput: {
+    marginBottom: 0,
+    paddingRight: 48,
+  },
+  eyeButton: {
+    position: 'absolute',
+    right: 14,
+    top: 0,
+    bottom: 0,
+    width: 32,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   button: {
     backgroundColor: '#2a2720',
