@@ -23,6 +23,11 @@ const CATEGORIES = [
   'Control & Acceptance', 'Pride & Ego', 'General',
 ];
 
+// A cost/abuse safety net, not a product limit — no real person doing
+// genuine daily reflection would ever approach this. Checked before any
+// paid Voyage/Claude calls, so a request over the limit costs nothing.
+const DAILY_REQUEST_LIMIT = 40;
+
 
 const SYSTEM_PROMPT = `You are a Stoic philosophy scholar. Given a person's concern and verified passages from Marcus Aurelius, Epictetus, and Seneca, select 3-5 most relevant passages and add a personal 2-sentence interpretation for each. Return ONLY valid JSON using EXACTLY one of the category strings listed:
 {"quotes":[{"quote":"exact text","author":"name","source":"work","interpretation":"your counsel"}],"category":"one of: ${CATEGORIES.join(', ')}"}
@@ -86,6 +91,20 @@ export default function LoadingScreen() {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) throw new Error('Not signed in');
       const user = session.user;
+
+      // Step 1a: Daily rate limit, checked before any paid API calls
+      const startOfToday = new Date();
+      startOfToday.setHours(0, 0, 0, 0);
+      const { count: todaysCount } = await supabase
+        .from('entries')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', user.id)
+        .gte('created_at', startOfToday.toISOString());
+      if ((todaysCount ?? 0) >= DAILY_REQUEST_LIMIT) {
+        throw new Error(
+          `You've reached today's limit of ${DAILY_REQUEST_LIMIT} reflections. Please try again tomorrow.`
+        );
+      }
 
       // Step 1b: Load the user's standing concerns, for extra context
       const { data: profile } = await supabase
@@ -191,7 +210,7 @@ export default function LoadingScreen() {
           'anthropic-version': '2023-06-01',
         },
         body: JSON.stringify({
-          model: 'claude-haiku-4-5-20251001',
+          model: 'claude-haiku-4-5',
           max_tokens: 1024,
           system: SYSTEM_PROMPT,
           messages: [{ role: 'user', content: userMessage }],
