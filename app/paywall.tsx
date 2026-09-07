@@ -59,7 +59,7 @@ export default function PaywallScreen() {
         <View style={styles.privacyBadge}>
           <IconSymbol name="lock.shield.fill" size={20} color="#c9b97a" />
           <Text style={styles.privacyBadgeText}>
-            Unlike many popular meditation and wellness apps, we never sell your data or share it with advertisers — even though you&apos;re already paying a subscription.
+            Unlike many popular meditation and wellness apps, we never sell your data or share it with advertisers.
           </Text>
         </View>
 
