@@ -12,6 +12,7 @@ import {
   Platform,
   Image,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function SignUp() {
   const router = useRouter();
@@ -26,10 +27,25 @@ export default function SignUp() {
       return;
     }
     setLoading(true);
-    const { error } = await supabase.auth.signUp({ email, password });
+    const { data, error } = await supabase.auth.signUp({ email, password });
+    if (error) {
+      setLoading(false);
+      Alert.alert('Error', error.message);
+      return;
+    }
+
+    if (data.user) {
+      const storedConcerns = await AsyncStorage.getItem('user_primary_concern');
+      if (storedConcerns) {
+        await supabase
+          .from('profiles')
+          .update({ concerns: JSON.parse(storedConcerns) })
+          .eq('id', data.user.id);
+      }
+    }
+
     setLoading(false);
-    if (error) Alert.alert('Error', error.message);
-    else router.replace('/(tabs)');
+    router.replace('/(tabs)');
   };
 
   return (

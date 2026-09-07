@@ -79,6 +79,7 @@ export default function RootLayout() {
             <Stack.Screen name="privacy" options={{ headerShown: false }} />
             <Stack.Screen name="terms" options={{ headerShown: false }} />
             <Stack.Screen name="paywall" options={{ headerShown: false }} />
+            <Stack.Screen name="concerns" options={{ headerShown: false }} />
           </>
         ) : (
           <>

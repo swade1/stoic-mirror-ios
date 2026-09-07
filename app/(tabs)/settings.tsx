@@ -81,6 +81,10 @@ export default function SettingsScreen() {
     );
   };
 
+  const handleConcerns = () => {
+    router.push('/concerns');
+  };
+
   const handlePrivacyPolicy = () => {
     router.push('/privacy');
   };
@@ -151,6 +155,11 @@ export default function SettingsScreen() {
                   {subscriptionStatus}
                 </Text>
               </View>
+              <View style={styles.divider} />
+              <TouchableOpacity style={styles.row} onPress={handleConcerns}>
+                <Text style={styles.rowLabel}>Your concerns</Text>
+                <IconSymbol name="chevron.right" size={12} color="#a89f88" />
+              </TouchableOpacity>
             </View>
           </View>
           {subscriptionStatus === 'Free' && (

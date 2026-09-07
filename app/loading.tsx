@@ -84,6 +84,17 @@ export default function LoadingScreen() {
       const { data: { session } } = await supabase.auth.getSession();
       const user = session?.user ?? null;
 
+      // Step 1b: Load the user's standing concerns, if any, for extra context
+      let userConcerns: string[] = [];
+      if (user) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('concerns')
+          .eq('id', user.id)
+          .single();
+        userConcerns = profile?.concerns ?? [];
+      }
+
       // Step 2: Embed the concern via Voyage AI
       const embedRes = await fetch('https://api.voyageai.com/v1/embeddings', {
         method: 'POST',
@@ -155,7 +166,11 @@ export default function LoadingScreen() {
         })
         .join('\n\n');
 
-      const userMessage = `The person's concern:\n"${concern}"\n\nAvailable passages:\n\n${passageContext}`;
+      const concernContext = userConcerns.length
+        ? `\n\nFor background, this person has told us their ongoing concerns include: ${userConcerns.join(', ')}. Let this inform your interpretation where relevant, but prioritize what they've actually written above.`
+        : '';
+
+      const userMessage = `The person's concern:\n"${concern}"\n\nAvailable passages:\n\n${passageContext}${concernContext}`;
 
       // Step 5: Ask Claude to select and interpret
       const claudeRes = await fetch('https://api.anthropic.com/v1/messages', {
