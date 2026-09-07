@@ -19,7 +19,12 @@ export default function PrivacyScreen() {
 
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+        <TouchableOpacity
+          style={styles.backButton}
+          onPress={() => router.back()}
+          accessibilityRole="button"
+          accessibilityLabel="Go back"
+        >
           <IconSymbol name="chevron.left" size={16} color="#c9b97a" />
           <Text style={styles.backText}>Settings</Text>
         </TouchableOpacity>

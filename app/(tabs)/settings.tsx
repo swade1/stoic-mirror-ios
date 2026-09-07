@@ -168,6 +168,8 @@ export default function SettingsScreen() {
         <Image
           source={require('../../assets/images/mirror-small.png')}
           style={styles.wreathSmall}
+          accessibilityElementsHidden
+          importantForAccessibility="no"
         />
         <Text style={styles.headerTitle}>Settings</Text>
       </View>
@@ -185,14 +187,14 @@ export default function SettingsScreen() {
           <View style={styles.section}>
             <Text style={styles.sectionLabel}>Account</Text>
             <View style={styles.card}>
-              <TouchableOpacity style={styles.row} onPress={handleChangePassword}>
+              <TouchableOpacity style={styles.row} onPress={handleChangePassword} accessibilityRole="button">
                 <Text style={styles.rowLabel}>Change Password</Text>
-                <IconSymbol name="chevron.right" size={12} color="#a89f88" />
+                <IconSymbol name="chevron.right" size={12} color="#a89f88" accessibilityElementsHidden importantForAccessibility="no" />
               </TouchableOpacity>
               <View style={styles.divider} />
-              <TouchableOpacity style={styles.row} onPress={handleSignOut}>
+              <TouchableOpacity style={styles.row} onPress={handleSignOut} accessibilityRole="button">
                 <Text style={styles.signOutText}>Sign Out</Text>
-                <IconSymbol name="chevron.right" size={12} color="#a89f88" />
+                <IconSymbol name="chevron.right" size={12} color="#a89f88" accessibilityElementsHidden importantForAccessibility="no" />
               </TouchableOpacity>
             </View>
           </View>
@@ -221,7 +223,12 @@ export default function SettingsScreen() {
                 <Text style={styles.rowValue}>{totalSaved}</Text>
               </View>
               <View style={styles.divider} />
-              <TouchableOpacity style={styles.row} onPress={handleManageSubscription}>
+              <TouchableOpacity
+                style={styles.row}
+                onPress={handleManageSubscription}
+                accessibilityRole="button"
+                accessibilityLabel={`Subscription: ${subscriptionStatus}`}
+              >
                 <Text style={styles.rowLabel}>Subscription</Text>
                 <View style={styles.rowValueGroup}>
                   <Text
@@ -230,32 +237,38 @@ export default function SettingsScreen() {
                   >
                     {subscriptionStatus}
                   </Text>
-                  <IconSymbol name="chevron.right" size={12} color="#a89f88" />
+                  <IconSymbol name="chevron.right" size={12} color="#a89f88" accessibilityElementsHidden importantForAccessibility="no" />
                 </View>
               </TouchableOpacity>
               <View style={styles.divider} />
-              <TouchableOpacity style={styles.row} onPress={handleConcerns}>
+              <TouchableOpacity style={styles.row} onPress={handleConcerns} accessibilityRole="button">
                 <Text style={styles.rowLabel}>Your concerns</Text>
-                <IconSymbol name="chevron.right" size={12} color="#a89f88" />
+                <IconSymbol name="chevron.right" size={12} color="#a89f88" accessibilityElementsHidden importantForAccessibility="no" />
               </TouchableOpacity>
               <View style={styles.divider} />
-              <TouchableOpacity style={styles.row} onPress={handleNotifications}>
+              <TouchableOpacity style={styles.row} onPress={handleNotifications} accessibilityRole="button">
                 <Text style={styles.rowLabel}>Notifications</Text>
-                <IconSymbol name="chevron.right" size={12} color="#a89f88" />
+                <IconSymbol name="chevron.right" size={12} color="#a89f88" accessibilityElementsHidden importantForAccessibility="no" />
               </TouchableOpacity>
               <View style={styles.divider} />
-              <TouchableOpacity style={styles.row} onPress={handleExportData} disabled={exporting}>
+              <TouchableOpacity
+                style={styles.row}
+                onPress={handleExportData}
+                disabled={exporting}
+                accessibilityRole="button"
+                accessibilityLabel="Export your data"
+              >
                 <Text style={styles.rowLabel}>Export your data</Text>
                 {exporting ? (
                   <ActivityIndicator size="small" color="#a89f88" />
                 ) : (
-                  <IconSymbol name="square.and.arrow.up" size={14} color="#a89f88" />
+                  <IconSymbol name="square.and.arrow.up" size={14} color="#a89f88" accessibilityElementsHidden importantForAccessibility="no" />
                 )}
               </TouchableOpacity>
             </View>
           </View>
           {subscriptionStatus === 'Free' && (
-            <TouchableOpacity style={styles.upgradeButton} onPress={() => router.push('/paywall')}>
+            <TouchableOpacity style={styles.upgradeButton} onPress={() => router.push('/paywall')} accessibilityRole="button">
               <Text style={styles.upgradeButtonText}>Upgrade</Text>
             </TouchableOpacity>
           )}
@@ -285,14 +298,14 @@ export default function SettingsScreen() {
           <View style={styles.section}>
             <Text style={styles.sectionLabel}>Legal</Text>
             <View style={styles.card}>
-              <TouchableOpacity style={styles.row} onPress={handlePrivacyPolicy}>
+              <TouchableOpacity style={styles.row} onPress={handlePrivacyPolicy} accessibilityRole="button">
                 <Text style={styles.rowLabel}>Privacy Policy</Text>
-                <IconSymbol name="chevron.right" size={12} color="#a89f88" />
+                <IconSymbol name="chevron.right" size={12} color="#a89f88" accessibilityElementsHidden importantForAccessibility="no" />
               </TouchableOpacity>
               <View style={styles.divider} />
-              <TouchableOpacity style={styles.row} onPress={handleTerms}>
+              <TouchableOpacity style={styles.row} onPress={handleTerms} accessibilityRole="button">
                 <Text style={styles.rowLabel}>Terms of Service</Text>
-                <IconSymbol name="chevron.right" size={12} color="#a89f88" />
+                <IconSymbol name="chevron.right" size={12} color="#a89f88" accessibilityElementsHidden importantForAccessibility="no" />
               </TouchableOpacity>
             </View>
           </View>
@@ -301,14 +314,20 @@ export default function SettingsScreen() {
           <View style={styles.section}>
             <Text style={styles.dangerSectionLabel}>Danger Zone</Text>
             <View style={styles.dangerCard}>
-              <TouchableOpacity style={styles.row} onPress={handleDeleteAccount} disabled={deleting}>
+              <TouchableOpacity
+                style={styles.row}
+                onPress={handleDeleteAccount}
+                disabled={deleting}
+                accessibilityRole="button"
+                accessibilityLabel="Delete Account"
+              >
                 <Text style={styles.deleteAccountText}>
                   {deleting ? 'Deleting...' : 'Delete Account'}
                 </Text>
                 {deleting ? (
                   <ActivityIndicator size="small" color="#a85c5c" />
                 ) : (
-                  <IconSymbol name="chevron.right" size={12} color="#a85c5c" />
+                  <IconSymbol name="chevron.right" size={12} color="#a85c5c" accessibilityElementsHidden importantForAccessibility="no" />
                 )}
               </TouchableOpacity>
             </View>

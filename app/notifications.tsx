@@ -77,7 +77,12 @@ export default function NotificationsScreen() {
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <View style={styles.header}>
-        <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+        <TouchableOpacity
+          style={styles.backButton}
+          onPress={() => router.back()}
+          accessibilityRole="button"
+          accessibilityLabel="Back to Settings"
+        >
           <IconSymbol name="chevron.left" size={16} color="#c9b97a" />
           <Text style={styles.backText}>Settings</Text>
         </TouchableOpacity>
@@ -133,10 +138,18 @@ export default function NotificationsScreen() {
                 />
               </View>
               {reengagementEnabled && (
-                <View style={styles.stepperRow}>
+                <View
+                  style={styles.stepperRow}
+                  accessible
+                  accessibilityRole="adjustable"
+                  accessibilityLabel="Days before reminder"
+                  accessibilityValue={{ text: `${reengagementDays} ${reengagementDays === 1 ? 'day' : 'days'}` }}
+                >
                   <TouchableOpacity
                     style={styles.stepperButton}
                     onPress={() => setReengagementDays((d) => Math.max(1, d - 1))}
+                    accessibilityRole="button"
+                    accessibilityLabel="Decrease days before reminder"
                   >
                     <Text style={styles.stepperButtonText}>−</Text>
                   </TouchableOpacity>
@@ -146,6 +159,8 @@ export default function NotificationsScreen() {
                   <TouchableOpacity
                     style={styles.stepperButton}
                     onPress={() => setReengagementDays((d) => Math.min(30, d + 1))}
+                    accessibilityRole="button"
+                    accessibilityLabel="Increase days before reminder"
                   >
                     <Text style={styles.stepperButtonText}>+</Text>
                   </TouchableOpacity>
@@ -159,6 +174,7 @@ export default function NotificationsScreen() {
               style={[styles.button, saving && styles.buttonDisabled]}
               onPress={handleSave}
               disabled={saving}
+              accessibilityRole="button"
             >
               <Text style={styles.buttonText}>{saving ? 'Saving...' : 'Save'}</Text>
             </TouchableOpacity>
@@ -242,8 +258,9 @@ const styles = StyleSheet.create({
     marginTop: 16,
   },
   stepperButton: {
-    width: 40,
-    height: 40,
+    minWidth: 40,
+    minHeight: 40,
+    paddingHorizontal: 8,
     borderRadius: 20,
     borderWidth: 1,
     borderColor: '#c9b97a',

@@ -60,7 +60,12 @@ export default function ConcernsScreen() {
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <View style={styles.header}>
-        <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+        <TouchableOpacity
+          style={styles.backButton}
+          onPress={() => router.back()}
+          accessibilityRole="button"
+          accessibilityLabel="Back to Settings"
+        >
           <IconSymbol name="chevron.left" size={16} color="#c9b97a" />
           <Text style={styles.backText}>Settings</Text>
         </TouchableOpacity>
@@ -85,11 +90,13 @@ export default function ConcernsScreen() {
                   key={reason}
                   style={[styles.option, selected.includes(reason) && styles.optionSelected]}
                   onPress={() => toggle(reason)}
+                  accessibilityRole="checkbox"
+                  accessibilityState={{ checked: selected.includes(reason) }}
                 >
                   <Text style={[styles.optionText, selected.includes(reason) && styles.optionTextSelected]}>
                     {reason}
                   </Text>
-                  {selected.includes(reason) && <Text style={styles.checkmark}>✓</Text>}
+                  {selected.includes(reason) && <Text style={styles.checkmark} importantForAccessibility="no">✓</Text>}
                 </TouchableOpacity>
               ))}
             </View>
@@ -100,6 +107,7 @@ export default function ConcernsScreen() {
               style={[styles.button, saving && styles.buttonDisabled]}
               onPress={handleSave}
               disabled={saving}
+              accessibilityRole="button"
             >
               <Text style={styles.buttonText}>{saving ? 'Saving...' : 'Save'}</Text>
             </TouchableOpacity>
