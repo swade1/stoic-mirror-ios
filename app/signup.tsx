@@ -11,6 +11,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   Image,
+  ScrollView,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { IconSymbol } from '@/components/ui/IconSymbol';
@@ -110,10 +111,17 @@ export default function SignUp() {
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
       <View style={styles.header}>
         <Image
           source={require('../assets/images/mirror-welcome.png')}
           style={styles.mirrorImage}
+          accessibilityElementsHidden
+          importantForAccessibility="no"
         />
         <Text style={styles.title}>Begin your practice</Text>
         <Text style={styles.subtitle}>
@@ -131,6 +139,7 @@ export default function SignUp() {
           autoCorrect={false}
           value={email}
           onChangeText={setEmail}
+          accessibilityLabel="Email"
         />
 
         <Text style={styles.label}>Password</Text>
@@ -144,11 +153,14 @@ export default function SignUp() {
             autoComplete="off"
             value={password}
             onChangeText={setPassword}
+            accessibilityLabel="Password"
           />
           <TouchableOpacity
             style={styles.eyeButton}
             onPress={() => setShowPassword((v) => !v)}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            accessibilityRole="button"
+            accessibilityLabel={showPassword ? 'Hide password' : 'Show password'}
           >
             <IconSymbol name={showPassword ? 'eye.slash' : 'eye'} size={18} color="#8a7e6e" />
           </TouchableOpacity>
@@ -165,11 +177,14 @@ export default function SignUp() {
             autoComplete="off"
             value={confirm}
             onChangeText={setConfirm}
+            accessibilityLabel="Confirm password"
           />
           <TouchableOpacity
             style={styles.eyeButton}
             onPress={() => setShowConfirm((v) => !v)}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            accessibilityRole="button"
+            accessibilityLabel={showConfirm ? 'Hide password' : 'Show password'}
           >
             <IconSymbol name={showConfirm ? 'eye.slash' : 'eye'} size={18} color="#8a7e6e" />
           </TouchableOpacity>
@@ -180,6 +195,7 @@ export default function SignUp() {
           onPress={handleSignUp}
           disabled={loading}
           activeOpacity={0.8}
+          accessibilityRole="button"
         >
           <Text style={styles.buttonText}>
             {loading ? 'Creating account...' : 'Create Account'}
@@ -187,19 +203,20 @@ export default function SignUp() {
         </TouchableOpacity>
 
         <View style={styles.policyRow}>
-          <TouchableOpacity onPress={() => router.push('/privacy')}>
+          <TouchableOpacity onPress={() => router.push('/privacy')} accessibilityRole="button">
             <Text style={styles.policyLink}>Privacy Policy</Text>
           </TouchableOpacity>
           <Text style={styles.policySeparator}>·</Text>
-          <TouchableOpacity onPress={() => router.push('/terms')}>
+          <TouchableOpacity onPress={() => router.push('/terms')} accessibilityRole="button">
             <Text style={styles.policyLink}>Terms of Service</Text>
           </TouchableOpacity>
         </View>
       </View>
 
-    <TouchableOpacity onPress={() => router.push('/login')}>
+    <TouchableOpacity onPress={() => router.push('/login')} accessibilityRole="button">
       <Text style={styles.signInText}>Already have an account? Sign in</Text>
     </TouchableOpacity>
+      </ScrollView>
     </KeyboardAvoidingView>
   );
 }
@@ -208,6 +225,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#0f0e0c',
+  },
+  scrollContent: {
+    flexGrow: 1,
     padding: 24,
     justifyContent: 'center',
   },

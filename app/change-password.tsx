@@ -62,7 +62,12 @@ export default function ChangePasswordScreen() {
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <View style={styles.header}>
-        <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+        <TouchableOpacity
+          style={styles.backButton}
+          onPress={() => router.back()}
+          accessibilityRole="button"
+          accessibilityLabel="Back to Settings"
+        >
           <IconSymbol name="chevron.left" size={16} color="#c9b97a" />
           <Text style={styles.backText}>Settings</Text>
         </TouchableOpacity>
@@ -88,11 +93,14 @@ export default function ChangePasswordScreen() {
             autoComplete="off"
             value={currentPassword}
             onChangeText={setCurrentPassword}
+            accessibilityLabel="Current password"
           />
           <TouchableOpacity
             style={styles.eyeButton}
             onPress={() => setShowCurrent((v) => !v)}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            accessibilityRole="button"
+            accessibilityLabel={showCurrent ? 'Hide password' : 'Show password'}
           >
             <IconSymbol name={showCurrent ? 'eye.slash' : 'eye'} size={18} color="#8a7e6e" />
           </TouchableOpacity>
@@ -109,11 +117,14 @@ export default function ChangePasswordScreen() {
             autoComplete="off"
             value={newPassword}
             onChangeText={setNewPassword}
+            accessibilityLabel="New password"
           />
           <TouchableOpacity
             style={styles.eyeButton}
             onPress={() => setShowNew((v) => !v)}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            accessibilityRole="button"
+            accessibilityLabel={showNew ? 'Hide password' : 'Show password'}
           >
             <IconSymbol name={showNew ? 'eye.slash' : 'eye'} size={18} color="#8a7e6e" />
           </TouchableOpacity>
@@ -130,11 +141,14 @@ export default function ChangePasswordScreen() {
             autoComplete="off"
             value={confirmPassword}
             onChangeText={setConfirmPassword}
+            accessibilityLabel="Confirm new password"
           />
           <TouchableOpacity
             style={styles.eyeButton}
             onPress={() => setShowConfirm((v) => !v)}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            accessibilityRole="button"
+            accessibilityLabel={showConfirm ? 'Hide password' : 'Show password'}
           >
             <IconSymbol name={showConfirm ? 'eye.slash' : 'eye'} size={18} color="#8a7e6e" />
           </TouchableOpacity>
@@ -144,6 +158,7 @@ export default function ChangePasswordScreen() {
           style={[styles.button, saving && styles.buttonDisabled]}
           onPress={handleSave}
           disabled={saving}
+          accessibilityRole="button"
         >
           <Text style={styles.buttonText}>{saving ? 'Saving...' : 'Save'}</Text>
         </TouchableOpacity>

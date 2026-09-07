@@ -11,6 +11,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   Image,
+  ScrollView,
 } from 'react-native';
 import { IconSymbol } from '@/components/ui/IconSymbol';
 
@@ -51,10 +52,17 @@ export default function Login() {
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
       <View style={styles.header}>
         <Image
           source={require('../assets/images/mirror-welcome.png')}
           style={styles.mirrorImage}
+          accessibilityElementsHidden
+          importantForAccessibility="no"
         />
         <Text style={styles.title}>Welcome back</Text>
         <Text style={styles.subtitle}>
@@ -72,6 +80,7 @@ export default function Login() {
           autoCorrect={false}
           value={email}
           onChangeText={setEmail}
+          accessibilityLabel="Email"
         />
 
         <Text style={styles.label}>Password</Text>
@@ -85,11 +94,14 @@ export default function Login() {
             autoComplete="off"
             value={password}
             onChangeText={setPassword}
+            accessibilityLabel="Password"
           />
           <TouchableOpacity
             style={styles.eyeButton}
             onPress={() => setShowPassword((v) => !v)}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            accessibilityRole="button"
+            accessibilityLabel={showPassword ? 'Hide password' : 'Show password'}
           >
             <IconSymbol name={showPassword ? 'eye.slash' : 'eye'} size={18} color="#8a7e6e" />
           </TouchableOpacity>
@@ -100,6 +112,7 @@ export default function Login() {
           onPress={handleLogin}
           disabled={loading}
           activeOpacity={0.8}
+          accessibilityRole="button"
         >
           <Text style={styles.buttonText}>
             {loading ? 'Signing in...' : 'Sign In'}
@@ -107,25 +120,26 @@ export default function Login() {
         </TouchableOpacity>
 
         <View style={styles.policyRow}>
-          <TouchableOpacity onPress={() => router.push('/privacy')}>
+          <TouchableOpacity onPress={() => router.push('/privacy')} accessibilityRole="button">
             <Text style={styles.policyLink}>Privacy Policy</Text>
           </TouchableOpacity>
           <Text style={styles.policySeparator}>·</Text>
-          <TouchableOpacity onPress={() => router.push('/terms')}>
+          <TouchableOpacity onPress={() => router.push('/terms')} accessibilityRole="button">
             <Text style={styles.policyLink}>Terms of Service</Text>
           </TouchableOpacity>
         </View>
       </View>
 
-    <TouchableOpacity onPress={() => router.push('/onboarding1')}>
+    <TouchableOpacity onPress={() => router.push('/onboarding1')} accessibilityRole="button">
       <Text style={styles.signUpText}>
         Don&apos;t have an account? Create one
       </Text>
     </TouchableOpacity>
-    
-    <TouchableOpacity onPress={handleForgotPassword} style={{ marginTop: 12 }}>
+
+    <TouchableOpacity onPress={handleForgotPassword} style={{ marginTop: 12 }} accessibilityRole="button">
       <Text style={styles.forgotText}>Forgot your password?</Text>
     </TouchableOpacity>
+      </ScrollView>
     </KeyboardAvoidingView>
     );
 }
@@ -134,6 +148,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#0f0e0c',
+  },
+  scrollContent: {
+    flexGrow: 1,
     padding: 24,
     justifyContent: 'center',
   },
