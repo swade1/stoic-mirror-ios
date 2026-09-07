@@ -264,6 +264,29 @@
     .features{ grid-template-columns: 1fr; }
   }
 
+  /* ---------- privacy differentiator (unnumbered — a badge, not a Book) ---------- */
+  .privacy-callout{ padding: 12px 0 56px; }
+  .privacy-callout-box{
+    max-width: var(--col-narrow);
+    margin: 0 auto;
+    padding: 32px 28px;
+    border: 1px solid var(--gold-deep);
+    border-radius: 4px;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+  }
+  .privacy-callout-box svg{ width: 28px; height: 28px; color: var(--gold); flex-shrink: 0; }
+  .privacy-callout-box p{
+    font-family: var(--font-body);
+    font-size: 1.08rem;
+    color: var(--text-muted);
+    line-height: 1.6;
+    max-width: 52ch;
+  }
+
   /* ---------- Book V — painted porch ---------- */
   .porch p{ color: var(--text-muted); }
   .porch p + p{ margin-top: 22px; }
@@ -527,6 +550,15 @@
           <p>See what you return to, and what's changing.</p>
         </div>
       </div>
+    </div>
+  </div>
+</section>
+
+<section class="privacy-callout">
+  <div class="prose">
+    <div class="privacy-callout-box">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M12 2l8 3v6c0 5-3.5 8.5-8 10-4.5-1.5-8-5-8-10V5l8-3z"/><path d="M9.5 12l1.8 1.8L15 10"/></svg>
+      <p>Unlike many popular meditation and wellness apps, we never sell your data or share it with advertisers — even though you're already paying a subscription.</p>
     </div>
   </div>
 </section>
