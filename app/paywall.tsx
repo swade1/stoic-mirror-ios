@@ -153,10 +153,9 @@ export default function PaywallScreen() {
         {/* Social proof */}
         <View style={styles.socialProof}>
           {SOCIAL_PROOF.map((item, index) => (
-            <View key={index} style={styles.testimonial}>
-              <Text style={styles.testimonialQuote}>&ldquo;{item.quote}&rdquo;</Text>
-              <Text style={styles.testimonialInitials}>— {item.initials}</Text>
-            </View>
+            <Text key={index} style={styles.testimonialLine}>
+              &ldquo;{item.quote}&rdquo; <Text style={styles.testimonialInitials}>— {item.initials}</Text>
+            </Text>
           ))}
         </View>
 
@@ -359,29 +358,22 @@ const styles = StyleSheet.create({
     color: '#2a2720',
   },
   socialProof: {
-    gap: 12,
-    marginBottom: 24,
+    gap: 14,
+    marginBottom: 28,
+    paddingHorizontal: 12,
   },
-  testimonial: {
-    backgroundColor: '#1e1c18',
-    borderRadius: 12,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: '#4a4540',
-    borderLeftWidth: 3,
-    borderLeftColor: '#c9b97a',
-  },
-  testimonialQuote: {
-    fontSize: 14,
-    color: '#c4b99e',
-    lineHeight: 22,
+  testimonialLine: {
+    fontSize: 13,
+    color: '#8a7e6e',
+    lineHeight: 20,
     fontStyle: 'italic',
-    marginBottom: 8,
+    textAlign: 'center',
   },
   testimonialInitials: {
-    fontSize: 12,
-    color: '#c9b97a',
+    fontStyle: 'normal',
+    fontSize: 13,
     fontWeight: '600',
+    color: '#8a7e6e',
   },
   features: {
     gap: 12,
