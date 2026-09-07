@@ -54,15 +54,15 @@ export default function PrivacyScreen() {
           • <Bold>Supabase</Bold> — Secure data storage and user authentication.{'\n\n'}
           • <Bold>Anthropic Claude API</Bold> — When you submit a concern, the text is sent to Anthropic&apos;s Claude API to generate personalized philosophical interpretations.{'\n\n'}
           • <Bold>Voyage AI</Bold> — Used to match your concerns with relevant Stoic passages.{'\n\n'}
+          • <Bold>RevenueCat</Bold> — Manages subscription purchases and billing.{'\n\n'}
           • <Bold>Expo</Bold> — The framework used to build the app.
         </Section>
 
         <Section title="Data Security">
-          We implement industry-standard security measures to protect your data. All data is 
-          transmitted over encrypted HTTPS connections. Your personal concerns are encrypted 
-          end-to-end before being stored — we cannot read them, and neither can anyone else. 
-          Only you can decrypt your concerns, using your account credentials. Your saved quotes 
-          and insights are protected by Row Level Security — only you can access your own data. 
+          We implement industry-standard security measures to protect your data. All data is
+          transmitted over encrypted HTTPS connections. Your personal concerns are encrypted
+          before being stored, and Row Level Security ensures only your account can access
+          your own entries, saved quotes, and insights — other users can never see your data.
           Passwords are encrypted and never stored in plain text.
         </Section>
 
