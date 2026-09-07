@@ -84,7 +84,7 @@ export default function ChangePasswordScreen() {
             placeholder="your current password"
             placeholderTextColor="#8a7e6e"
             secureTextEntry={!showCurrent}
-            textContentType="oneTimeCode"
+            textContentType="password"
             autoComplete="off"
             value={currentPassword}
             onChangeText={setCurrentPassword}
@@ -105,7 +105,7 @@ export default function ChangePasswordScreen() {
             placeholder="choose a new password"
             placeholderTextColor="#8a7e6e"
             secureTextEntry={!showNew}
-            textContentType="oneTimeCode"
+            textContentType="newPassword"
             autoComplete="off"
             value={newPassword}
             onChangeText={setNewPassword}
@@ -126,7 +126,7 @@ export default function ChangePasswordScreen() {
             placeholder="confirm your new password"
             placeholderTextColor="#8a7e6e"
             secureTextEntry={!showConfirm}
-            textContentType="oneTimeCode"
+            textContentType="newPassword"
             autoComplete="off"
             value={confirmPassword}
             onChangeText={setConfirmPassword}

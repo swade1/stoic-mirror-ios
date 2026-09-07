@@ -81,7 +81,7 @@ export default function Login() {
             placeholder="your password"
             placeholderTextColor="#8a7e6e"
             secureTextEntry={!showPassword}
-            textContentType="oneTimeCode"
+            textContentType="password"
             autoComplete="off"
             value={password}
             onChangeText={setPassword}

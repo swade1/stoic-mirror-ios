@@ -133,7 +133,7 @@ export default function SignUp() {
             placeholder="choose a secure password"
             placeholderTextColor="#8a7e6e"
             secureTextEntry={!showPassword}
-            textContentType="oneTimeCode"
+            textContentType="newPassword"
             autoComplete="off"
             value={password}
             onChangeText={setPassword}
@@ -154,7 +154,7 @@ export default function SignUp() {
             placeholder="confirm your password"
             placeholderTextColor="#8a7e6e"
             secureTextEntry={!showConfirm}
-            textContentType="oneTimeCode"
+            textContentType="newPassword"
             autoComplete="off"
             value={confirm}
             onChangeText={setConfirm}
