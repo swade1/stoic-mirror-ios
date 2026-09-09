@@ -12,6 +12,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { supabase } from '@/lib/supabase';
 import { IconSymbol } from '@/components/ui/IconSymbol';
 import { maybeRequestReview } from '@/lib/reviewPrompt';
+import { getFramingLine } from '@/lib/framing';
 
 interface Quote {
   id: string;
@@ -19,6 +20,7 @@ interface Quote {
   author: string;
   source: string;
   interpretation: string;
+  matched_concern: string | null;
 }
 
 interface Entry {
@@ -176,6 +178,7 @@ export default function ResultsScreen() {
         source: quote.source,
         interpretation: quote.interpretation,
         concern: encryptedConcern,
+        matched_concern: quote.matched_concern,
       });
       if (!error || error.code === '23505') {
         setSaved((prev) => [...prev, quote.id]);
@@ -200,6 +203,7 @@ export default function ResultsScreen() {
       source: q.source,
       interpretation: q.interpretation,
       concern: encryptedConcern,
+      matched_concern: q.matched_concern,
     }));
     await supabase.from('saved_quotes').upsert(rows, { onConflict: 'user_id,entry_id,quote' });
     setSaved(quotes.map((q) => q.id));
@@ -280,6 +284,9 @@ export default function ResultsScreen() {
               <Text style={styles.quoteNumber}>
                 {index + 1} of {quotes.length}
               </Text>
+              {getFramingLine(quote.matched_concern) && (
+                <Text style={styles.framingLine}>{getFramingLine(quote.matched_concern)}</Text>
+              )}
               <Text style={styles.quoteText}>&ldquo;{quote.quote}&rdquo;</Text>
               <View style={styles.attribution}>
                 <Text style={styles.author}>{quote.author}</Text>
@@ -425,6 +432,12 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: '#8a7e6e',
     letterSpacing: 1,
+    marginBottom: 12,
+  },
+  framingLine: {
+    fontSize: 12,
+    color: '#c9b97a',
+    fontStyle: 'italic',
     marginBottom: 12,
   },
   quoteText: {

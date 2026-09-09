@@ -158,6 +158,7 @@ export default function LoadingScreen() {
             match_count: 10,
             match_threshold: 0.1,
             exclude_ids: excludePassageIds,
+            boost_concerns: userConcerns,
           }),
         }
       );
@@ -180,6 +181,7 @@ export default function LoadingScreen() {
               match_count: 10,
               match_threshold: 0.1,
               exclude_ids: excludePassageIds,
+              boost_concerns: userConcerns,
             }),
           }
         );
@@ -252,6 +254,12 @@ export default function LoadingScreen() {
         // from this same request's candidate list, so we can exclude it
         // from future retrieval for this user.
         const sourcePassage = passages.find((p: any) => p.passage === q.quote);
+        // If this passage was tagged for one of the user's standing
+        // concerns, snapshot which one — drives the honest framing lead-in
+        // in detail.tsx/history.tsx without needing to join back to
+        // stoic_passages (whose tags may be re-tuned later).
+        const matchedConcern: string | null =
+          sourcePassage?.concern_tags?.find((t: string) => userConcerns.includes(t)) ?? null;
         return {
           entry_id: entry.id,
           user_id: user.id,
@@ -260,6 +268,7 @@ export default function LoadingScreen() {
           author: q.author,
           source: q.source,
           interpretation: q.interpretation,
+          matched_concern: matchedConcern,
         };
       });
 

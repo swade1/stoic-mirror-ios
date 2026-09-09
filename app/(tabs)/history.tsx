@@ -15,6 +15,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { supabase } from '@/lib/supabase';
 import { IconSymbol } from '@/components/ui/IconSymbol';
+import { getFramingLine } from '@/lib/framing';
 
 interface SavedQuote {
   id: string;
@@ -25,6 +26,7 @@ interface SavedQuote {
   concern: string;
   saved_at: string;
   category: string;
+  matched_concern: string | null;
 }
 
 export default function HistoryScreen() {
@@ -351,6 +353,9 @@ export default function HistoryScreen() {
                 <IconSymbol name="text.quote" size={12} color="#c9b97a" />
                 <Text style={styles.quoteLabel}>The Philosophers</Text>
               </View>
+              {getFramingLine(currentQuote.matched_concern) && (
+                <Text style={styles.framingLine}>{getFramingLine(currentQuote.matched_concern)}</Text>
+              )}
               <Text style={styles.quoteText}>&ldquo;{currentQuote.quote}&rdquo;</Text>
               <Text style={styles.author}>— {currentQuote.author}</Text>
               <Text style={styles.source}>{currentQuote.source}</Text>
@@ -624,6 +629,12 @@ const styles = StyleSheet.create({
     color: '#c9b97a',
     letterSpacing: 1,
     textTransform: 'uppercase',
+  },
+  framingLine: {
+    fontSize: 12,
+    color: '#c9b97a',
+    fontStyle: 'italic',
+    marginBottom: 8,
   },
   quoteText: {
     fontSize: 15,

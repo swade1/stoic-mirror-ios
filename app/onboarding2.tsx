@@ -2,15 +2,9 @@ import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import { Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { CONCERN_OPTIONS } from '@/lib/concerns';
 
-const REASONS = [
-  'Anxiety & worry',
-  'Relationships & conflict',
-  'Work & career stress',
-  'Loss & grief',
-  'Finding direction',
-  'General peace of mind',
-];
+const REASONS = CONCERN_OPTIONS;
 
 export default function Onboarding2() {
   const router = useRouter();

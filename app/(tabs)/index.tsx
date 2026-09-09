@@ -27,11 +27,25 @@ export default function CounselScreen() {
   const [keyboardVisible, setKeyboardVisible] = useState(false);
   const [dailyQuote, setDailyQuote] = useState<{ quote: string; author: string; source: string } | null>(null);
   const [expandedQuote, setExpandedQuote] = useState(false);
+  const [activeConcerns, setActiveConcerns] = useState<string[]>([]);
 
 
   //TESTING ONLY - remove after one run
 
-  
+  // Surfaces the same profiles.concerns used to boost retrieval in
+  // loading.tsx, so the personalization is visible rather than silent —
+  // the honesty requirement behind the concern-boosting feature.
+  const loadActiveConcerns = async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return;
+    const { data } = await supabase
+      .from('profiles')
+      .select('concerns')
+      .eq('id', session.user.id)
+      .single();
+    setActiveConcerns(data?.concerns ?? []);
+  };
+
   const loadDailyQuote = async () => {
     const { count } = await supabase
       .from('daily_quotes')
@@ -60,6 +74,15 @@ export default function CounselScreen() {
   useEffect(() => {
     loadDailyQuote();
   }, []);
+
+  // useFocusEffect, not useEffect: profiles.concerns can change in Settings
+  // while this tab stays mounted, so it should reflect the latest value
+  // whenever the user comes back here, not just on first app launch.
+  useFocusEffect(
+    useCallback(() => {
+      loadActiveConcerns();
+    }, [])
+  );
 
   // Right after a fresh signup, show the trial-started welcome once. Not
   // triggered from signup.tsx directly — that would race
@@ -157,6 +180,11 @@ export default function CounselScreen() {
         <Text style={styles.promptSub}>
           Describe your concern openly. The philosophers will counsel you from their own words.
         </Text>
+        {activeConcerns.length > 0 && (
+          <Text style={styles.concernNotice}>
+            We&apos;ll surface content that matches what you&apos;re working through: {activeConcerns.join(', ')}.
+          </Text>
+        )}
 
 
       <View style={styles.textInputContainer}>
@@ -253,6 +281,13 @@ const styles = StyleSheet.create({
     color: '#8a7e6e',
     lineHeight: 22,
     marginBottom: 32,
+  },
+  concernNotice: {
+    fontSize: 13,
+    color: '#c9b97a',
+    lineHeight: 20,
+    marginBottom: 24,
+    fontStyle: 'italic',
   },
   textInput: {
     backgroundColor: '#1e1c18',

@@ -4,15 +4,9 @@ import { ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity, View
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { supabase } from '@/lib/supabase';
 import { IconSymbol } from '@/components/ui/IconSymbol';
+import { CONCERN_OPTIONS } from '@/lib/concerns';
 
-const REASONS = [
-  'Anxiety & worry',
-  'Relationships & conflict',
-  'Work & career stress',
-  'Loss & grief',
-  'Finding direction',
-  'General peace of mind',
-];
+const REASONS = CONCERN_OPTIONS;
 
 export default function ConcernsScreen() {
   const router = useRouter();
