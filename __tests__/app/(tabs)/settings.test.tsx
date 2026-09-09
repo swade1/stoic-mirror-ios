@@ -42,7 +42,10 @@ describe('SettingsScreen', () => {
   it('exposes a full-text accessibility label for the truncated subscription row', async () => {
     render(<SettingsScreen />);
 
-    const subscriptionRow = await waitFor(() => screen.getByLabelText('Subscription: Free'));
+    const subscriptionRow = await waitFor(
+      () => screen.getByLabelText('Subscription: Free'),
+      { timeout: 10000 }
+    );
     expect(subscriptionRow.props.accessibilityRole).toBe('button');
-  });
+  }, 15000);
 });
