@@ -11,6 +11,7 @@ import {
   Platform,
   Image,
   Keyboard,
+  ScrollView,
 } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -164,7 +165,12 @@ export default function CounselScreen() {
       </View>
 
       {/* Main content */}
-      <View style={styles.content}>
+      <ScrollView
+        style={styles.content}
+        contentContainerStyle={styles.contentContainer}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
 
         { /* Daily quote */ }
         {dailyQuote && (
@@ -224,7 +230,7 @@ export default function CounselScreen() {
         Seek Counsel
       </Text>
     </TouchableOpacity>
-      </View>
+      </ScrollView>
 
       {!keyboardVisible && (
         <View style={[styles.footer, { paddingBottom: insets.bottom + 80 }]}>
@@ -265,6 +271,9 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
+  },
+  contentContainer: {
+    flexGrow: 1,
     padding: 24,
     justifyContent: 'flex-start',
     width: '100%',
