@@ -14,6 +14,7 @@ import { IconSymbol } from '@/components/ui/IconSymbol';
 import { maybeRequestReview } from '@/lib/reviewPrompt';
 import { getFramingLine } from '@/lib/framing';
 import { ScaledText } from '@/components/ScaledText';
+import { FontSizeMenu } from '@/components/FontSizeMenu';
 
 interface Quote {
   id: string;
@@ -40,6 +41,7 @@ export default function ResultsScreen() {
   const [loading, setLoading] = useState(true);
   const [saved, setSaved] = useState<string[]>([]);
   const [sessionSaved, setSessionSaved] = useState(false);
+  const [fontMenuVisible, setFontMenuVisible] = useState(false);
 
   const fadeAnim = React.useRef(new Animated.Value(0)).current;
   const saveAnims = React.useRef<{[key: string]: Animated.Value}>({}).current;
@@ -242,8 +244,20 @@ export default function ResultsScreen() {
     <View style={[styles.outerContainer, { paddingTop: insets.top }]}>
       {/* Fixed header */}
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Received Wisdom</Text>
-        <Text style={styles.headerSubtitle}>{entry.category}</Text>
+        <View style={styles.headerRow}>
+          <View style={styles.headerTextGroup}>
+            <Text style={styles.headerTitle}>Received Wisdom</Text>
+            <Text style={styles.headerSubtitle}>{entry.category}</Text>
+          </View>
+          <TouchableOpacity
+            onPress={() => setFontMenuVisible(true)}
+            accessibilityRole="button"
+            accessibilityLabel="Text size"
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
+            <IconSymbol name="textformat.size" size={20} color="#c9b97a" />
+          </TouchableOpacity>
+        </View>
         {sessionSaved && (
           <View style={styles.savedIndicator}>
             <IconSymbol name="checkmark.circle.fill" size={14} color="#4caf50" accessibilityElementsHidden importantForAccessibility="no" />
@@ -340,6 +354,12 @@ export default function ResultsScreen() {
           </TouchableOpacity>
         </View>
       </ScrollView>
+
+      <FontSizeMenu
+        visible={fontMenuVisible}
+        onClose={() => setFontMenuVisible(false)}
+        anchorTop={insets.top + 76}
+      />
     </View>
   );
 }
@@ -355,6 +375,14 @@ const styles = StyleSheet.create({
     paddingBottom: 16,
     borderBottomWidth: 1,
     borderBottomColor: '#2a2720',
+  },
+  headerRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+  },
+  headerTextGroup: {
+    flex: 1,
   },
   headerTitle: {
     fontSize: 24,

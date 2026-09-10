@@ -17,6 +17,7 @@ import { supabase } from '@/lib/supabase';
 import { IconSymbol } from '@/components/ui/IconSymbol';
 import { getFramingLine } from '@/lib/framing';
 import { ScaledText } from '@/components/ScaledText';
+import { FontSizeMenu } from '@/components/FontSizeMenu';
 
 interface SavedQuote {
   id: string;
@@ -42,6 +43,7 @@ export default function HistoryScreen() {
   const scrollRef = React.useRef<ScrollView>(null);
   const [searchVisible, setSearchVisible] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [fontMenuVisible, setFontMenuVisible] = useState(false);
 
   useEffect(() => {
     setCurrentIndex(0);
@@ -159,20 +161,31 @@ export default function HistoryScreen() {
           <Text style={styles.headerTitle}>Saved Wisdom</Text>
           <Text style={styles.headerSubtitle}>Quotes you&apos;ve chosen to keep</Text>
         </View>
-        <TouchableOpacity
-          onPress={() => {
-            setSearchVisible(!searchVisible);
-            setSearchQuery('');
-          }}
-          accessibilityRole="button"
-          accessibilityLabel={searchVisible ? 'Close search' : 'Search saved wisdom'}
-        >
-          <IconSymbol
-            name={searchVisible ? 'xmark' : 'magnifyingglass'}
-            size={20}
-            color="#c9b97a"
-          />
-        </TouchableOpacity>
+        <View style={styles.headerActions}>
+          <TouchableOpacity
+            onPress={() => setFontMenuVisible(true)}
+            accessibilityRole="button"
+            accessibilityLabel="Text size"
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
+            <IconSymbol name="textformat.size" size={20} color="#c9b97a" />
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => {
+              setSearchVisible(!searchVisible);
+              setSearchQuery('');
+            }}
+            accessibilityRole="button"
+            accessibilityLabel={searchVisible ? 'Close search' : 'Search saved wisdom'}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
+            <IconSymbol
+              name={searchVisible ? 'xmark' : 'magnifyingglass'}
+              size={20}
+              color="#c9b97a"
+            />
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* Search bar */}
@@ -408,6 +421,12 @@ export default function HistoryScreen() {
 
         </View>
       )}
+
+      <FontSizeMenu
+        visible={fontMenuVisible}
+        onClose={() => setFontMenuVisible(false)}
+        anchorTop={insets.top + 100}
+      />
     </View>
   );
 }
@@ -424,6 +443,11 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     borderBottomWidth: 1,
     borderBottomColor: '#4a4540',
+  },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
   },
   headerTitle: {
     fontSize: 24,
