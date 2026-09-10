@@ -16,6 +16,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { supabase } from '@/lib/supabase';
 import { IconSymbol } from '@/components/ui/IconSymbol';
 import { getFramingLine } from '@/lib/framing';
+import { ScaledText } from '@/components/ScaledText';
 
 interface SavedQuote {
   id: string;
@@ -323,7 +324,7 @@ export default function HistoryScreen() {
                 <IconSymbol name="person.fill" size={12} color="#8a7e6e" />
                 <Text style={styles.concernLabel}>Concern</Text>
               </View>
-              <Text style={styles.concernText}>
+              <ScaledText style={styles.concernText}>
                 {expandedConcern
                   ? currentQuote.concern
                   : getFirstSentence(currentQuote.concern)}
@@ -335,7 +336,7 @@ export default function HistoryScreen() {
                     accessibilityLabel="Show full concern"
                   > ...Show more</Text>
                 )}
-              </Text>
+              </ScaledText>
             </View>
 
             {/* Counsel */}
@@ -344,7 +345,7 @@ export default function HistoryScreen() {
                 <IconSymbol name="lightbulb.fill" size={12} color="#c4b99e" />
                 <Text style={styles.counselLabel}>Counsel</Text>
               </View>
-              <Text style={styles.counselText}>{currentQuote.interpretation}</Text>
+              <ScaledText style={styles.counselText}>{currentQuote.interpretation}</ScaledText>
             </View>
 
             {/* Quote */}
@@ -356,7 +357,7 @@ export default function HistoryScreen() {
               {getFramingLine(currentQuote.matched_concern) && (
                 <Text style={styles.framingLine}>{getFramingLine(currentQuote.matched_concern)}</Text>
               )}
-              <Text style={styles.quoteText}>&ldquo;{currentQuote.quote}&rdquo;</Text>
+              <ScaledText style={styles.quoteText}>&ldquo;{currentQuote.quote}&rdquo;</ScaledText>
               <Text style={styles.author}>— {currentQuote.author}</Text>
               <Text style={styles.source}>{currentQuote.source}</Text>
             </View>

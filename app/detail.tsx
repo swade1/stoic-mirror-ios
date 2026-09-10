@@ -13,6 +13,7 @@ import { supabase } from '@/lib/supabase';
 import { IconSymbol } from '@/components/ui/IconSymbol';
 import { maybeRequestReview } from '@/lib/reviewPrompt';
 import { getFramingLine } from '@/lib/framing';
+import { ScaledText } from '@/components/ScaledText';
 
 interface Quote {
   id: string;
@@ -262,7 +263,7 @@ export default function ResultsScreen() {
         {/* Concern */}
         <View style={styles.concernBox}>
           <Text style={styles.concernLabel}>Your concern</Text>
-          <Text style={styles.concernText}>{entry.concern}</Text>
+          <ScaledText style={styles.concernText}>{entry.concern}</ScaledText>
           {saved.length === 0 && entry && (() => {
             const createdAt = new Date(entry.created_at).getTime();
             const now = new Date().getTime();
@@ -287,14 +288,14 @@ export default function ResultsScreen() {
               {getFramingLine(quote.matched_concern) && (
                 <Text style={styles.framingLine}>{getFramingLine(quote.matched_concern)}</Text>
               )}
-              <Text style={styles.quoteText}>&ldquo;{quote.quote}&rdquo;</Text>
+              <ScaledText style={styles.quoteText}>&ldquo;{quote.quote}&rdquo;</ScaledText>
               <View style={styles.attribution}>
                 <Text style={styles.author}>{quote.author}</Text>
                 <Text style={styles.source}>{quote.source}</Text>
               </View>
               <View style={styles.interpretationBox}>
                 <Text style={styles.interpretationLabel}>Counsel</Text>
-                <Text style={styles.interpretationText}>{quote.interpretation}</Text>
+                <ScaledText style={styles.interpretationText}>{quote.interpretation}</ScaledText>
               </View>
               <TouchableOpacity
                 style={[styles.saveButton, saved.includes(quote.id) && styles.saveButtonActive]}

@@ -10,6 +10,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import Purchases from 'react-native-purchases';
 import * as Notifications from 'expo-notifications';
 import { syncNotificationSchedule, isReminderNotificationId } from '@/lib/notifications';
+import { FontScaleProvider } from '@/contexts/FontScaleContext';
 
 const DarkTheme: Theme = {
   dark: true,
@@ -105,6 +106,7 @@ export default function RootLayout() {
     return null;
   }
   return (
+    <FontScaleProvider>
     <ThemeProvider value={DarkTheme}>
        <Stack
          screenOptions={{
@@ -122,6 +124,7 @@ export default function RootLayout() {
           <Stack.Screen name="concerns" />
           <Stack.Screen name="change-password" />
           <Stack.Screen name="notifications" />
+          <Stack.Screen name="text-size" />
           <Stack.Screen name="trial-started" />
         </Stack.Protected>
 
@@ -144,5 +147,6 @@ export default function RootLayout() {
       </Stack>
       <StatusBar style="light" />
     </ThemeProvider>
+    </FontScaleProvider>
   );
 }

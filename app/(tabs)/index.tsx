@@ -19,6 +19,7 @@ import * as Haptics from 'expo-haptics';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '@/lib/supabase';
 import { getDailyQuoteId } from '@/lib/dailyQuote';
+import { ScaledText } from '@/components/ScaledText';
 
 export default function CounselScreen() {
   const router = useRouter();
@@ -176,10 +177,10 @@ export default function CounselScreen() {
         {dailyQuote && (
           <View style={styles.dailyQuoteBox}>
             <Text style={styles.dailyQuoteLabel}>Today&apos;s reflection</Text>
-            <Text style={styles.dailyQuoteText}>
+            <ScaledText style={styles.dailyQuoteText}>
               &ldquo;{dailyQuote.quote}&rdquo;
-            </Text>
-            <Text style={styles.dailyQuoteAuthor}>— {dailyQuote.author}</Text>
+            </ScaledText>
+            <ScaledText style={styles.dailyQuoteAuthor}>— {dailyQuote.author}</ScaledText>
           </View>
         )}
         <Text style={styles.prompt}>What troubles you?</Text>

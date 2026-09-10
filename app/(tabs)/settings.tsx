@@ -96,6 +96,10 @@ export default function SettingsScreen() {
     router.push('/notifications');
   };
 
+  const handleTextSize = () => {
+    router.push('/text-size');
+  };
+
   const handleManageSubscription = async () => {
     // Apple doesn't let apps cancel a subscription programmatically —
     // this deep-links to the native subscription management page, the
@@ -248,6 +252,11 @@ export default function SettingsScreen() {
               <View style={styles.divider} />
               <TouchableOpacity style={styles.row} onPress={handleNotifications} accessibilityRole="button">
                 <Text style={styles.rowLabel}>Notifications</Text>
+                <IconSymbol name="chevron.right" size={12} color="#a89f88" accessibilityElementsHidden importantForAccessibility="no" />
+              </TouchableOpacity>
+              <View style={styles.divider} />
+              <TouchableOpacity style={styles.row} onPress={handleTextSize} accessibilityRole="button">
+                <Text style={styles.rowLabel}>Text Size</Text>
                 <IconSymbol name="chevron.right" size={12} color="#a89f88" accessibilityElementsHidden importantForAccessibility="no" />
               </TouchableOpacity>
               <View style={styles.divider} />
