@@ -106,7 +106,7 @@ export default function QuoteCardsScreen() {
 
   const currentQuote = savedQuotes[currentIndex];
   const currentBackground = currentQuote
-    ? resolveQuoteBackground(backgrounds, currentQuote.background_photo_id)
+    ? resolveQuoteBackground(backgrounds, currentQuote.background_photo_id, currentQuote.id)
     : null;
   // Nothing to wait for if this card has no background photo at all
   // (empty bucket) — it's still a valid, shareable plain card.
@@ -188,7 +188,7 @@ export default function QuoteCardsScreen() {
         onMomentumScrollEnd={handleScrollEnd}
       >
         {savedQuotes.map((quote, index) => {
-          const background = resolveQuoteBackground(backgrounds, quote.background_photo_id);
+          const background = resolveQuoteBackground(backgrounds, quote.background_photo_id, quote.id);
           return (
             <View
               key={quote.id}
