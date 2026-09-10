@@ -193,10 +193,25 @@ export default function CounselScreen() {
         )}
 
 
-      <View style={styles.textInputContainer}>
+      <View style={styles.micButtonWrapper}>
+        <TouchableOpacity
+          style={[styles.largeMicButton, listening && styles.micButtonActive]}
+          onPress={handleMic}
+          accessibilityRole="button"
+          accessibilityLabel={listening ? 'Stop voice input' : 'Start voice input'}
+          accessibilityState={{ selected: listening }}
+        >
+          <IconSymbol
+            name={listening ? 'stop.fill' : 'mic.fill'}
+            size={40}
+            color={listening ? '#0f0e0c' : '#c9b97a'}
+          />
+        </TouchableOpacity>
+      </View>
+
       <TextInput
         style={styles.textInput}
-        placeholder="Speak freely..."
+        placeholder="Or describe it here..."
         placeholderTextColor="#8a7e6e"
         value={input}
         onChangeText={setInput}
@@ -205,20 +220,6 @@ export default function CounselScreen() {
         textAlignVertical="top"
         accessibilityLabel="Describe your concern"
       />
-      <TouchableOpacity
-        style={[styles.micButton, listening && styles.micButtonActive]}
-        onPress={handleMic}
-        accessibilityRole="button"
-        accessibilityLabel={listening ? 'Stop voice input' : 'Start voice input'}
-        accessibilityState={{ selected: listening }}
-      >
-        <IconSymbol
-          name={listening ? 'stop.fill' : 'mic.fill'}
-          size={16}
-          color={listening ? '#0f0e0c' : '#c9b97a'}
-        />
-      </TouchableOpacity>
-    </View>
 
     <TouchableOpacity
       style={[styles.sendButton, !input.trim() && styles.sendButtonDisabled]}
@@ -307,8 +308,8 @@ const styles = StyleSheet.create({
     fontSize: 16,
     borderWidth: 1,
     borderColor: '#6a6050',
-    minHeight: 160,
-    maxHeight: 280,
+    minHeight: 70,
+    maxHeight: 130,
     marginBottom: 16,
   },
   sendButton: {
@@ -354,26 +355,23 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: 16,
   },
-  textInputContainer: {
-    marginBottom: 16,
+  micButtonWrapper: {
+    alignItems: 'center',
+    marginBottom: 24,
   },
-  micButton: {
-    position: 'absolute',
-    top: 8,
-    right: 8,
+  largeMicButton: {
+    width: 96,
+    height: 96,
+    borderRadius: 48,
     backgroundColor: '#2a2720',
-    width: 32,
-    height: 32,
-    borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
     borderColor: '#c9b97a',
-    zIndex: 1,
   },
   micButtonActive: {
     backgroundColor: '#c9b97a',
-  },  
+  },
   dailyQuoteBox: {
     backgroundColor: '#1e1c18',
     borderRadius: 12,
