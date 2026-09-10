@@ -1,5 +1,5 @@
 import React, { useState, useEffect , useCallback } from 'react';
-import { useFocusEffect } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import {
   View,
   Text,
@@ -32,6 +32,7 @@ interface SavedQuote {
 }
 
 export default function HistoryScreen() {
+  const router = useRouter();
   const insets = useSafeAreaInsets();
   const [savedQuotes, setSavedQuotes] = useState<SavedQuote[]>([]);
   const [loading, setLoading] = useState(true);
@@ -162,6 +163,14 @@ export default function HistoryScreen() {
           <Text style={styles.headerSubtitle}>Quotes you&apos;ve chosen to keep</Text>
         </View>
         <View style={styles.headerActions}>
+          <TouchableOpacity
+            onPress={() => router.push('/quote-cards')}
+            accessibilityRole="button"
+            accessibilityLabel="Quote cards"
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
+            <IconSymbol name="photo.on.rectangle" size={20} color="#c9b97a" />
+          </TouchableOpacity>
           <TouchableOpacity
             onPress={() => setFontMenuVisible(true)}
             accessibilityRole="button"

@@ -125,6 +125,7 @@ export default function RootLayout() {
           <Stack.Screen name="change-password" />
           <Stack.Screen name="notifications" />
           <Stack.Screen name="text-size" />
+          <Stack.Screen name="quote-cards" />
           <Stack.Screen name="trial-started" />
         </Stack.Protected>
 
