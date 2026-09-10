@@ -1,5 +1,5 @@
-import React, { useCallback, useRef, useState } from 'react';
-import { useFocusEffect, useRouter } from 'expo-router';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import {
   View,
   Text,
@@ -32,6 +32,7 @@ export default function QuoteCardsScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
+  const { quoteId } = useLocalSearchParams<{ quoteId?: string }>();
 
   const [savedQuotes, setSavedQuotes] = useState<SavedQuote[]>([]);
   const [backgrounds, setBackgrounds] = useState<QuoteBackground[]>([]);
@@ -48,6 +49,11 @@ export default function QuoteCardsScreen() {
   const [sharing, setSharing] = useState(false);
 
   const cardRefs = useRef<(View | null)[]>([]);
+  const scrollRef = useRef<ScrollView>(null);
+  // Set once per load, so the scroll-into-place effect below only fires
+  // right after fetching — not on every currentIndex change from normal
+  // swiping, which would fight the user's own scroll.
+  const [pendingScrollIndex, setPendingScrollIndex] = useState<number | null>(null);
 
   useFocusEffect(
     useCallback(() => {
@@ -68,16 +74,35 @@ export default function QuoteCardsScreen() {
         ]);
 
         if (!cancelled) {
-          setSavedQuotes(quotes ?? []);
+          const loadedQuotes = quotes ?? [];
+          setSavedQuotes(loadedQuotes);
           setBackgrounds(backgroundList);
           setLoading(false);
+
+          // Open on whichever quote History was showing when the user
+          // tapped in, not always the most recently saved one.
+          const matchIndex = quoteId ? loadedQuotes.findIndex((q) => q.id === quoteId) : -1;
+          const targetIndex = matchIndex >= 0 ? matchIndex : 0;
+          setCurrentIndex(targetIndex);
+          setPendingScrollIndex(targetIndex);
         }
       };
 
       load();
       return () => { cancelled = true; };
-    }, [])
+    }, [quoteId])
   );
+
+  // Runs after the ScrollView has laid out its (now-known) pages, so the
+  // jump lands correctly instead of racing the initial render.
+  useEffect(() => {
+    if (pendingScrollIndex === null || loading) return;
+    const id = requestAnimationFrame(() => {
+      scrollRef.current?.scrollTo({ x: pendingScrollIndex * width, animated: false });
+    });
+    setPendingScrollIndex(null);
+    return () => cancelAnimationFrame(id);
+  }, [pendingScrollIndex, loading, width]);
 
   const currentQuote = savedQuotes[currentIndex];
   const currentBackground = currentQuote
@@ -156,6 +181,7 @@ export default function QuoteCardsScreen() {
   return (
     <View style={styles.container}>
       <ScrollView
+        ref={scrollRef}
         horizontal
         pagingEnabled
         showsHorizontalScrollIndicator={false}

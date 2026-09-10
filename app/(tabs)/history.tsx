@@ -164,7 +164,7 @@ export default function HistoryScreen() {
         </View>
         <View style={styles.headerActions}>
           <TouchableOpacity
-            onPress={() => router.push('/quote-cards')}
+            onPress={() => router.push({ pathname: '/quote-cards', params: { quoteId: currentQuote?.id } })}
             accessibilityRole="button"
             accessibilityLabel="Quote cards"
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
