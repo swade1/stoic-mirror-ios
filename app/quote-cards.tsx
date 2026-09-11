@@ -14,6 +14,7 @@ import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { captureRef } from 'react-native-view-shot';
 import * as Sharing from 'expo-sharing';
+import * as MediaLibrary from 'expo-media-library';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, { useSharedValue, useAnimatedStyle, runOnJS } from 'react-native-reanimated';
 import { supabase } from '@/lib/supabase';
@@ -51,6 +52,7 @@ export default function QuoteCardsScreen() {
   const [showPicker, setShowPicker] = useState(true);
   const [imageLoaded, setImageLoaded] = useState(false);
   const [sharing, setSharing] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [cardSize, setCardSize] = useState({ width: 0, height: 0 });
 
   const cardRef = useRef<View>(null);
@@ -200,6 +202,31 @@ export default function QuoteCardsScreen() {
     }
   };
 
+  const handleSaveToPhotos = async () => {
+    if (!cardRef.current || saving) return;
+    setSaving(true);
+    try {
+      // writeOnly: true — only ever need to add a photo, never read the
+      // user's existing library, so this triggers iOS's lighter "Add
+      // Photos Only" permission prompt instead of full library access.
+      const { status } = await MediaLibrary.requestPermissionsAsync(true);
+      if (status !== 'granted') {
+        Alert.alert(
+          'Permission Needed',
+          'Allow The Stoic Mirror to save photos in your device Settings to save quote cards.'
+        );
+        return;
+      }
+      const uri = await captureRef(cardRef, { format: 'png', quality: 1 });
+      await MediaLibrary.saveToLibraryAsync(uri);
+      Alert.alert('Saved', 'This quote card was saved to your photos.');
+    } catch (err) {
+      Alert.alert('Save Failed', err instanceof Error ? err.message : 'Something went wrong.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
   if (loading) {
     return <View style={[styles.container, { paddingTop: insets.top }]} />;
   }
@@ -310,6 +337,15 @@ export default function QuoteCardsScreen() {
               accessibilityLabel="Change background photo"
             >
               <IconSymbol name="photo.on.rectangle" size={18} color="#c9b97a" />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.actionButton, (!imageLoaded || saving) && styles.actionButtonDisabled]}
+              onPress={handleSaveToPhotos}
+              disabled={!imageLoaded || saving}
+              accessibilityRole="button"
+              accessibilityLabel="Save this quote card to Photos"
+            >
+              <IconSymbol name="square.and.arrow.down" size={18} color={imageLoaded ? '#c9b97a' : '#6a6050'} />
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.actionButton, (!imageLoaded || sharing) && styles.actionButtonDisabled]}

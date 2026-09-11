@@ -20,6 +20,7 @@ const MAPPING = {
   'chevron.right': 'chevron-right',
   'textformat.size': 'format-size',
   'photo.on.rectangle': 'photo-library',
+  'square.and.arrow.down': 'save-alt',
 } as IconMapping;
 
 /**
