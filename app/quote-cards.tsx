@@ -31,6 +31,7 @@ import {
   type TextAlignValue,
 } from '@/lib/textStyleOptions';
 import { splitIntoWords, groupWordsIntoLines, indexWordsByLine } from '@/lib/quoteLineBreaks';
+import { pushUndoState, popUndoState } from '@/lib/undoStack';
 
 interface SavedQuote {
   id: string;
@@ -68,6 +69,9 @@ export default function QuoteCardsScreen() {
   // is impossible if the photo isn't on screen while editing.
   const [editingLines, setEditingLines] = useState(false);
   const [editingBreaks, setEditingBreaks] = useState<Set<number>>(new Set());
+  // Undo history for the current editing session only — not persisted, and
+  // reset each time editing is (re)entered, same as editingBreaks itself.
+  const [breakHistory, setBreakHistory] = useState<Set<number>[]>([]);
   const [imageLoaded, setImageLoaded] = useState(false);
   const [sharing, setSharing] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -311,18 +315,32 @@ export default function QuoteCardsScreen() {
       handleDoneEditingLines();
     } else {
       setEditingBreaks(new Set(quote?.card_line_breaks ?? []));
+      setBreakHistory([]);
       setShowTextStylePanel(false);
       setEditingLines(true);
     }
   };
 
+  // Routes every change to editingBreaks (a toggle or a Reset) through one
+  // place so each records the state it's replacing — that's what makes
+  // Undo work for both, not just individual word taps.
+  const applyBreaksChange = (next: Set<number>) => {
+    setBreakHistory((prev) => pushUndoState(prev, editingBreaks));
+    setEditingBreaks(next);
+  };
+
   const toggleBreak = (index: number) => {
-    setEditingBreaks((prev) => {
-      const next = new Set(prev);
-      if (next.has(index)) next.delete(index);
-      else next.add(index);
-      return next;
-    });
+    const next = new Set(editingBreaks);
+    if (next.has(index)) next.delete(index);
+    else next.add(index);
+    applyBreaksChange(next);
+  };
+
+  const handleUndoBreak = () => {
+    const popped = popUndoState(breakHistory);
+    if (!popped) return;
+    setEditingBreaks(popped.value);
+    setBreakHistory(popped.history);
   };
 
   const handleDoneEditingLines = () => {
@@ -560,13 +578,30 @@ export default function QuoteCardsScreen() {
           {editingLines && (
             <View style={[styles.lineEditBar, { bottom: insets.bottom + 4 }]}>
               <Text style={styles.lineEditBarText}>Tap between words to break the line</Text>
-              <TouchableOpacity
-                onPress={() => setEditingBreaks(new Set())}
-                accessibilityRole="button"
-                accessibilityLabel="Reset to automatic line wrapping"
-              >
-                <Text style={styles.resetText}>Reset</Text>
-              </TouchableOpacity>
+              <View style={styles.lineEditActions}>
+                <TouchableOpacity
+                  onPress={handleUndoBreak}
+                  disabled={breakHistory.length === 0}
+                  hitSlop={8}
+                  accessibilityRole="button"
+                  accessibilityLabel="Undo last line break change"
+                  accessibilityState={{ disabled: breakHistory.length === 0 }}
+                >
+                  <IconSymbol
+                    name="arrow.uturn.backward"
+                    size={16}
+                    color={breakHistory.length === 0 ? '#4a4540' : '#c9b97a'}
+                  />
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={() => applyBreaksChange(new Set())}
+                  hitSlop={8}
+                  accessibilityRole="button"
+                  accessibilityLabel="Reset to automatic line wrapping"
+                >
+                  <Text style={styles.resetText}>Reset</Text>
+                </TouchableOpacity>
+              </View>
             </View>
           )}
 
@@ -919,8 +954,15 @@ const styles = StyleSheet.create({
     borderRadius: 12,
   },
   lineEditBarText: {
+    flexShrink: 1,
+    marginRight: 12,
     fontSize: 12,
     color: '#c9b97a',
+  },
+  lineEditActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
   },
   resetText: {
     fontSize: 13,

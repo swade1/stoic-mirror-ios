@@ -26,6 +26,7 @@ const MAPPING = {
   'text.alignleft': 'format-align-left',
   'text.aligncenter': 'format-align-center',
   'text.alignright': 'format-align-right',
+  'arrow.uturn.backward': 'undo',
 } as IconMapping;
 
 /**
