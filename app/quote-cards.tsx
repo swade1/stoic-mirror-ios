@@ -505,18 +505,8 @@ export default function QuoteCardsScreen() {
             />
             <LinearGradient colors={['transparent', 'rgba(0,0,0,0.5)']} style={StyleSheet.absoluteFill} />
 
-            {cardSize.width > 0 && (() => {
-              // While editing, the word Touchables render inside this same
-              // block. Even with the pan gesture disabled via .enabled(),
-              // a mounted GestureDetector can still intercept the touch
-              // stream ahead of RN's legacy responder system that
-              // TouchableOpacity relies on, making individual word taps
-              // unreliable (the reported symptom: an added break vanishing
-              // again, or state that looks like it never updated). Not
-              // mounting the GestureDetector at all while editing removes
-              // that competition outright, rather than trusting a runtime
-              // "disabled" flag to fully step aside.
-              const textBlock = (
+            {cardSize.width > 0 && (
+              <GestureDetector gesture={pan}>
                 <Animated.View
                   style={[
                     styles.textBox,
@@ -585,13 +575,8 @@ export default function QuoteCardsScreen() {
                     — {quote.author}, {quote.source}
                   </Text>
                 </Animated.View>
-              );
-              return editingLines ? (
-                textBlock
-              ) : (
-                <GestureDetector gesture={pan}>{textBlock}</GestureDetector>
-              );
-            })()}
+              </GestureDetector>
+            )}
           </View>
 
           <TouchableOpacity
