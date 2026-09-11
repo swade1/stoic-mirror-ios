@@ -99,6 +99,11 @@ export default function QuoteCardsScreen() {
   // the screen. Anchoring to the aligned edge instead means a width change
   // never moves that edge, only the opposite (ragged) one.
   const boxAnchorX = textAlign === 'left' ? 0 : textAlign === 'right' ? 1 : 0.5;
+  // The un-dragged starting position also has to depend on alignment — a
+  // freshly left-aligned block anchored to a fraction meant for a centered
+  // block (0.5) would sit with its left edge at screen center, not near the
+  // left margin. These roughly match TEXT_BOX_MARGIN's inset from each edge.
+  const defaultAnchorX = textAlign === 'left' ? 0.06 : textAlign === 'right' ? 0.94 : DEFAULT_TEXT_POSITION.x;
   const legacyMaxWidth = Math.max(0, Math.min(280, cardSize.width - TEXT_BOX_MARGIN * 2));
 
   const translateX = useSharedValue(0);
@@ -152,12 +157,12 @@ export default function QuoteCardsScreen() {
   useEffect(() => {
     if (!quote || cardSize.width === 0 || cardSize.height === 0) return;
     if (textBlockSize.width === 0 || textBlockSize.height === 0) return;
-    const fx = quote.text_offset_x ?? DEFAULT_TEXT_POSITION.x;
+    const fx = quote.text_offset_x ?? defaultAnchorX;
     const fy = quote.text_offset_y ?? DEFAULT_TEXT_POSITION.y;
     translateX.value = fractionToPixels(fx, cardSize.width) - textBlockSize.width * boxAnchorX;
     translateY.value = fractionToPixels(fy, cardSize.height) - textBlockSize.height / 2;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [quote?.id, cardSize.width, cardSize.height, textBlockSize.width, textBlockSize.height, boxAnchorX]);
+  }, [quote?.id, cardSize.width, cardSize.height, textBlockSize.width, textBlockSize.height, boxAnchorX, defaultAnchorX]);
 
   useFocusEffect(
     useCallback(() => {
@@ -290,7 +295,15 @@ export default function QuoteCardsScreen() {
 
   const chooseTextAlign = (align: TextAlignValue) => {
     if (!quote) return;
-    setQuote({ ...quote, text_align: align });
+    // A dragged x-position means something different under each alignment
+    // (the block's center vs. its left/right edge) — carrying the same raw
+    // fraction across a change in alignment reinterprets it under the new
+    // anchor and lands somewhere nonsensical (e.g. a block dragged to the
+    // left margin under Left, then switched to Center, ends up centered
+    // *on* the left margin instead of the screen). Clearing it lets the
+    // block snap to that alignment's own sensible starting position;
+    // vertical position is unaffected since alignment is horizontal-only.
+    setQuote({ ...quote, text_align: align, text_offset_x: null });
   };
 
   const toggleLineEditing = () => {
@@ -545,7 +558,7 @@ export default function QuoteCardsScreen() {
           </TouchableOpacity>
 
           {editingLines && (
-            <View style={[styles.lineEditBar, { top: insets.top + 60 }]}>
+            <View style={[styles.lineEditBar, { bottom: insets.bottom + 4 }]}>
               <Text style={styles.lineEditBarText}>Tap between words to break the line</Text>
               <TouchableOpacity
                 onPress={() => setEditingBreaks(new Set())}
