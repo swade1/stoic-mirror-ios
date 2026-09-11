@@ -510,8 +510,13 @@ export default function QuoteCardsScreen() {
                 <Animated.View
                   style={[
                     styles.textBox,
-                    !useCenteredBox ? { width: legacyMaxWidth } : { alignItems: boxAlignItems },
-                    editingLines && { maxWidth: legacyMaxWidth },
+                    // The same maxWidth cap has to apply whether this is
+                    // the live editor or the final saved render — a group
+                    // of words the user never explicitly broke wraps on
+                    // its own either way, and it needs to wrap at the same
+                    // width both times, or what was WYSIWYG during editing
+                    // silently stops matching the card once you exit.
+                    !useCenteredBox ? { width: legacyMaxWidth } : { alignItems: boxAlignItems, maxWidth: legacyMaxWidth },
                     animatedTextStyle,
                   ]}
                   onLayout={handleTextBlockLayout}
@@ -559,7 +564,14 @@ export default function QuoteCardsScreen() {
                           key={i}
                           style={[
                             styles.quoteText,
-                            { color: textColor, fontSize: 22 * sizeScale, lineHeight: 30 * sizeScale },
+                            // alignItems on the box only positions each
+                            // Text's own bounding box relative to its
+                            // siblings — a group the user left unbroken
+                            // that's still wide enough to wrap on its own
+                            // needs textAlign too, or that internal wrap
+                            // silently defaults to RN's left-aligned norm
+                            // regardless of the chosen alignment.
+                            { color: textColor, fontSize: 22 * sizeScale, lineHeight: 30 * sizeScale, textAlign },
                           ]}
                         >
                           {isFirst ? '“' : ''}{line}{isLast ? '”' : ''}
