@@ -21,6 +21,7 @@ import { supabase } from '@/lib/supabase';
 import { IconSymbol } from '@/components/ui/IconSymbol';
 import { listQuoteBackgrounds, resolveQuoteBackground, type QuoteBackground } from '@/lib/quoteBackgrounds';
 import { DEFAULT_TEXT_POSITION, pixelsToFraction, fractionToPixels } from '@/lib/textPosition';
+import { TEXT_COLOR_OPTIONS, DEFAULT_TEXT_COLOR, TEXT_SIZE_STEPS, DEFAULT_TEXT_SIZE_SCALE } from '@/lib/textStyleOptions';
 
 interface SavedQuote {
   id: string;
@@ -30,6 +31,8 @@ interface SavedQuote {
   background_photo_id: string | null;
   text_offset_x: number | null;
   text_offset_y: number | null;
+  text_color: string | null;
+  text_size_scale: number | null;
 }
 
 // The draggable text box has a fixed width and an ESTIMATED max height for
@@ -53,11 +56,19 @@ export default function QuoteCardsScreen() {
   const [imageLoaded, setImageLoaded] = useState(false);
   const [sharing, setSharing] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [showTextStylePanel, setShowTextStylePanel] = useState(false);
   const [cardSize, setCardSize] = useState({ width: 0, height: 0 });
 
   const cardRef = useRef<View>(null);
 
   const boxWidth = Math.max(0, Math.min(280, cardSize.width - TEXT_BOX_MARGIN * 2));
+  const textColor = quote?.text_color ?? DEFAULT_TEXT_COLOR;
+  const sizeScale = quote?.text_size_scale ?? DEFAULT_TEXT_SIZE_SCALE;
+  // The drag-clamp bound and initial-placement math both use this as an
+  // approximation of the text box's real rendered height — scaling it by
+  // the same factor as the text itself keeps that approximation valid
+  // now that size is user-controllable, without needing live measurement.
+  const estimatedBoxHeight = ESTIMATED_BOX_HEIGHT * sizeScale;
   const translateX = useSharedValue(0);
   const translateY = useSharedValue(0);
   const startX = useSharedValue(0);
@@ -89,14 +100,18 @@ export default function QuoteCardsScreen() {
   // the drag position every time the photo changes, which should persist
   // independently. translateX/Y/boxWidth are stable-identity shared
   // values or render-derived from deps already listed.
+  // Also re-runs when sizeScale changes (deliberately, unlike
+  // background_photo_id changes) — re-deriving the top-left position from
+  // the unchanged center fraction and the new box height keeps the
+  // visual center anchored when the user picks a different text size.
   useEffect(() => {
     if (!quote || cardSize.width === 0 || cardSize.height === 0) return;
     const fx = quote.text_offset_x ?? DEFAULT_TEXT_POSITION.x;
     const fy = quote.text_offset_y ?? DEFAULT_TEXT_POSITION.y;
     translateX.value = fractionToPixels(fx, cardSize.width) - boxWidth / 2;
-    translateY.value = fractionToPixels(fy, cardSize.height) - ESTIMATED_BOX_HEIGHT / 2;
+    translateY.value = fractionToPixels(fy, cardSize.height) - estimatedBoxHeight / 2;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [quote?.id, cardSize.width, cardSize.height]);
+  }, [quote?.id, cardSize.width, cardSize.height, sizeScale]);
 
   useFocusEffect(
     useCallback(() => {
@@ -116,7 +131,7 @@ export default function QuoteCardsScreen() {
         const [{ data: quoteRow, error }, backgroundList] = await Promise.all([
           supabase
             .from('saved_quotes')
-            .select('id, quote, author, source, background_photo_id, text_offset_x, text_offset_y')
+            .select('id, quote, author, source, background_photo_id, text_offset_x, text_offset_y, text_color, text_size_scale')
             .eq('id', quoteId)
             .eq('user_id', session.user.id)
             .single(),
@@ -153,7 +168,7 @@ export default function QuoteCardsScreen() {
   const persistPosition = (x: number, y: number) => {
     if (!quote || cardSize.width === 0 || cardSize.height === 0) return;
     const fx = pixelsToFraction(x + boxWidth / 2, cardSize.width);
-    const fy = pixelsToFraction(y + ESTIMATED_BOX_HEIGHT / 2, cardSize.height);
+    const fy = pixelsToFraction(y + estimatedBoxHeight / 2, cardSize.height);
     supabase
       .from('saved_quotes')
       .update({ text_offset_x: fx, text_offset_y: fy })
@@ -167,7 +182,7 @@ export default function QuoteCardsScreen() {
     })
     .onUpdate((e) => {
       const maxX = Math.max(0, cardWidthShared.value - boxWidthShared.value);
-      const maxY = Math.max(0, cardHeightShared.value - ESTIMATED_BOX_HEIGHT);
+      const maxY = Math.max(0, cardHeightShared.value - estimatedBoxHeight);
       translateX.value = Math.min(maxX, Math.max(0, startX.value + e.translationX));
       translateY.value = Math.min(maxY, Math.max(0, startY.value + e.translationY));
     })
@@ -185,6 +200,18 @@ export default function QuoteCardsScreen() {
     setShowPicker(false);
     setImageLoaded(false);
     await supabase.from('saved_quotes').update({ background_photo_id: bg.id }).eq('id', quote.id);
+  };
+
+  const chooseTextColor = async (color: string) => {
+    if (!quote) return;
+    setQuote({ ...quote, text_color: color });
+    await supabase.from('saved_quotes').update({ text_color: color }).eq('id', quote.id);
+  };
+
+  const chooseTextSize = async (scale: number) => {
+    if (!quote) return;
+    setQuote({ ...quote, text_size_scale: scale });
+    await supabase.from('saved_quotes').update({ text_size_scale: scale }).eq('id', quote.id);
   };
 
   const handleShare = async () => {
@@ -312,8 +339,12 @@ export default function QuoteCardsScreen() {
             {cardSize.width > 0 && (
               <GestureDetector gesture={pan}>
                 <Animated.View style={[styles.textBox, { width: boxWidth }, animatedTextStyle]}>
-                  <Text style={styles.quoteText}>&ldquo;{quote.quote}&rdquo;</Text>
-                  <Text style={styles.attribution}>— {quote.author}, {quote.source}</Text>
+                  <Text style={[styles.quoteText, { color: textColor, fontSize: 22 * sizeScale, lineHeight: 30 * sizeScale }]}>
+                    &ldquo;{quote.quote}&rdquo;
+                  </Text>
+                  <Text style={[styles.attribution, { color: textColor, fontSize: 13 * sizeScale }]}>
+                    — {quote.author}, {quote.source}
+                  </Text>
                 </Animated.View>
               </GestureDetector>
             )}
@@ -329,6 +360,51 @@ export default function QuoteCardsScreen() {
             <Text style={styles.backButtonText}>History</Text>
           </TouchableOpacity>
 
+          {showTextStylePanel && (
+            <View style={[styles.textStylePanel, { bottom: insets.bottom + 88 }]}>
+              <Text style={styles.textStylePanelLabel}>Color</Text>
+              <View style={styles.swatchRow}>
+                {TEXT_COLOR_OPTIONS.map((option) => {
+                  const selected = textColor === option.value;
+                  return (
+                    <TouchableOpacity
+                      key={option.value}
+                      onPress={() => chooseTextColor(option.value)}
+                      accessibilityRole="radio"
+                      accessibilityState={{ selected }}
+                      accessibilityLabel={`Text color ${option.label}`}
+                      style={[
+                        styles.swatch,
+                        { backgroundColor: option.value },
+                        selected && styles.swatchSelected,
+                      ]}
+                    />
+                  );
+                })}
+              </View>
+
+              <Text style={styles.textStylePanelLabel}>Size</Text>
+              <View style={styles.sizeRow}>
+                {TEXT_SIZE_STEPS.map((step) => {
+                  const selected = sizeScale === step.value;
+                  return (
+                    <TouchableOpacity
+                      key={step.label}
+                      onPress={() => chooseTextSize(step.value)}
+                      accessibilityRole="radio"
+                      accessibilityState={{ selected }}
+                      style={[styles.sizeOption, selected && styles.sizeOptionSelected]}
+                    >
+                      <Text style={[styles.sizeOptionText, selected && styles.sizeOptionTextSelected]}>
+                        {step.label}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </View>
+          )}
+
           <View style={[styles.actionRow, { bottom: insets.bottom + 32 }]}>
             <TouchableOpacity
               style={styles.actionButton}
@@ -337,6 +413,14 @@ export default function QuoteCardsScreen() {
               accessibilityLabel="Change background photo"
             >
               <IconSymbol name="photo.on.rectangle" size={18} color="#c9b97a" />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.actionButton, showTextStylePanel && styles.actionButtonActive]}
+              onPress={() => setShowTextStylePanel((v) => !v)}
+              accessibilityRole="button"
+              accessibilityLabel="Text color and size"
+            >
+              <IconSymbol name="textformat" size={18} color="#c9b97a" />
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.actionButton, (!imageLoaded || saving) && styles.actionButtonDisabled]}
@@ -498,5 +582,64 @@ const styles = StyleSheet.create({
   },
   actionButtonDisabled: {
     borderColor: '#4a4540',
+  },
+  actionButtonActive: {
+    backgroundColor: 'rgba(201,185,122,0.25)',
+  },
+  textStylePanel: {
+    position: 'absolute',
+    left: 16,
+    right: 16,
+    backgroundColor: 'rgba(15,14,12,0.9)',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#4a4540',
+    padding: 16,
+    gap: 8,
+  },
+  textStylePanelLabel: {
+    fontSize: 11,
+    color: '#8a7e6e',
+    letterSpacing: 1,
+    textTransform: 'uppercase',
+  },
+  swatchRow: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 8,
+  },
+  swatch: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#4a4540',
+  },
+  swatchSelected: {
+    borderWidth: 2,
+    borderColor: '#c9b97a',
+  },
+  sizeRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  sizeOption: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#4a4540',
+  },
+  sizeOptionSelected: {
+    borderColor: '#c9b97a',
+    backgroundColor: 'rgba(201,185,122,0.15)',
+  },
+  sizeOptionText: {
+    fontSize: 13,
+    color: '#a89f88',
+  },
+  sizeOptionTextSelected: {
+    color: '#f0ead6',
+    fontWeight: '600',
   },
 });
