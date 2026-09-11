@@ -48,7 +48,7 @@ export default function QuoteCardsScreen() {
   const [notFound, setNotFound] = useState(false);
   const [backgrounds, setBackgrounds] = useState<QuoteBackground[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showPicker, setShowPicker] = useState(false);
+  const [showPicker, setShowPicker] = useState(true);
   const [imageLoaded, setImageLoaded] = useState(false);
   const [sharing, setSharing] = useState(false);
   const [cardSize, setCardSize] = useState({ width: 0, height: 0 });
@@ -127,7 +127,11 @@ export default function QuoteCardsScreen() {
             setNotFound(true);
           } else {
             setQuote(quoteRow);
-            setShowPicker(false);
+            // Always open on the picker, even if this quote already has a
+            // chosen background — the user wants to see the quote +
+            // gallery first every time, not silently resume straight to a
+            // previously composed card.
+            setShowPicker(true);
             setImageLoaded(false);
           }
           setLoading(false);
@@ -249,17 +253,21 @@ export default function QuoteCardsScreen() {
                 No background photos yet — add some to the quote-backgrounds bucket.
               </Text>
             ) : (
-              backgrounds.map((bg) => (
-                <TouchableOpacity
-                  key={bg.id}
-                  onPress={() => chooseBackground(bg)}
-                  accessibilityRole="button"
-                  accessibilityLabel={`Use background photo ${bg.id}`}
-                  style={styles.thumbnailWrapper}
-                >
-                  <Image source={{ uri: bg.url }} style={styles.thumbnail} contentFit="cover" />
-                </TouchableOpacity>
-              ))
+              backgrounds.map((bg) => {
+                const selected = quote.background_photo_id === bg.id;
+                return (
+                  <TouchableOpacity
+                    key={bg.id}
+                    onPress={() => chooseBackground(bg)}
+                    accessibilityRole="radio"
+                    accessibilityState={{ selected }}
+                    accessibilityLabel={`Use background photo ${bg.id}`}
+                    style={[styles.thumbnailWrapper, selected && styles.thumbnailSelected]}
+                  >
+                    <Image source={{ uri: bg.url }} style={styles.thumbnail} contentFit="cover" />
+                  </TouchableOpacity>
+                );
+              })
             )}
           </ScrollView>
         </View>
@@ -389,6 +397,10 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     borderWidth: 1,
     borderColor: '#4a4540',
+  },
+  thumbnailSelected: {
+    borderWidth: 2,
+    borderColor: '#c9b97a',
   },
   thumbnail: {
     width: '100%',
