@@ -22,7 +22,7 @@ import { IconSymbol } from '@/components/ui/IconSymbol';
 import { listQuoteBackgrounds, resolveQuoteBackground, type QuoteBackground } from '@/lib/quoteBackgrounds';
 import { DEFAULT_TEXT_POSITION, pixelsToFraction, fractionToPixels } from '@/lib/textPosition';
 import { TEXT_COLOR_OPTIONS, DEFAULT_TEXT_COLOR, TEXT_SIZE_STEPS, DEFAULT_TEXT_SIZE_SCALE } from '@/lib/textStyleOptions';
-import { splitIntoWords, groupWordsIntoLines } from '@/lib/quoteLineBreaks';
+import { splitIntoWords, groupWordsIntoLines, indexWordsByLine } from '@/lib/quoteLineBreaks';
 
 interface SavedQuote {
   id: string;
@@ -54,7 +54,10 @@ export default function QuoteCardsScreen() {
   const [backgrounds, setBackgrounds] = useState<QuoteBackground[]>([]);
   const [loading, setLoading] = useState(true);
   const [showPicker, setShowPicker] = useState(true);
-  const [showLineBreakEditor, setShowLineBreakEditor] = useState(false);
+  // Editing happens in place on the visible card, not on a separate screen —
+  // the whole point is judging line length against the photo's shape, which
+  // is impossible if the photo isn't on screen while editing.
+  const [editingLines, setEditingLines] = useState(false);
   const [editingBreaks, setEditingBreaks] = useState<Set<number>>(new Set());
   const [imageLoaded, setImageLoaded] = useState(false);
   const [sharing, setSharing] = useState(false);
@@ -98,6 +101,15 @@ export default function QuoteCardsScreen() {
   const words = quote ? splitIntoWords(quote.quote) : [];
   const hasCustomBreaks = !!quote?.card_line_breaks && quote.card_line_breaks.length > 0;
   const customLines = hasCustomBreaks ? groupWordsIntoLines(words, quote!.card_line_breaks!) : null;
+  // While editing, lines are grouped from the live draft (editingBreaks) so
+  // the shape on screen updates the instant a word is tapped — this is the
+  // preview, there's no separate "Done" step to see the result.
+  const editingLinesGrouped = editingLines ? indexWordsByLine(words, Array.from(editingBreaks)) : null;
+  // Both the persisted custom-line layout and the live editing layout need
+  // each line to size to its own content instead of stretching to a shared
+  // box width, and during editing the box is also capped at the legacy
+  // auto-wrap width so a not-yet-broken line still wraps sensibly.
+  const useCenteredBox = hasCustomBreaks || editingLines;
 
   // Position the draggable box once we know both the card's real
   // dimensions and the text block's real measured size — using the
@@ -196,6 +208,7 @@ export default function QuoteCardsScreen() {
   };
 
   const pan = Gesture.Pan()
+    .enabled(!editingLines)
     .onStart(() => {
       startX.value = translateX.value;
       startY.value = translateY.value;
@@ -234,9 +247,14 @@ export default function QuoteCardsScreen() {
     await supabase.from('saved_quotes').update({ text_size_scale: scale }).eq('id', quote.id);
   };
 
-  const openLineBreakEditor = () => {
-    setEditingBreaks(new Set(quote?.card_line_breaks ?? []));
-    setShowLineBreakEditor(true);
+  const toggleLineEditing = () => {
+    if (editingLines) {
+      handleDoneEditingLines();
+    } else {
+      setEditingBreaks(new Set(quote?.card_line_breaks ?? []));
+      setShowTextStylePanel(false);
+      setEditingLines(true);
+    }
   };
 
   const toggleBreak = (index: number) => {
@@ -253,7 +271,7 @@ export default function QuoteCardsScreen() {
     const sorted = Array.from(editingBreaks).sort((a, b) => a - b);
     const breaks = sorted.length > 0 ? sorted : null;
     setQuote({ ...quote, card_line_breaks: breaks });
-    setShowLineBreakEditor(false);
+    setEditingLines(false);
     await supabase.from('saved_quotes').update({ card_line_breaks: breaks }).eq('id', quote.id);
   };
 
@@ -322,72 +340,6 @@ export default function QuoteCardsScreen() {
     );
   }
 
-  if (showEditor && showLineBreakEditor) {
-    const previewLines = groupWordsIntoLines(words, Array.from(editingBreaks));
-    return (
-      <View style={[styles.pickerScreen, { paddingTop: insets.top + 12 }]}>
-        <View style={styles.editLinesHeader}>
-          <TouchableOpacity
-            onPress={() => setShowLineBreakEditor(false)}
-            accessibilityRole="button"
-            accessibilityLabel="Cancel editing line breaks"
-          >
-            <Text style={styles.backButtonText}>Cancel</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            onPress={handleDoneEditingLines}
-            accessibilityRole="button"
-            accessibilityLabel="Save line breaks"
-          >
-            <Text style={styles.doneButtonText}>Done</Text>
-          </TouchableOpacity>
-        </View>
-
-        <Text style={styles.pickerLabel}>Tap between words to add a line break</Text>
-        <View style={styles.wordWrap}>
-          {words.map((word, index) => {
-            const hasBreak = editingBreaks.has(index);
-            const isLast = index === words.length - 1;
-            if (isLast) {
-              return (
-                <Text key={index} style={styles.wordText}>{word}</Text>
-              );
-            }
-            return (
-              <TouchableOpacity
-                key={index}
-                onPress={() => toggleBreak(index)}
-                accessibilityRole="button"
-                accessibilityState={{ selected: hasBreak }}
-                accessibilityLabel={hasBreak ? `Remove line break after ${word}` : `Add line break after ${word}`}
-              >
-                <Text style={[styles.wordText, hasBreak && styles.wordTextBroken]}>
-                  {word}{hasBreak ? ' ↵' : ' '}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
-        </View>
-
-        <Text style={styles.pickerLabel}>Preview</Text>
-        <View style={styles.linePreviewBox}>
-          {previewLines.map((line, i) => (
-            <Text key={i} style={styles.linePreviewText}>{line}</Text>
-          ))}
-        </View>
-
-        <TouchableOpacity
-          onPress={() => setEditingBreaks(new Set())}
-          accessibilityRole="button"
-          accessibilityLabel="Reset to automatic line wrapping"
-          style={styles.resetButton}
-        >
-          <Text style={styles.resetText}>Reset to automatic wrapping</Text>
-        </TouchableOpacity>
-      </View>
-    );
-  }
-
   return (
     <View style={styles.container}>
       {!showEditor ? (
@@ -450,12 +402,47 @@ export default function QuoteCardsScreen() {
                 <Animated.View
                   style={[
                     styles.textBox,
-                    !hasCustomBreaks ? { width: legacyMaxWidth } : styles.textBoxCentered,
+                    !useCenteredBox ? { width: legacyMaxWidth } : styles.textBoxCentered,
+                    editingLines && { maxWidth: legacyMaxWidth },
                     animatedTextStyle,
                   ]}
                   onLayout={handleTextBlockLayout}
                 >
-                  {hasCustomBreaks ? (
+                  {editingLines ? (
+                    editingLinesGrouped!.map((line, i) => (
+                      <View key={i} style={styles.editableLineRow}>
+                        {line.map(({ word, index }) => {
+                          const isLastOverall = index === words.length - 1;
+                          const hasBreak = editingBreaks.has(index);
+                          const display = `${index === 0 ? '“' : ''}${word}${isLastOverall ? '”' : ''}`;
+                          const wordNode = (
+                            <Text
+                              style={[
+                                styles.quoteText,
+                                { color: textColor, fontSize: 22 * sizeScale, lineHeight: 30 * sizeScale },
+                              ]}
+                            >
+                              {display}{!isLastOverall ? ' ' : ''}
+                            </Text>
+                          );
+                          if (isLastOverall) {
+                            return <React.Fragment key={index}>{wordNode}</React.Fragment>;
+                          }
+                          return (
+                            <TouchableOpacity
+                              key={index}
+                              onPress={() => toggleBreak(index)}
+                              accessibilityRole="button"
+                              accessibilityState={{ selected: hasBreak }}
+                              accessibilityLabel={hasBreak ? `Remove line break after ${word}` : `Add line break after ${word}`}
+                            >
+                              {wordNode}
+                            </TouchableOpacity>
+                          );
+                        })}
+                      </View>
+                    ))
+                  ) : hasCustomBreaks ? (
                     customLines!.map((line, i) => {
                       const isFirst = i === 0;
                       const isLast = i === customLines!.length - 1;
@@ -493,6 +480,19 @@ export default function QuoteCardsScreen() {
             <IconSymbol name="chevron.left" size={16} color="#c9b97a" />
             <Text style={styles.backButtonText}>History</Text>
           </TouchableOpacity>
+
+          {editingLines && (
+            <View style={[styles.lineEditBar, { top: insets.top + 60 }]}>
+              <Text style={styles.lineEditBarText}>Tap between words to break the line</Text>
+              <TouchableOpacity
+                onPress={() => setEditingBreaks(new Set())}
+                accessibilityRole="button"
+                accessibilityLabel="Reset to automatic line wrapping"
+              >
+                <Text style={styles.resetText}>Reset</Text>
+              </TouchableOpacity>
+            </View>
+          )}
 
           {showTextStylePanel && (
             <View style={[styles.textStylePanel, { bottom: insets.bottom + 88 }]}>
@@ -557,10 +557,10 @@ export default function QuoteCardsScreen() {
               <IconSymbol name="textformat" size={18} color="#c9b97a" />
             </TouchableOpacity>
             <TouchableOpacity
-              style={styles.actionButton}
-              onPress={openLineBreakEditor}
+              style={[styles.actionButton, editingLines && styles.actionButtonActive]}
+              onPress={toggleLineEditing}
               accessibilityRole="button"
-              accessibilityLabel="Edit line breaks"
+              accessibilityLabel={editingLines ? 'Done editing line breaks' : 'Edit line breaks'}
             >
               <IconSymbol name="arrow.turn.down.left" size={18} color="#c9b97a" />
             </TouchableOpacity>
@@ -788,52 +788,30 @@ const styles = StyleSheet.create({
     color: '#f0ead6',
     fontWeight: '600',
   },
-  editLinesHeader: {
+  editableLineRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+  },
+  lineEditBar: {
+    position: 'absolute',
+    left: 16,
+    right: 16,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 12,
-  },
-  doneButtonText: {
-    fontSize: 14,
-    color: '#c9b97a',
-    fontWeight: '600',
-  },
-  wordWrap: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-  },
-  wordText: {
-    fontSize: 17,
-    lineHeight: 28,
-    color: '#f0ead6',
-  },
-  wordTextBroken: {
-    color: '#c9b97a',
-    fontWeight: '600',
-  },
-  linePreviewBox: {
-    backgroundColor: '#1e1c18',
+    backgroundColor: 'rgba(15,14,12,0.75)',
+    paddingHorizontal: 14,
+    paddingVertical: 10,
     borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#4a4540',
-    padding: 16,
-    alignItems: 'center',
-    gap: 6,
   },
-  linePreviewText: {
-    fontSize: 15,
-    color: '#c4b99e',
-    fontStyle: 'italic',
-    textAlign: 'center',
-  },
-  resetButton: {
-    marginTop: 20,
-    alignSelf: 'center',
+  lineEditBarText: {
+    fontSize: 12,
+    color: '#c9b97a',
   },
   resetText: {
     fontSize: 13,
-    color: '#8a7e6e',
-    textDecorationLine: 'underline',
+    color: '#f0ead6',
+    fontWeight: '600',
   },
 });

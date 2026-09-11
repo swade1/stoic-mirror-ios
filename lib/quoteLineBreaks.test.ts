@@ -1,4 +1,4 @@
-import { splitIntoWords, groupWordsIntoLines } from './quoteLineBreaks';
+import { splitIntoWords, groupWordsIntoLines, indexWordsByLine } from './quoteLineBreaks';
 
 describe('splitIntoWords', () => {
   it('splits on whitespace', () => {
@@ -58,5 +58,41 @@ describe('groupWordsIntoLines', () => {
 
   it('handles a single word with no valid breaks possible', () => {
     expect(groupWordsIntoLines(['Alone'], [0])).toEqual(['Alone']);
+  });
+});
+
+describe('indexWordsByLine', () => {
+  const words = ['The', 'world', 'is', 'a', 'stage'];
+
+  it('returns one line with every word carrying its original index', () => {
+    expect(indexWordsByLine(words, [])).toEqual([
+      [
+        { word: 'The', index: 0 },
+        { word: 'world', index: 1 },
+        { word: 'is', index: 2 },
+        { word: 'a', index: 3 },
+        { word: 'stage', index: 4 },
+      ],
+    ]);
+  });
+
+  it('groups the same way as groupWordsIntoLines, just as word objects', () => {
+    const grouped = indexWordsByLine(words, [1, 3]);
+    expect(grouped.map((line) => line.map((w) => w.word).join(' '))).toEqual(
+      groupWordsIntoLines(words, [1, 3])
+    );
+  });
+
+  it('preserves each word\'s original index across line boundaries', () => {
+    const grouped = indexWordsByLine(words, [1, 3]);
+    expect(grouped).toEqual([
+      [{ word: 'The', index: 0 }, { word: 'world', index: 1 }],
+      [{ word: 'is', index: 2 }, { word: 'a', index: 3 }],
+      [{ word: 'stage', index: 4 }],
+    ]);
+  });
+
+  it('returns an empty array for an empty word list', () => {
+    expect(indexWordsByLine([], [0])).toEqual([]);
   });
 });

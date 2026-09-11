@@ -38,3 +38,38 @@ export function groupWordsIntoLines(words: string[], breakAfterIndices: number[]
 
   return lines;
 }
+
+export interface IndexedWord {
+  word: string;
+  index: number;
+}
+
+// Same grouping as groupWordsIntoLines, but keeps each word's original
+// index attached instead of joining into a string — needed by the
+// in-place line-break editor, where every word stays individually
+// tappable (to toggle the break after it) while the layout reflects the
+// current line grouping live.
+export function indexWordsByLine(words: string[], breakAfterIndices: number[]): IndexedWord[][] {
+  if (words.length === 0) return [];
+
+  const validBreaks = new Set(
+    breakAfterIndices.filter((i) => i >= 0 && i < words.length - 1)
+  );
+
+  const lines: IndexedWord[][] = [];
+  let currentLine: IndexedWord[] = [];
+
+  words.forEach((word, index) => {
+    currentLine.push({ word, index });
+    if (validBreaks.has(index)) {
+      lines.push(currentLine);
+      currentLine = [];
+    }
+  });
+
+  if (currentLine.length > 0) {
+    lines.push(currentLine);
+  }
+
+  return lines;
+}
