@@ -169,6 +169,12 @@ export default function QuoteCardsScreen() {
     if (!quote || cardSize.width === 0 || cardSize.height === 0) return;
     const fx = pixelsToFraction(x + boxWidth / 2, cardSize.width);
     const fy = pixelsToFraction(y + estimatedBoxHeight / 2, cardSize.height);
+    // Keep local state in sync, not just the database — otherwise a
+    // later size/color change spreads a stale quote object (still
+    // showing the pre-drag offset) back into state, and the position-
+    // reset effect falls back to the default position, discarding
+    // wherever the user actually dragged the text to.
+    setQuote((prev) => (prev ? { ...prev, text_offset_x: fx, text_offset_y: fy } : prev));
     supabase
       .from('saved_quotes')
       .update({ text_offset_x: fx, text_offset_y: fy })
