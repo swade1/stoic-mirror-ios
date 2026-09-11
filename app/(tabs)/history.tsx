@@ -164,14 +164,6 @@ export default function HistoryScreen() {
         </View>
         <View style={styles.headerActions}>
           <TouchableOpacity
-            onPress={() => router.push({ pathname: '/quote-cards', params: { quoteId: currentQuote?.id } })}
-            accessibilityRole="button"
-            accessibilityLabel="Quote cards"
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-          >
-            <IconSymbol name="photo.on.rectangle" size={20} color="#c9b97a" />
-          </TouchableOpacity>
-          <TouchableOpacity
             onPress={() => setFontMenuVisible(true)}
             accessibilityRole="button"
             accessibilityLabel="Text size"
@@ -372,9 +364,19 @@ export default function HistoryScreen() {
 
             {/* Quote */}
             <View style={styles.quoteBox}>
-              <View style={styles.sectionLabelRow}>
-                <IconSymbol name="text.quote" size={12} color="#c9b97a" />
-                <Text style={styles.quoteLabel}>The Philosophers</Text>
+              <View style={styles.quoteLabelRow}>
+                <View style={[styles.sectionLabelRow, styles.noMarginBottom]}>
+                  <IconSymbol name="text.quote" size={12} color="#c9b97a" />
+                  <Text style={styles.quoteLabel}>The Philosophers</Text>
+                </View>
+                <TouchableOpacity
+                  onPress={() => router.push({ pathname: '/quote-cards', params: { quoteId: currentQuote?.id } })}
+                  accessibilityRole="button"
+                  accessibilityLabel="Turn this quote into a photo card"
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                >
+                  <IconSymbol name="photo.on.rectangle" size={18} color="#c9b97a" />
+                </TouchableOpacity>
               </View>
               {getFramingLine(currentQuote.matched_concern) && (
                 <Text style={styles.framingLine}>{getFramingLine(currentQuote.matched_concern)}</Text>
@@ -711,6 +713,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
+    marginBottom: 8,
+  },
+  noMarginBottom: {
+    marginBottom: 0,
+  },
+  quoteLabelRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     marginBottom: 8,
   },
   fixedNavLeft: {
