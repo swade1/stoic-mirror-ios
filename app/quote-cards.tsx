@@ -21,7 +21,15 @@ import { supabase } from '@/lib/supabase';
 import { IconSymbol } from '@/components/ui/IconSymbol';
 import { listQuoteBackgrounds, resolveQuoteBackground, type QuoteBackground } from '@/lib/quoteBackgrounds';
 import { DEFAULT_TEXT_POSITION, pixelsToFraction, fractionToPixels } from '@/lib/textPosition';
-import { TEXT_COLOR_OPTIONS, DEFAULT_TEXT_COLOR, TEXT_SIZE_STEPS, DEFAULT_TEXT_SIZE_SCALE } from '@/lib/textStyleOptions';
+import {
+  TEXT_COLOR_OPTIONS,
+  DEFAULT_TEXT_COLOR,
+  TEXT_SIZE_STEPS,
+  DEFAULT_TEXT_SIZE_SCALE,
+  TEXT_ALIGN_OPTIONS,
+  DEFAULT_TEXT_ALIGN,
+  type TextAlignValue,
+} from '@/lib/textStyleOptions';
 import { splitIntoWords, groupWordsIntoLines, indexWordsByLine } from '@/lib/quoteLineBreaks';
 
 interface SavedQuote {
@@ -35,6 +43,7 @@ interface SavedQuote {
   text_color: string | null;
   text_size_scale: number | null;
   card_line_breaks: number[] | null;
+  text_align: string | null;
 }
 
 // Only used for the legacy single-block (no custom line breaks) rendering
@@ -73,6 +82,12 @@ export default function QuoteCardsScreen() {
 
   const textColor = quote?.text_color ?? DEFAULT_TEXT_COLOR;
   const sizeScale = quote?.text_size_scale ?? DEFAULT_TEXT_SIZE_SCALE;
+  const textAlign = (quote?.text_align ?? DEFAULT_TEXT_ALIGN) as TextAlignValue;
+  // Controls how lines sit relative to each other in the block (a shared
+  // edge), not just how text is justified within a single line — that's
+  // what lets a left-aligned block keep every line flush against the same
+  // margin while only the opposite edge tapers to follow a photo's shape.
+  const boxAlignItems = textAlign === 'left' ? 'flex-start' : textAlign === 'right' ? 'flex-end' : 'center';
   const legacyMaxWidth = Math.max(0, Math.min(280, cardSize.width - TEXT_BOX_MARGIN * 2));
 
   const translateX = useSharedValue(0);
@@ -151,7 +166,7 @@ export default function QuoteCardsScreen() {
         const [{ data: quoteRow, error }, backgroundList] = await Promise.all([
           supabase
             .from('saved_quotes')
-            .select('id, quote, author, source, background_photo_id, text_offset_x, text_offset_y, text_color, text_size_scale, card_line_breaks')
+            .select('id, quote, author, source, background_photo_id, text_offset_x, text_offset_y, text_color, text_size_scale, card_line_breaks, text_align')
             .eq('id', quoteId)
             .eq('user_id', session.user.id)
             .single(),
@@ -245,6 +260,12 @@ export default function QuoteCardsScreen() {
     if (!quote) return;
     setQuote({ ...quote, text_size_scale: scale });
     await supabase.from('saved_quotes').update({ text_size_scale: scale }).eq('id', quote.id);
+  };
+
+  const chooseTextAlign = async (align: TextAlignValue) => {
+    if (!quote) return;
+    setQuote({ ...quote, text_align: align });
+    await supabase.from('saved_quotes').update({ text_align: align }).eq('id', quote.id);
   };
 
   const toggleLineEditing = () => {
@@ -402,7 +423,7 @@ export default function QuoteCardsScreen() {
                 <Animated.View
                   style={[
                     styles.textBox,
-                    !useCenteredBox ? { width: legacyMaxWidth } : styles.textBoxCentered,
+                    !useCenteredBox ? { width: legacyMaxWidth } : { alignItems: boxAlignItems },
                     editingLines && { maxWidth: legacyMaxWidth },
                     animatedTextStyle,
                   ]}
@@ -410,7 +431,7 @@ export default function QuoteCardsScreen() {
                 >
                   {editingLines ? (
                     editingLinesGrouped!.map((line, i) => (
-                      <View key={i} style={styles.editableLineRow}>
+                      <View key={i} style={[styles.editableLineRow, { justifyContent: boxAlignItems }]}>
                         {line.map(({ word, index }) => {
                           const isLastOverall = index === words.length - 1;
                           const hasBreak = editingBreaks.has(index);
@@ -459,7 +480,7 @@ export default function QuoteCardsScreen() {
                       );
                     })
                   ) : (
-                    <Text style={[styles.quoteText, { color: textColor, fontSize: 22 * sizeScale, lineHeight: 30 * sizeScale }]}>
+                    <Text style={[styles.quoteText, { color: textColor, fontSize: 22 * sizeScale, lineHeight: 30 * sizeScale, textAlign }]}>
                       &ldquo;{quote.quote}&rdquo;
                     </Text>
                   )}
@@ -532,6 +553,29 @@ export default function QuoteCardsScreen() {
                       <Text style={[styles.sizeOptionText, selected && styles.sizeOptionTextSelected]}>
                         {step.label}
                       </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+
+              <Text style={styles.textStylePanelLabel}>Align</Text>
+              <View style={styles.alignRow}>
+                {TEXT_ALIGN_OPTIONS.map((option) => {
+                  const selected = textAlign === option.value;
+                  const iconName =
+                    option.value === 'left' ? 'text.alignleft' :
+                    option.value === 'right' ? 'text.alignright' :
+                    'text.aligncenter';
+                  return (
+                    <TouchableOpacity
+                      key={option.value}
+                      onPress={() => chooseTextAlign(option.value)}
+                      accessibilityRole="radio"
+                      accessibilityState={{ selected }}
+                      accessibilityLabel={`Align text ${option.label}`}
+                      style={[styles.alignOption, selected && styles.alignOptionSelected]}
+                    >
+                      <IconSymbol name={iconName} size={18} color={selected ? '#f0ead6' : '#a89f88'} />
                     </TouchableOpacity>
                   );
                 })}
@@ -680,9 +724,6 @@ const styles = StyleSheet.create({
     top: 0,
     gap: 10,
   },
-  textBoxCentered: {
-    alignItems: 'center',
-  },
   quoteText: {
     fontSize: 22,
     lineHeight: 30,
@@ -787,6 +828,23 @@ const styles = StyleSheet.create({
   sizeOptionTextSelected: {
     color: '#f0ead6',
     fontWeight: '600',
+  },
+  alignRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  alignOption: {
+    width: 40,
+    height: 40,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#4a4540',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  alignOptionSelected: {
+    borderColor: '#c9b97a',
+    backgroundColor: 'rgba(201,185,122,0.15)',
   },
   editableLineRow: {
     flexDirection: 'row',

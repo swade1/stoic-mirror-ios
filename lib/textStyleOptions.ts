@@ -14,3 +14,13 @@ export const TEXT_SIZE_STEPS = [
 ] as const;
 
 export const DEFAULT_TEXT_SIZE_SCALE = 1.0;
+
+export const TEXT_ALIGN_OPTIONS = [
+  { label: 'Left', value: 'left' },
+  { label: 'Center', value: 'center' },
+  { label: 'Right', value: 'right' },
+] as const;
+
+export type TextAlignValue = (typeof TEXT_ALIGN_OPTIONS)[number]['value'];
+
+export const DEFAULT_TEXT_ALIGN: TextAlignValue = 'center';

@@ -23,6 +23,9 @@ const MAPPING = {
   'square.and.arrow.down': 'save-alt',
   'textformat': 'format-color-text',
   'arrow.turn.down.left': 'keyboard-return',
+  'text.alignleft': 'format-align-left',
+  'text.aligncenter': 'format-align-center',
+  'text.alignright': 'format-align-right',
 } as IconMapping;
 
 /**
