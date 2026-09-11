@@ -22,6 +22,7 @@ import { IconSymbol } from '@/components/ui/IconSymbol';
 import { listQuoteBackgrounds, resolveQuoteBackground, type QuoteBackground } from '@/lib/quoteBackgrounds';
 import { DEFAULT_TEXT_POSITION, pixelsToFraction, fractionToPixels } from '@/lib/textPosition';
 import { TEXT_COLOR_OPTIONS, DEFAULT_TEXT_COLOR, TEXT_SIZE_STEPS, DEFAULT_TEXT_SIZE_SCALE } from '@/lib/textStyleOptions';
+import { splitIntoWords, groupWordsIntoLines } from '@/lib/quoteLineBreaks';
 
 interface SavedQuote {
   id: string;
@@ -33,15 +34,15 @@ interface SavedQuote {
   text_offset_y: number | null;
   text_color: string | null;
   text_size_scale: number | null;
+  card_line_breaks: number[] | null;
 }
 
-// The draggable text box has a fixed width and an ESTIMATED max height for
-// clamping purposes, rather than measuring the actual rendered text height
-// live. Good enough to keep a long quote roughly on-card in most cases
-// without the extra complexity of a live onLayout-driven clamp — a
-// deliberate v1 simplification, not an oversight.
+// Only used for the legacy single-block (no custom line breaks) rendering
+// path, to give word-wrap a reasonable max width. Once custom line breaks
+// are in play, the box's size is measured live instead (see
+// textBlockSize/onLayout below) — a fixed estimate can't work once each
+// line's width is deliberately different from the others.
 const TEXT_BOX_MARGIN = 24;
-const ESTIMATED_BOX_HEIGHT = 170;
 
 export default function QuoteCardsScreen() {
   const router = useRouter();
@@ -53,65 +54,72 @@ export default function QuoteCardsScreen() {
   const [backgrounds, setBackgrounds] = useState<QuoteBackground[]>([]);
   const [loading, setLoading] = useState(true);
   const [showPicker, setShowPicker] = useState(true);
+  const [showLineBreakEditor, setShowLineBreakEditor] = useState(false);
+  const [editingBreaks, setEditingBreaks] = useState<Set<number>>(new Set());
   const [imageLoaded, setImageLoaded] = useState(false);
   const [sharing, setSharing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [showTextStylePanel, setShowTextStylePanel] = useState(false);
   const [cardSize, setCardSize] = useState({ width: 0, height: 0 });
+  // The text block's real rendered size, measured via onLayout rather than
+  // approximated — needed now that custom line breaks make both width and
+  // height unpredictable from a fixed formula.
+  const [textBlockSize, setTextBlockSize] = useState({ width: 0, height: 0 });
 
   const cardRef = useRef<View>(null);
 
-  const boxWidth = Math.max(0, Math.min(280, cardSize.width - TEXT_BOX_MARGIN * 2));
   const textColor = quote?.text_color ?? DEFAULT_TEXT_COLOR;
   const sizeScale = quote?.text_size_scale ?? DEFAULT_TEXT_SIZE_SCALE;
-  // The drag-clamp bound and initial-placement math both use this as an
-  // approximation of the text box's real rendered height — scaling it by
-  // the same factor as the text itself keeps that approximation valid
-  // now that size is user-controllable, without needing live measurement.
-  const estimatedBoxHeight = ESTIMATED_BOX_HEIGHT * sizeScale;
+  const legacyMaxWidth = Math.max(0, Math.min(280, cardSize.width - TEXT_BOX_MARGIN * 2));
+
   const translateX = useSharedValue(0);
   const translateY = useSharedValue(0);
   const startX = useSharedValue(0);
   const startY = useSharedValue(0);
   const cardWidthShared = useSharedValue(0);
   const cardHeightShared = useSharedValue(0);
-  const boxWidthShared = useSharedValue(0);
+  const textBlockWidthShared = useSharedValue(0);
+  const textBlockHeightShared = useSharedValue(0);
 
-  // Shared values (cardWidthShared etc.) have stable identity across
-  // renders — only their .value changes, which doesn't need to appear in
-  // this dependency array — so this only actually re-runs when the real
-  // inputs (cardSize, boxWidth) change, despite the lint warning.
+  // Shared values have stable identity across renders — only their .value
+  // changes, which doesn't need to appear in this dependency array — so
+  // this only actually re-runs when the real inputs change, despite the
+  // lint warning.
   useEffect(() => {
     cardWidthShared.value = cardSize.width;
     cardHeightShared.value = cardSize.height;
-    boxWidthShared.value = boxWidth;
+    textBlockWidthShared.value = textBlockSize.width;
+    textBlockHeightShared.value = textBlockSize.height;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cardSize.width, cardSize.height, boxWidth]);
+  }, [cardSize.width, cardSize.height, textBlockSize.width, textBlockSize.height]);
 
   const background = quote ? resolveQuoteBackground(backgrounds, quote.background_photo_id) : null;
   const showEditor = !showPicker && !!background;
+  const words = quote ? splitIntoWords(quote.quote) : [];
+  const hasCustomBreaks = !!quote?.card_line_breaks && quote.card_line_breaks.length > 0;
+  const customLines = hasCustomBreaks ? groupWordsIntoLines(words, quote!.card_line_breaks!) : null;
 
   // Position the draggable box once we know both the card's real
-  // dimensions (from onLayout) and which quote we're showing — using the
+  // dimensions and the text block's real measured size — using the
   // quote's persisted fraction if it has one, otherwise a sensible
   // default (centered, lower third). Deliberately keyed on quote?.id, not
   // the whole quote object: chooseBackground mutates quote.background_photo_id
   // on the same object, and re-running this on that change would reset
   // the drag position every time the photo changes, which should persist
-  // independently. translateX/Y/boxWidth are stable-identity shared
-  // values or render-derived from deps already listed.
-  // Also re-runs when sizeScale changes (deliberately, unlike
-  // background_photo_id changes) — re-deriving the top-left position from
-  // the unchanged center fraction and the new box height keeps the
-  // visual center anchored when the user picks a different text size.
+  // independently. Re-running on textBlockSize changes (from a size, line-
+  // break, or any other change that affects the block's rendered
+  // dimensions) re-derives the top-left position from the unchanged
+  // center fraction, keeping the visual center anchored rather than
+  // letting it drift when the block's shape changes.
   useEffect(() => {
     if (!quote || cardSize.width === 0 || cardSize.height === 0) return;
+    if (textBlockSize.width === 0 || textBlockSize.height === 0) return;
     const fx = quote.text_offset_x ?? DEFAULT_TEXT_POSITION.x;
     const fy = quote.text_offset_y ?? DEFAULT_TEXT_POSITION.y;
-    translateX.value = fractionToPixels(fx, cardSize.width) - boxWidth / 2;
-    translateY.value = fractionToPixels(fy, cardSize.height) - estimatedBoxHeight / 2;
+    translateX.value = fractionToPixels(fx, cardSize.width) - textBlockSize.width / 2;
+    translateY.value = fractionToPixels(fy, cardSize.height) - textBlockSize.height / 2;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [quote?.id, cardSize.width, cardSize.height, sizeScale]);
+  }, [quote?.id, cardSize.width, cardSize.height, textBlockSize.width, textBlockSize.height]);
 
   useFocusEffect(
     useCallback(() => {
@@ -131,7 +139,7 @@ export default function QuoteCardsScreen() {
         const [{ data: quoteRow, error }, backgroundList] = await Promise.all([
           supabase
             .from('saved_quotes')
-            .select('id, quote, author, source, background_photo_id, text_offset_x, text_offset_y, text_color, text_size_scale')
+            .select('id, quote, author, source, background_photo_id, text_offset_x, text_offset_y, text_color, text_size_scale, card_line_breaks')
             .eq('id', quoteId)
             .eq('user_id', session.user.id)
             .single(),
@@ -165,12 +173,18 @@ export default function QuoteCardsScreen() {
     setCardSize({ width: w, height: h });
   };
 
+  const handleTextBlockLayout = (e: LayoutChangeEvent) => {
+    const { width: w, height: h } = e.nativeEvent.layout;
+    setTextBlockSize({ width: w, height: h });
+  };
+
   const persistPosition = (x: number, y: number) => {
     if (!quote || cardSize.width === 0 || cardSize.height === 0) return;
-    const fx = pixelsToFraction(x + boxWidth / 2, cardSize.width);
-    const fy = pixelsToFraction(y + estimatedBoxHeight / 2, cardSize.height);
-    // Keep local state in sync, not just the database — otherwise a
-    // later size/color change spreads a stale quote object (still
+    if (textBlockSize.width === 0 || textBlockSize.height === 0) return;
+    const fx = pixelsToFraction(x + textBlockSize.width / 2, cardSize.width);
+    const fy = pixelsToFraction(y + textBlockSize.height / 2, cardSize.height);
+    // Keep local state in sync, not just the database — otherwise a later
+    // size/color/line-break change spreads a stale quote object (still
     // showing the pre-drag offset) back into state, and the position-
     // reset effect falls back to the default position, discarding
     // wherever the user actually dragged the text to.
@@ -187,8 +201,8 @@ export default function QuoteCardsScreen() {
       startY.value = translateY.value;
     })
     .onUpdate((e) => {
-      const maxX = Math.max(0, cardWidthShared.value - boxWidthShared.value);
-      const maxY = Math.max(0, cardHeightShared.value - estimatedBoxHeight);
+      const maxX = Math.max(0, cardWidthShared.value - textBlockWidthShared.value);
+      const maxY = Math.max(0, cardHeightShared.value - textBlockHeightShared.value);
       translateX.value = Math.min(maxX, Math.max(0, startX.value + e.translationX));
       translateY.value = Math.min(maxY, Math.max(0, startY.value + e.translationY));
     })
@@ -218,6 +232,29 @@ export default function QuoteCardsScreen() {
     if (!quote) return;
     setQuote({ ...quote, text_size_scale: scale });
     await supabase.from('saved_quotes').update({ text_size_scale: scale }).eq('id', quote.id);
+  };
+
+  const openLineBreakEditor = () => {
+    setEditingBreaks(new Set(quote?.card_line_breaks ?? []));
+    setShowLineBreakEditor(true);
+  };
+
+  const toggleBreak = (index: number) => {
+    setEditingBreaks((prev) => {
+      const next = new Set(prev);
+      if (next.has(index)) next.delete(index);
+      else next.add(index);
+      return next;
+    });
+  };
+
+  const handleDoneEditingLines = async () => {
+    if (!quote) return;
+    const sorted = Array.from(editingBreaks).sort((a, b) => a - b);
+    const breaks = sorted.length > 0 ? sorted : null;
+    setQuote({ ...quote, card_line_breaks: breaks });
+    setShowLineBreakEditor(false);
+    await supabase.from('saved_quotes').update({ card_line_breaks: breaks }).eq('id', quote.id);
   };
 
   const handleShare = async () => {
@@ -285,6 +322,72 @@ export default function QuoteCardsScreen() {
     );
   }
 
+  if (showEditor && showLineBreakEditor) {
+    const previewLines = groupWordsIntoLines(words, Array.from(editingBreaks));
+    return (
+      <View style={[styles.pickerScreen, { paddingTop: insets.top + 12 }]}>
+        <View style={styles.editLinesHeader}>
+          <TouchableOpacity
+            onPress={() => setShowLineBreakEditor(false)}
+            accessibilityRole="button"
+            accessibilityLabel="Cancel editing line breaks"
+          >
+            <Text style={styles.backButtonText}>Cancel</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={handleDoneEditingLines}
+            accessibilityRole="button"
+            accessibilityLabel="Save line breaks"
+          >
+            <Text style={styles.doneButtonText}>Done</Text>
+          </TouchableOpacity>
+        </View>
+
+        <Text style={styles.pickerLabel}>Tap between words to add a line break</Text>
+        <View style={styles.wordWrap}>
+          {words.map((word, index) => {
+            const hasBreak = editingBreaks.has(index);
+            const isLast = index === words.length - 1;
+            if (isLast) {
+              return (
+                <Text key={index} style={styles.wordText}>{word}</Text>
+              );
+            }
+            return (
+              <TouchableOpacity
+                key={index}
+                onPress={() => toggleBreak(index)}
+                accessibilityRole="button"
+                accessibilityState={{ selected: hasBreak }}
+                accessibilityLabel={hasBreak ? `Remove line break after ${word}` : `Add line break after ${word}`}
+              >
+                <Text style={[styles.wordText, hasBreak && styles.wordTextBroken]}>
+                  {word}{hasBreak ? ' ↵' : ' '}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+
+        <Text style={styles.pickerLabel}>Preview</Text>
+        <View style={styles.linePreviewBox}>
+          {previewLines.map((line, i) => (
+            <Text key={i} style={styles.linePreviewText}>{line}</Text>
+          ))}
+        </View>
+
+        <TouchableOpacity
+          onPress={() => setEditingBreaks(new Set())}
+          accessibilityRole="button"
+          accessibilityLabel="Reset to automatic line wrapping"
+          style={styles.resetButton}
+        >
+          <Text style={styles.resetText}>Reset to automatic wrapping</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
   return (
     <View style={styles.container}>
       {!showEditor ? (
@@ -344,10 +447,35 @@ export default function QuoteCardsScreen() {
 
             {cardSize.width > 0 && (
               <GestureDetector gesture={pan}>
-                <Animated.View style={[styles.textBox, { width: boxWidth }, animatedTextStyle]}>
-                  <Text style={[styles.quoteText, { color: textColor, fontSize: 22 * sizeScale, lineHeight: 30 * sizeScale }]}>
-                    &ldquo;{quote.quote}&rdquo;
-                  </Text>
+                <Animated.View
+                  style={[
+                    styles.textBox,
+                    !hasCustomBreaks ? { width: legacyMaxWidth } : styles.textBoxCentered,
+                    animatedTextStyle,
+                  ]}
+                  onLayout={handleTextBlockLayout}
+                >
+                  {hasCustomBreaks ? (
+                    customLines!.map((line, i) => {
+                      const isFirst = i === 0;
+                      const isLast = i === customLines!.length - 1;
+                      return (
+                        <Text
+                          key={i}
+                          style={[
+                            styles.quoteText,
+                            { color: textColor, fontSize: 22 * sizeScale, lineHeight: 30 * sizeScale },
+                          ]}
+                        >
+                          {isFirst ? '“' : ''}{line}{isLast ? '”' : ''}
+                        </Text>
+                      );
+                    })
+                  ) : (
+                    <Text style={[styles.quoteText, { color: textColor, fontSize: 22 * sizeScale, lineHeight: 30 * sizeScale }]}>
+                      &ldquo;{quote.quote}&rdquo;
+                    </Text>
+                  )}
                   <Text style={[styles.attribution, { color: textColor, fontSize: 13 * sizeScale }]}>
                     — {quote.author}, {quote.source}
                   </Text>
@@ -429,6 +557,14 @@ export default function QuoteCardsScreen() {
               <IconSymbol name="textformat" size={18} color="#c9b97a" />
             </TouchableOpacity>
             <TouchableOpacity
+              style={styles.actionButton}
+              onPress={openLineBreakEditor}
+              accessibilityRole="button"
+              accessibilityLabel="Edit line breaks"
+            >
+              <IconSymbol name="arrow.turn.down.left" size={18} color="#c9b97a" />
+            </TouchableOpacity>
+            <TouchableOpacity
               style={[styles.actionButton, (!imageLoaded || saving) && styles.actionButtonDisabled]}
               onPress={handleSaveToPhotos}
               disabled={!imageLoaded || saving}
@@ -506,6 +642,7 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
     textTransform: 'uppercase',
     marginBottom: 12,
+    marginTop: 24,
   },
   pickerStripContent: {
     gap: 12,
@@ -542,6 +679,9 @@ const styles = StyleSheet.create({
     left: 0,
     top: 0,
     gap: 10,
+  },
+  textBoxCentered: {
+    alignItems: 'center',
   },
   quoteText: {
     fontSize: 22,
@@ -647,5 +787,53 @@ const styles = StyleSheet.create({
   sizeOptionTextSelected: {
     color: '#f0ead6',
     fontWeight: '600',
+  },
+  editLinesHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  doneButtonText: {
+    fontSize: 14,
+    color: '#c9b97a',
+    fontWeight: '600',
+  },
+  wordWrap: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+  },
+  wordText: {
+    fontSize: 17,
+    lineHeight: 28,
+    color: '#f0ead6',
+  },
+  wordTextBroken: {
+    color: '#c9b97a',
+    fontWeight: '600',
+  },
+  linePreviewBox: {
+    backgroundColor: '#1e1c18',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#4a4540',
+    padding: 16,
+    alignItems: 'center',
+    gap: 6,
+  },
+  linePreviewText: {
+    fontSize: 15,
+    color: '#c4b99e',
+    fontStyle: 'italic',
+    textAlign: 'center',
+  },
+  resetButton: {
+    marginTop: 20,
+    alignSelf: 'center',
+  },
+  resetText: {
+    fontSize: 13,
+    color: '#8a7e6e',
+    textDecorationLine: 'underline',
   },
 });

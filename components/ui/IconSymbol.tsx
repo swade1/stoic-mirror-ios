@@ -22,6 +22,7 @@ const MAPPING = {
   'photo.on.rectangle': 'photo-library',
   'square.and.arrow.down': 'save-alt',
   'textformat': 'format-color-text',
+  'arrow.turn.down.left': 'keyboard-return',
 } as IconMapping;
 
 /**
