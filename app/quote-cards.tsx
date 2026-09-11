@@ -88,6 +88,17 @@ export default function QuoteCardsScreen() {
   // what lets a left-aligned block keep every line flush against the same
   // margin while only the opposite edge tapers to follow a photo's shape.
   const boxAlignItems = textAlign === 'left' ? 'flex-start' : textAlign === 'right' ? 'flex-end' : 'center';
+  // The persisted horizontal fraction anchors to whichever edge the current
+  // alignment holds fixed (0 = left edge, 1 = right edge, 0.5 = center) —
+  // not always the box's midpoint. Anchoring to the midpoint made sense
+  // when every line was always centered, but for left/right alignment the
+  // box's measured width isn't stable (a fixed-width legacy block vs. a
+  // shrink-wrapped row of tappable words during editing render at
+  // different widths), and re-deriving position from a midpoint fraction
+  // on every width change visibly dragged the block toward the center of
+  // the screen. Anchoring to the aligned edge instead means a width change
+  // never moves that edge, only the opposite (ragged) one.
+  const boxAnchorX = textAlign === 'left' ? 0 : textAlign === 'right' ? 1 : 0.5;
   const legacyMaxWidth = Math.max(0, Math.min(280, cardSize.width - TEXT_BOX_MARGIN * 2));
 
   const translateX = useSharedValue(0);
@@ -143,10 +154,10 @@ export default function QuoteCardsScreen() {
     if (textBlockSize.width === 0 || textBlockSize.height === 0) return;
     const fx = quote.text_offset_x ?? DEFAULT_TEXT_POSITION.x;
     const fy = quote.text_offset_y ?? DEFAULT_TEXT_POSITION.y;
-    translateX.value = fractionToPixels(fx, cardSize.width) - textBlockSize.width / 2;
+    translateX.value = fractionToPixels(fx, cardSize.width) - textBlockSize.width * boxAnchorX;
     translateY.value = fractionToPixels(fy, cardSize.height) - textBlockSize.height / 2;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [quote?.id, cardSize.width, cardSize.height, textBlockSize.width, textBlockSize.height]);
+  }, [quote?.id, cardSize.width, cardSize.height, textBlockSize.width, textBlockSize.height, boxAnchorX]);
 
   useFocusEffect(
     useCallback(() => {
@@ -208,7 +219,7 @@ export default function QuoteCardsScreen() {
   const persistPosition = (x: number, y: number) => {
     if (!quote || cardSize.width === 0 || cardSize.height === 0) return;
     if (textBlockSize.width === 0 || textBlockSize.height === 0) return;
-    const fx = pixelsToFraction(x + textBlockSize.width / 2, cardSize.width);
+    const fx = pixelsToFraction(x + textBlockSize.width * boxAnchorX, cardSize.width);
     const fy = pixelsToFraction(y + textBlockSize.height / 2, cardSize.height);
     // Keep local state in sync, not just the database — otherwise a later
     // size/color/line-break change spreads a stale quote object (still
