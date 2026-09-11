@@ -221,16 +221,13 @@ export default function QuoteCardsScreen() {
     if (textBlockSize.width === 0 || textBlockSize.height === 0) return;
     const fx = pixelsToFraction(x + textBlockSize.width * boxAnchorX, cardSize.width);
     const fy = pixelsToFraction(y + textBlockSize.height / 2, cardSize.height);
-    // Keep local state in sync, not just the database — otherwise a later
-    // size/color/line-break change spreads a stale quote object (still
-    // showing the pre-drag offset) back into state, and the position-
-    // reset effect falls back to the default position, discarding
+    // Local state only (see the draft-formatting note above) — but still
+    // needs the functional setQuote form, not a stale closed-over `quote`,
+    // otherwise a later size/color/line-break change spreads a stale quote
+    // object (still showing the pre-drag offset) back into state, and the
+    // position-reset effect falls back to the default position, discarding
     // wherever the user actually dragged the text to.
     setQuote((prev) => (prev ? { ...prev, text_offset_x: fx, text_offset_y: fy } : prev));
-    supabase
-      .from('saved_quotes')
-      .update({ text_offset_x: fx, text_offset_y: fy })
-      .eq('id', quote.id);
   };
 
   const pan = Gesture.Pan()
@@ -253,30 +250,47 @@ export default function QuoteCardsScreen() {
     transform: [{ translateX: translateX.value }, { translateY: translateY.value }],
   }));
 
-  const chooseBackground = async (bg: QuoteBackground) => {
+  // Background, color, size, align, position, and line breaks are all
+  // draft-only — they only touch local state here. Nothing is written to
+  // Supabase until the user actually commits (Save to Photos or Share, via
+  // commitFormatting below), so navigating away from an in-progress attempt
+  // leaves the database untouched, and useFocusEffect's load() will fetch
+  // the last truly-saved state fresh next time this screen is opened.
+  const chooseBackground = (bg: QuoteBackground) => {
     if (!quote) return;
-    setQuote({ ...quote, background_photo_id: bg.id });
+    // A new photo invalidates the old formatting — position, line breaks,
+    // color, size, and alignment were all tailored to the previous photo's
+    // specific shape and don't carry any meaning on a different one.
+    const changed = quote.background_photo_id !== bg.id;
+    setQuote({
+      ...quote,
+      background_photo_id: bg.id,
+      ...(changed ? {
+        text_offset_x: null,
+        text_offset_y: null,
+        text_color: null,
+        text_size_scale: null,
+        card_line_breaks: null,
+        text_align: null,
+      } : {}),
+    });
     setShowPicker(false);
     setImageLoaded(false);
-    await supabase.from('saved_quotes').update({ background_photo_id: bg.id }).eq('id', quote.id);
   };
 
-  const chooseTextColor = async (color: string) => {
+  const chooseTextColor = (color: string) => {
     if (!quote) return;
     setQuote({ ...quote, text_color: color });
-    await supabase.from('saved_quotes').update({ text_color: color }).eq('id', quote.id);
   };
 
-  const chooseTextSize = async (scale: number) => {
+  const chooseTextSize = (scale: number) => {
     if (!quote) return;
     setQuote({ ...quote, text_size_scale: scale });
-    await supabase.from('saved_quotes').update({ text_size_scale: scale }).eq('id', quote.id);
   };
 
-  const chooseTextAlign = async (align: TextAlignValue) => {
+  const chooseTextAlign = (align: TextAlignValue) => {
     if (!quote) return;
     setQuote({ ...quote, text_align: align });
-    await supabase.from('saved_quotes').update({ text_align: align }).eq('id', quote.id);
   };
 
   const toggleLineEditing = () => {
@@ -298,19 +312,35 @@ export default function QuoteCardsScreen() {
     });
   };
 
-  const handleDoneEditingLines = async () => {
+  const handleDoneEditingLines = () => {
     if (!quote) return;
     const sorted = Array.from(editingBreaks).sort((a, b) => a - b);
     const breaks = sorted.length > 0 ? sorted : null;
     setQuote({ ...quote, card_line_breaks: breaks });
     setEditingLines(false);
-    await supabase.from('saved_quotes').update({ card_line_breaks: breaks }).eq('id', quote.id);
+  };
+
+  // The one place formatting actually gets written — called from Save to
+  // Photos and Share, the two actions that mean "I'm keeping this." Every
+  // other formatting handler above only touches local state.
+  const commitFormatting = async () => {
+    if (!quote) return;
+    await supabase.from('saved_quotes').update({
+      background_photo_id: quote.background_photo_id,
+      text_offset_x: quote.text_offset_x,
+      text_offset_y: quote.text_offset_y,
+      text_color: quote.text_color,
+      text_size_scale: quote.text_size_scale,
+      card_line_breaks: quote.card_line_breaks,
+      text_align: quote.text_align,
+    }).eq('id', quote.id);
   };
 
   const handleShare = async () => {
     if (!cardRef.current || sharing) return;
     setSharing(true);
     try {
+      await commitFormatting();
       const uri = await captureRef(cardRef, { format: 'png', quality: 1 });
       const isAvailable = await Sharing.isAvailableAsync();
       if (!isAvailable) throw new Error('Sharing is not available on this device');
@@ -326,6 +356,7 @@ export default function QuoteCardsScreen() {
     if (!cardRef.current || saving) return;
     setSaving(true);
     try {
+      await commitFormatting();
       // writeOnly: true — only ever need to add a photo, never read the
       // user's existing library, so this triggers iOS's lighter "Add
       // Photos Only" permission prompt instead of full library access.
