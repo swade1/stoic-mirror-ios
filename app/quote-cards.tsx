@@ -841,7 +841,6 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: 0,
     top: 0,
-    gap: 10,
   },
   quoteText: {
     fontSize: 22,
@@ -854,6 +853,7 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#c9b97a',
     letterSpacing: 0.5,
+    marginTop: 10,
   },
   backButtonFloating: {
     position: 'absolute',
