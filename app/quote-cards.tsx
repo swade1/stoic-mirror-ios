@@ -571,7 +571,7 @@ export default function QuoteCardsScreen() {
           )}
 
           {showTextStylePanel && (
-            <View style={[styles.textStylePanel, { bottom: insets.bottom + 88 }]}>
+            <View style={[styles.textStylePanel, { bottom: insets.bottom + 108 }]}>
               <Text style={styles.textStylePanelLabel}>Color</Text>
               <View style={styles.swatchRow}>
                 {TEXT_COLOR_OPTIONS.map((option) => {
@@ -638,7 +638,7 @@ export default function QuoteCardsScreen() {
             </View>
           )}
 
-          <View style={[styles.actionRow, { bottom: insets.bottom + 32 }]}>
+          <View style={[styles.actionRow, { bottom: insets.bottom + 52 }]}>
             <TouchableOpacity
               style={styles.actionButton}
               onPress={() => setShowPicker(true)}
