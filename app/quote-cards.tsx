@@ -323,24 +323,35 @@ export default function QuoteCardsScreen() {
 
   // Routes every change to editingBreaks (a toggle or a Reset) through one
   // place so each records the state it's replacing — that's what makes
-  // Undo work for both, not just individual word taps.
-  const applyBreaksChange = (next: Set<number>) => {
-    setBreakHistory((prev) => pushUndoState(prev, editingBreaks));
-    setEditingBreaks(next);
+  // Undo work for both, not just individual word taps. Takes an updater
+  // function rather than a plain value and reads the previous state from
+  // React's own state queue (the callback form of setEditingBreaks) rather
+  // than the editingBreaks closed over by this render — two taps handled in
+  // the same batch would otherwise both compute their "next" set from the
+  // same stale pre-tap value, silently losing whichever one lost the race.
+  const applyBreaksChange = (compute: (prev: Set<number>) => Set<number>) => {
+    setEditingBreaks((prev) => {
+      setBreakHistory((history) => pushUndoState(history, prev));
+      return compute(prev);
+    });
   };
 
   const toggleBreak = (index: number) => {
-    const next = new Set(editingBreaks);
-    if (next.has(index)) next.delete(index);
-    else next.add(index);
-    applyBreaksChange(next);
+    applyBreaksChange((prev) => {
+      const next = new Set(prev);
+      if (next.has(index)) next.delete(index);
+      else next.add(index);
+      return next;
+    });
   };
 
   const handleUndoBreak = () => {
-    const popped = popUndoState(breakHistory);
-    if (!popped) return;
-    setEditingBreaks(popped.value);
-    setBreakHistory(popped.history);
+    setBreakHistory((history) => {
+      const popped = popUndoState(history);
+      if (!popped) return history;
+      setEditingBreaks(popped.value);
+      return popped.history;
+    });
   };
 
   const handleDoneEditingLines = () => {
@@ -491,8 +502,18 @@ export default function QuoteCardsScreen() {
             />
             <LinearGradient colors={['transparent', 'rgba(0,0,0,0.5)']} style={StyleSheet.absoluteFill} />
 
-            {cardSize.width > 0 && (
-              <GestureDetector gesture={pan}>
+            {cardSize.width > 0 && (() => {
+              // While editing, the word Touchables render inside this same
+              // block. Even with the pan gesture disabled via .enabled(),
+              // a mounted GestureDetector can still intercept the touch
+              // stream ahead of RN's legacy responder system that
+              // TouchableOpacity relies on, making individual word taps
+              // unreliable (the reported symptom: an added break vanishing
+              // again, or state that looks like it never updated). Not
+              // mounting the GestureDetector at all while editing removes
+              // that competition outright, rather than trusting a runtime
+              // "disabled" flag to fully step aside.
+              const textBlock = (
                 <Animated.View
                   style={[
                     styles.textBox,
@@ -561,8 +582,13 @@ export default function QuoteCardsScreen() {
                     — {quote.author}, {quote.source}
                   </Text>
                 </Animated.View>
-              </GestureDetector>
-            )}
+              );
+              return editingLines ? (
+                textBlock
+              ) : (
+                <GestureDetector gesture={pan}>{textBlock}</GestureDetector>
+              );
+            })()}
           </View>
 
           <TouchableOpacity
@@ -594,7 +620,7 @@ export default function QuoteCardsScreen() {
                   />
                 </TouchableOpacity>
                 <TouchableOpacity
-                  onPress={() => applyBreaksChange(new Set())}
+                  onPress={() => applyBreaksChange(() => new Set())}
                   hitSlop={8}
                   accessibilityRole="button"
                   accessibilityLabel="Reset to automatic line wrapping"
