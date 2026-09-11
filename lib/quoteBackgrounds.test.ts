@@ -70,28 +70,18 @@ describe('resolveQuoteBackground', () => {
   ];
 
   it('returns null when the collection is empty', () => {
-    expect(resolveQuoteBackground([], 'mountain.jpg', 'quote-1')).toBeNull();
+    expect(resolveQuoteBackground([], 'mountain.jpg')).toBeNull();
+  });
+
+  it('returns null when no choice has been made yet', () => {
+    expect(resolveQuoteBackground(backgrounds, null)).toBeNull();
   });
 
   it('returns the matching background when the id exists', () => {
-    expect(resolveQuoteBackground(backgrounds, 'sunset.jpg', 'quote-1')).toEqual(backgrounds[1]);
+    expect(resolveQuoteBackground(backgrounds, 'sunset.jpg')).toEqual(backgrounds[1]);
   });
 
-  it('is deterministic: the same seed always resolves to the same fallback', () => {
-    const first = resolveQuoteBackground(backgrounds, null, 'quote-abc-123');
-    const second = resolveQuoteBackground(backgrounds, null, 'quote-abc-123');
-    expect(first).toEqual(second);
-  });
-
-  it('spreads quotes without an explicit choice across different backgrounds, not just the first', () => {
-    const seeds = ['quote-1', 'quote-2', 'quote-3', 'quote-4', 'quote-5', 'quote-6'];
-    const resolvedIds = seeds.map((seed) => resolveQuoteBackground(backgrounds, null, seed)?.id);
-    expect(new Set(resolvedIds).size).toBeGreaterThan(1);
-  });
-
-  it('falls back to a seed-derived background when the stored id no longer exists', () => {
-    const result = resolveQuoteBackground(backgrounds, 'deleted-photo.jpg', 'quote-1');
-    expect(result).not.toBeNull();
-    expect(backgrounds.map((b) => b.id)).toContain(result!.id);
+  it('returns null when the stored id no longer exists in the bucket', () => {
+    expect(resolveQuoteBackground(backgrounds, 'deleted-photo.jpg')).toBeNull();
   });
 });

@@ -4,6 +4,7 @@ import { router, Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import React, { useEffect, useState } from 'react';
 import { AppState } from 'react-native';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import 'react-native-reanimated';
 import { supabase } from '@/lib/supabase';
 import * as SplashScreen from 'expo-splash-screen';
@@ -106,6 +107,7 @@ export default function RootLayout() {
     return null;
   }
   return (
+    <GestureHandlerRootView style={{ flex: 1 }}>
     <FontScaleProvider>
     <ThemeProvider value={DarkTheme}>
        <Stack
@@ -149,5 +151,6 @@ export default function RootLayout() {
       <StatusBar style="light" />
     </ThemeProvider>
     </FontScaleProvider>
+    </GestureHandlerRootView>
   );
 }
