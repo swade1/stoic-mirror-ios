@@ -603,7 +603,7 @@ export default function QuoteCardsScreen() {
 
           {editingLines && (
             <View style={[styles.lineEditBar, { bottom: insets.bottom + 4 }]}>
-              <Text style={styles.lineEditBarText}>Tap between words to break the line</Text>
+              <Text style={styles.lineEditBarText}>Tap on a word to break the line after that word</Text>
               <View style={styles.lineEditActions}>
                 <TouchableOpacity
                   onPress={handleUndoBreak}
