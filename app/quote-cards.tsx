@@ -68,10 +68,19 @@ export default function QuoteCardsScreen() {
   // the whole point is judging line length against the photo's shape, which
   // is impossible if the photo isn't on screen while editing.
   const [editingLines, setEditingLines] = useState(false);
-  const [editingBreaks, setEditingBreaks] = useState<Set<number>>(new Set());
-  // Undo history for the current editing session only — not persisted, and
-  // reset each time editing is (re)entered, same as editingBreaks itself.
-  const [breakHistory, setBreakHistory] = useState<Set<number>[]>([]);
+  // The current draft and its undo history are kept in one state object,
+  // updated together via a single setState call — splitting them into two
+  // separate useState calls meant every change needed a nested setState
+  // inside the other's updater to keep them paired, and that nested call
+  // is an impure updater React is allowed to invoke more than once,
+  // which could desync the pairing (observed as an early break silently
+  // reverting). One atomic update removes the possibility entirely.
+  const [breaksState, setBreaksState] = useState<{ current: Set<number>; history: Set<number>[] }>({
+    current: new Set(),
+    history: [],
+  });
+  const editingBreaks = breaksState.current;
+  const breakHistory = breaksState.history;
   const [imageLoaded, setImageLoaded] = useState(false);
   const [sharing, setSharing] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -314,26 +323,21 @@ export default function QuoteCardsScreen() {
     if (editingLines) {
       handleDoneEditingLines();
     } else {
-      setEditingBreaks(new Set(quote?.card_line_breaks ?? []));
-      setBreakHistory([]);
+      setBreaksState({ current: new Set(quote?.card_line_breaks ?? []), history: [] });
       setShowTextStylePanel(false);
       setEditingLines(true);
     }
   };
 
-  // Routes every change to editingBreaks (a toggle or a Reset) through one
-  // place so each records the state it's replacing — that's what makes
-  // Undo work for both, not just individual word taps. Takes an updater
-  // function rather than a plain value and reads the previous state from
-  // React's own state queue (the callback form of setEditingBreaks) rather
-  // than the editingBreaks closed over by this render — two taps handled in
-  // the same batch would otherwise both compute their "next" set from the
-  // same stale pre-tap value, silently losing whichever one lost the race.
+  // Routes every change to the current break set (a toggle or a Reset)
+  // through one place, updating it and its undo history together in a
+  // single setState call — that's what makes Undo work for both, not just
+  // individual word taps, without the two ever being able to desync.
   const applyBreaksChange = (compute: (prev: Set<number>) => Set<number>) => {
-    setEditingBreaks((prev) => {
-      setBreakHistory((history) => pushUndoState(history, prev));
-      return compute(prev);
-    });
+    setBreaksState((state) => ({
+      current: compute(state.current),
+      history: pushUndoState(state.history, state.current),
+    }));
   };
 
   const toggleBreak = (index: number) => {
@@ -346,11 +350,10 @@ export default function QuoteCardsScreen() {
   };
 
   const handleUndoBreak = () => {
-    setBreakHistory((history) => {
-      const popped = popUndoState(history);
-      if (!popped) return history;
-      setEditingBreaks(popped.value);
-      return popped.history;
+    setBreaksState((state) => {
+      const popped = popUndoState(state.history);
+      if (!popped) return state;
+      return { current: popped.value, history: popped.history };
     });
   };
 
