@@ -118,6 +118,10 @@ export default function QuoteCardsScreen() {
   // left margin. These roughly match TEXT_BOX_MARGIN's inset from each edge.
   const defaultAnchorX = textAlign === 'left' ? 0.06 : textAlign === 'right' ? 0.94 : DEFAULT_TEXT_POSITION.x;
   const legacyMaxWidth = Math.max(0, Math.min(280, cardSize.width - TEXT_BOX_MARGIN * 2));
+  // Custom line breaks exist specifically so the user can decide how long a
+  // line is, including full width — capping it at the same narrow column
+  // used for the untouched default (legacyMaxWidth) would defeat that.
+  const customLineMaxWidth = Math.max(0, cardSize.width - TEXT_BOX_MARGIN * 2);
 
   const translateX = useSharedValue(0);
   const translateY = useSharedValue(0);
@@ -516,7 +520,7 @@ export default function QuoteCardsScreen() {
                     // its own either way, and it needs to wrap at the same
                     // width both times, or what was WYSIWYG during editing
                     // silently stops matching the card once you exit.
-                    !useCenteredBox ? { width: legacyMaxWidth } : { alignItems: boxAlignItems, maxWidth: legacyMaxWidth },
+                    !useCenteredBox ? { width: legacyMaxWidth } : { alignItems: boxAlignItems, maxWidth: customLineMaxWidth },
                     animatedTextStyle,
                   ]}
                   onLayout={handleTextBlockLayout}
