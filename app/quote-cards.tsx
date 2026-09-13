@@ -338,6 +338,13 @@ export default function QuoteCardsScreen() {
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'],
       quality: 1,
+      // Curated backgrounds are hand-picked to look right center-cropped
+      // to the card's shape; a user's own photo wasn't composed with that
+      // in mind, so a plain center crop can easily cut off the actual
+      // subject. Cropping at selection time, close to the card's own
+      // portrait aspect ratio, lets the user frame it themselves instead.
+      allowsEditing: true,
+      aspect: [9, 16],
     });
     if (result.canceled) return;
     setPersonalPhotoUri(result.assets[0].uri);
