@@ -80,6 +80,9 @@ export default function QuoteCardsScreen() {
   // not the source photo, and this screen already discards any unsaved
   // draft on exit and never silently resumes a previous choice anyway.
   const [personalPhotoUri, setPersonalPhotoUri] = useState<string | null>(null);
+  // Natural pixel dimensions of the picked photo, needed to compute how
+  // far it can be panned/zoomed before its edge would reveal empty space.
+  const [personalPhotoSize, setPersonalPhotoSize] = useState<{ width: number; height: number } | null>(null);
   // Editing happens in place on the visible card, not on a separate screen —
   // the whole point is judging line length against the photo's shape, which
   // is impossible if the photo isn't on screen while editing.
@@ -150,6 +153,17 @@ export default function QuoteCardsScreen() {
   const textBlockWidthShared = useSharedValue(0);
   const textBlockHeightShared = useSharedValue(0);
 
+  // Personal-photo pan/zoom — session-only, reset whenever a new photo is
+  // picked or the quote reloads, same as personalPhotoUri itself.
+  const photoTranslateX = useSharedValue(0);
+  const photoTranslateY = useSharedValue(0);
+  const photoScale = useSharedValue(1);
+  const photoStartX = useSharedValue(0);
+  const photoStartY = useSharedValue(0);
+  const photoStartScale = useSharedValue(1);
+  const photoImageWidthShared = useSharedValue(0);
+  const photoImageHeightShared = useSharedValue(0);
+
   // Shared values have stable identity across renders — only their .value
   // changes, which doesn't need to appear in this dependency array — so
   // this only actually re-runs when the real inputs change, despite the
@@ -159,8 +173,10 @@ export default function QuoteCardsScreen() {
     cardHeightShared.value = cardSize.height;
     textBlockWidthShared.value = textBlockSize.width;
     textBlockHeightShared.value = textBlockSize.height;
+    photoImageWidthShared.value = personalPhotoSize?.width ?? 0;
+    photoImageHeightShared.value = personalPhotoSize?.height ?? 0;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cardSize.width, cardSize.height, textBlockSize.width, textBlockSize.height]);
+  }, [cardSize.width, cardSize.height, textBlockSize.width, textBlockSize.height, personalPhotoSize]);
 
   // A personal photo, when picked, takes precedence over the curated
   // lookup — reuses the same {id, url} shape so every downstream use of
@@ -247,6 +263,10 @@ export default function QuoteCardsScreen() {
             setShowPicker(true);
             setImageLoaded(false);
             setPersonalPhotoUri(null);
+            setPersonalPhotoSize(null);
+            photoTranslateX.value = 0;
+            photoTranslateY.value = 0;
+            photoScale.value = 1;
             setShowTextEditPanel(false);
           }
           setLoading(false);
@@ -255,6 +275,11 @@ export default function QuoteCardsScreen() {
 
       load();
       return () => { cancelled = true; };
+      // photoTranslateX/Y and photoScale are shared values — stable
+      // identity across renders, only their .value changes, so they
+      // don't need to appear here (same reasoning as the shared-value
+      // sync effect above).
+      // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [quoteId])
   );
 
@@ -302,6 +327,85 @@ export default function QuoteCardsScreen() {
     transform: [{ translateX: translateX.value }, { translateY: translateY.value }],
   }));
 
+  const MAX_PHOTO_ZOOM = 4;
+
+  // Bounds math is inlined here rather than calling the (tested, but
+  // cross-module) computePhotoPanBounds/clamp from lib/photoTransform.ts
+  // — matching how the text-drag gesture above does its own clamp math
+  // inline, rather than risk a worklet imported from another file
+  // silently miscompiling/misbehaving on the UI thread with no error.
+  const photoPan = Gesture.Pan()
+    // Without a minimum distance, Pan can claim a stationary tap before
+    // the double-tap gesture (raced against it below) gets a chance to
+    // see the second tap — a standard conflict when combining Pan with
+    // Tap, normally avoided exactly this way.
+    .minDistance(10)
+    .onStart(() => {
+      photoStartX.value = photoTranslateX.value;
+      photoStartY.value = photoTranslateY.value;
+    })
+    .onUpdate((e) => {
+      const cardW = cardWidthShared.value;
+      const cardH = cardHeightShared.value;
+      const imgW = photoImageWidthShared.value;
+      const imgH = photoImageHeightShared.value;
+      let maxX = 0;
+      let maxY = 0;
+      if (cardW > 0 && cardH > 0 && imgW > 0 && imgH > 0) {
+        const coverScale = Math.max(cardW / imgW, cardH / imgH);
+        const displayedWidth = imgW * coverScale * photoScale.value;
+        const displayedHeight = imgH * coverScale * photoScale.value;
+        maxX = Math.max(0, (displayedWidth - cardW) / 2);
+        maxY = Math.max(0, (displayedHeight - cardH) / 2);
+      }
+      photoTranslateX.value = Math.min(maxX, Math.max(-maxX, photoStartX.value + e.translationX));
+      photoTranslateY.value = Math.min(maxY, Math.max(-maxY, photoStartY.value + e.translationY));
+    });
+
+  const photoPinch = Gesture.Pinch()
+    .onStart(() => {
+      photoStartScale.value = photoScale.value;
+    })
+    .onUpdate((e) => {
+      const newScale = Math.min(MAX_PHOTO_ZOOM, Math.max(1, photoStartScale.value * e.scale));
+      photoScale.value = newScale;
+      // Zooming can shrink the valid pan range — re-clamp the current
+      // offset so the image edge never pulls away from the card edge.
+      const cardW = cardWidthShared.value;
+      const cardH = cardHeightShared.value;
+      const imgW = photoImageWidthShared.value;
+      const imgH = photoImageHeightShared.value;
+      let maxX = 0;
+      let maxY = 0;
+      if (cardW > 0 && cardH > 0 && imgW > 0 && imgH > 0) {
+        const coverScale = Math.max(cardW / imgW, cardH / imgH);
+        const displayedWidth = imgW * coverScale * newScale;
+        const displayedHeight = imgH * coverScale * newScale;
+        maxX = Math.max(0, (displayedWidth - cardW) / 2);
+        maxY = Math.max(0, (displayedHeight - cardH) / 2);
+      }
+      photoTranslateX.value = Math.min(maxX, Math.max(-maxX, photoTranslateX.value));
+      photoTranslateY.value = Math.min(maxY, Math.max(-maxY, photoTranslateY.value));
+    });
+
+  const photoDoubleTap = Gesture.Tap()
+    .numberOfTaps(2)
+    .onEnd(() => {
+      photoTranslateX.value = 0;
+      photoTranslateY.value = 0;
+      photoScale.value = 1;
+    });
+
+  const photoGesture = Gesture.Race(photoDoubleTap, Gesture.Simultaneous(photoPan, photoPinch));
+
+  const animatedPhotoStyle = useAnimatedStyle(() => ({
+    transform: [
+      { translateX: photoTranslateX.value / photoScale.value },
+      { translateY: photoTranslateY.value / photoScale.value },
+      { scale: photoScale.value },
+    ],
+  }));
+
   // Background, color, size, align, position, and line breaks are all
   // draft-only — they only touch local state here. Nothing is written to
   // Supabase until the user actually commits (Save to Photos or Share, via
@@ -317,6 +421,10 @@ export default function QuoteCardsScreen() {
     // quote.background_photo_id is null while one is active.
     const changed = quote.background_photo_id !== bg.id;
     setPersonalPhotoUri(null);
+    setPersonalPhotoSize(null);
+    photoTranslateX.value = 0;
+    photoTranslateY.value = 0;
+    photoScale.value = 1;
     setQuote({
       ...quote,
       background_photo_id: bg.id,
@@ -335,19 +443,27 @@ export default function QuoteCardsScreen() {
 
   const choosePersonalPhoto = async () => {
     if (!quote) return;
+    // No allowsEditing here — on iOS that option is Android-only for
+    // aspect (iOS crop is always square regardless) and, worse, silently
+    // swaps the modern no-permission PHPickerViewController for the
+    // legacy UIImagePickerController, which needs full library access we
+    // never request. Cropping/reframing happens in-app instead, via the
+    // pan/pinch gesture on the photo itself once it's picked.
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'],
       quality: 1,
-      // Curated backgrounds are hand-picked to look right center-cropped
-      // to the card's shape; a user's own photo wasn't composed with that
-      // in mind, so a plain center crop can easily cut off the actual
-      // subject. Cropping at selection time, close to the card's own
-      // portrait aspect ratio, lets the user frame it themselves instead.
-      allowsEditing: true,
-      aspect: [9, 16],
     });
     if (result.canceled) return;
     setPersonalPhotoUri(result.assets[0].uri);
+    // Not using result.assets[0].width/height here — those can be the
+    // photo's raw pixel dimensions before EXIF rotation is applied, which
+    // don't necessarily match how expo-image actually displays it. The
+    // Image's own onLoad event reports the true rendered dimensions,
+    // which is what the pan/zoom bounds math needs to agree with.
+    setPersonalPhotoSize(null);
+    photoTranslateX.value = 0;
+    photoTranslateY.value = 0;
+    photoScale.value = 1;
     // Same formatting reset as chooseBackground — a personal photo is
     // always a change of background, so this always resets.
     setQuote({
@@ -624,13 +740,69 @@ export default function QuoteCardsScreen() {
       ) : (
         <>
           <View ref={cardRef} style={styles.card} onLayout={handleCardLayout} collapsable={false}>
-            <Image
-              source={{ uri: background!.url }}
+            {personalPhotoUri ? (() => {
+              // contentFit="cover" crops internally at render time, within
+              // whatever frame the Image is given — it never actually
+              // produces pixels beyond that frame for a transform to
+              // reveal later. Panning a card-sized "cover" image just
+              // slides an already-cropped picture off to one side,
+              // exposing the card's own background on the other — which
+              // is exactly the black-bar bug. Giving the Image its true
+              // cover-scaled *layout* size (genuinely larger than the
+              // card on one axis) means there's real content for the
+              // gesture to pan/zoom into, with the card's own
+              // overflow:'hidden' clipping it back down to the visible
+              // area, same as any oversized child would be.
+              const coverScale = personalPhotoSize && cardSize.width > 0 && cardSize.height > 0
+                ? Math.max(cardSize.width / personalPhotoSize.width, cardSize.height / personalPhotoSize.height)
+                : 1;
+              const scaledWidth = personalPhotoSize ? personalPhotoSize.width * coverScale : cardSize.width;
+              const scaledHeight = personalPhotoSize ? personalPhotoSize.height * coverScale : cardSize.height;
+              const baseLeft = (cardSize.width - scaledWidth) / 2;
+              const baseTop = (cardSize.height - scaledHeight) / 2;
+              return (
+                // Curated backgrounds are hand-picked to already look
+                // right center-cropped; a personal photo wasn't, so it
+                // gets its own pan/pinch/double-tap-to-reset gesture to
+                // let the user reframe it themselves instead.
+                <GestureDetector gesture={photoGesture}>
+                  <Animated.View
+                    style={[
+                      { position: 'absolute', left: baseLeft, top: baseTop, width: scaledWidth, height: scaledHeight },
+                      animatedPhotoStyle,
+                    ]}
+                  >
+                    <Image
+                      source={{ uri: background!.url }}
+                      style={{ width: '100%', height: '100%' }}
+                      contentFit="cover"
+                      onLoad={(e) => {
+                        setImageLoaded(true);
+                        // True rendered dimensions (EXIF-orientation-
+                        // corrected), not the picker's possibly-raw
+                        // values — see the note in choosePersonalPhoto.
+                        setPersonalPhotoSize({ width: e.source.width, height: e.source.height });
+                      }}
+                    />
+                  </Animated.View>
+                </GestureDetector>
+              );
+            })() : (
+              <Image
+                source={{ uri: background!.url }}
+                style={StyleSheet.absoluteFill}
+                contentFit="cover"
+                onLoad={() => setImageLoaded(true)}
+              />
+            )}
+            {/* Purely decorative — pointerEvents="none" so it doesn't sit
+                in the way of the photo pan/pinch gesture layered beneath it
+                (the text block's gesture is layered above this, unaffected). */}
+            <LinearGradient
+              colors={['transparent', 'rgba(0,0,0,0.5)']}
               style={StyleSheet.absoluteFill}
-              contentFit="cover"
-              onLoad={() => setImageLoaded(true)}
+              pointerEvents="none"
             />
-            <LinearGradient colors={['transparent', 'rgba(0,0,0,0.5)']} style={StyleSheet.absoluteFill} />
 
             {cardSize.width > 0 && (
               <GestureDetector gesture={pan}>
@@ -727,6 +899,12 @@ export default function QuoteCardsScreen() {
             <IconSymbol name="chevron.left" size={16} color="#c9b97a" />
             <Text style={styles.backButtonText}>History</Text>
           </TouchableOpacity>
+
+          {personalPhotoUri && (
+            <View style={[styles.photoHint, { top: insets.top + 12 }]}>
+              <Text style={styles.photoHintText}>{'Pinch and drag to reposition\nDouble-tap to reset'}</Text>
+            </View>
+          )}
 
           {editingLines && (
             <View style={[styles.lineEditBar, { bottom: insets.bottom - 8 }]}>
@@ -1061,6 +1239,19 @@ const styles = StyleSheet.create({
   backButtonText: {
     fontSize: 14,
     color: '#c9b97a',
+  },
+  photoHint: {
+    position: 'absolute',
+    right: 16,
+    backgroundColor: 'rgba(15,14,12,0.6)',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 12,
+  },
+  photoHintText: {
+    fontSize: 11,
+    color: '#c9b97a',
+    textAlign: 'right',
   },
   actionRow: {
     position: 'absolute',
