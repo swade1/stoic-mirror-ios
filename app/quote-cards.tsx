@@ -489,11 +489,14 @@ export default function QuoteCardsScreen() {
     if (!cardRef.current || sharing) return;
     setSharing(true);
     try {
-      await commitFormatting();
-      const uri = await captureRef(cardRef, { format: 'png', quality: 1 });
       const isAvailable = await Sharing.isAvailableAsync();
       if (!isAvailable) throw new Error('Sharing is not available on this device');
+      const uri = await captureRef(cardRef, { format: 'png', quality: 1 });
       await Sharing.shareAsync(uri, { mimeType: 'image/png', dialogTitle: 'Share Quote' });
+      // Committing only after the share sheet actually completes — not
+      // before attempting it — so a failed capture or an unavailable
+      // share sheet can never write an in-progress draft to Supabase.
+      await commitFormatting();
     } catch (err) {
       Alert.alert('Share Failed', err instanceof Error ? err.message : 'Something went wrong.');
     } finally {
@@ -505,7 +508,6 @@ export default function QuoteCardsScreen() {
     if (!cardRef.current || saving) return;
     setSaving(true);
     try {
-      await commitFormatting();
       // writeOnly: true — only ever need to add a photo, never read the
       // user's existing library, so this triggers iOS's lighter "Add
       // Photos Only" permission prompt instead of full library access.
@@ -519,6 +521,11 @@ export default function QuoteCardsScreen() {
       }
       const uri = await captureRef(cardRef, { format: 'png', quality: 1 });
       await MediaLibrary.saveToLibraryAsync(uri);
+      // Committing only after the photo is actually saved — a denied
+      // permission or a failed capture returns/throws above and never
+      // reaches here, so an in-progress draft can never get written to
+      // Supabase just because the user tapped the button.
+      await commitFormatting();
       Alert.alert('Saved', 'This quote card was saved to your photos.');
     } catch (err) {
       Alert.alert('Save Failed', err instanceof Error ? err.message : 'Something went wrong.');
