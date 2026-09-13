@@ -15,6 +15,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { captureRef } from 'react-native-view-shot';
 import * as Sharing from 'expo-sharing';
 import * as MediaLibrary from 'expo-media-library';
+import * as ImagePicker from 'expo-image-picker';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, { useSharedValue, useAnimatedStyle, runOnJS } from 'react-native-reanimated';
 import { supabase } from '@/lib/supabase';
@@ -64,6 +65,12 @@ export default function QuoteCardsScreen() {
   const [backgrounds, setBackgrounds] = useState<QuoteBackground[]>([]);
   const [loading, setLoading] = useState(true);
   const [showPicker, setShowPicker] = useState(true);
+  // A photo picked from the user's own library. Deliberately session-only
+  // (never written to Supabase, never copied to app storage) — the
+  // finished card is what needs to survive, via Save to Photos or Share,
+  // not the source photo, and this screen already discards any unsaved
+  // draft on exit and never silently resumes a previous choice anyway.
+  const [personalPhotoUri, setPersonalPhotoUri] = useState<string | null>(null);
   // Editing happens in place on the visible card, not on a separate screen —
   // the whole point is judging line length against the photo's shape, which
   // is impossible if the photo isn't on screen while editing.
@@ -144,7 +151,14 @@ export default function QuoteCardsScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cardSize.width, cardSize.height, textBlockSize.width, textBlockSize.height]);
 
-  const background = quote ? resolveQuoteBackground(backgrounds, quote.background_photo_id) : null;
+  // A personal photo, when picked, takes precedence over the curated
+  // lookup — reuses the same {id, url} shape so every downstream use of
+  // background!.url (the Image source, capture/share/save) needs no
+  // changes at all; expo-image and captureRef don't care whether that's
+  // an https:// or a file:// URI.
+  const background = personalPhotoUri
+    ? { id: 'personal', url: personalPhotoUri }
+    : quote ? resolveQuoteBackground(backgrounds, quote.background_photo_id) : null;
   const showEditor = !showPicker && !!background;
   const words = quote ? splitIntoWords(quote.quote) : [];
   const hasCustomBreaks = !!quote?.card_line_breaks && quote.card_line_breaks.length > 0;
@@ -218,6 +232,7 @@ export default function QuoteCardsScreen() {
             // previously composed card.
             setShowPicker(true);
             setImageLoaded(false);
+            setPersonalPhotoUri(null);
           }
           setLoading(false);
         }
@@ -282,8 +297,11 @@ export default function QuoteCardsScreen() {
     if (!quote) return;
     // A new photo invalidates the old formatting — position, line breaks,
     // color, size, and alignment were all tailored to the previous photo's
-    // specific shape and don't carry any meaning on a different one.
+    // specific shape and don't carry any meaning on a different one. A
+    // previously-active personal photo counts as "changed" too, since
+    // quote.background_photo_id is null while one is active.
     const changed = quote.background_photo_id !== bg.id;
+    setPersonalPhotoUri(null);
     setQuote({
       ...quote,
       background_photo_id: bg.id,
@@ -295,6 +313,30 @@ export default function QuoteCardsScreen() {
         card_line_breaks: null,
         text_align: null,
       } : {}),
+    });
+    setShowPicker(false);
+    setImageLoaded(false);
+  };
+
+  const choosePersonalPhoto = async () => {
+    if (!quote) return;
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      quality: 1,
+    });
+    if (result.canceled) return;
+    setPersonalPhotoUri(result.assets[0].uri);
+    // Same formatting reset as chooseBackground — a personal photo is
+    // always a change of background, so this always resets.
+    setQuote({
+      ...quote,
+      background_photo_id: null,
+      text_offset_x: null,
+      text_offset_y: null,
+      text_color: null,
+      text_size_scale: null,
+      card_line_breaks: null,
+      text_align: null,
     });
     setShowPicker(false);
     setImageLoaded(false);
@@ -475,6 +517,15 @@ export default function QuoteCardsScreen() {
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={styles.pickerStripContent}
           >
+            <TouchableOpacity
+              onPress={choosePersonalPhoto}
+              accessibilityRole="button"
+              accessibilityLabel="Choose a photo from your library"
+              style={styles.personalPhotoTile}
+            >
+              <IconSymbol name="photo.badge.plus" size={28} color="#c9b97a" />
+              <Text style={styles.personalPhotoTileText}>Your Photo</Text>
+            </TouchableOpacity>
             {backgrounds.length === 0 ? (
               <Text style={styles.pickerEmptyText}>
                 No background photos yet — add some to the quote-backgrounds bucket.
@@ -832,6 +883,21 @@ const styles = StyleSheet.create({
   thumbnail: {
     width: '100%',
     height: '100%',
+  },
+  personalPhotoTile: {
+    width: 88,
+    height: 88,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    borderColor: '#6a6050',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+  },
+  personalPhotoTileText: {
+    fontSize: 11,
+    color: '#c9b97a',
   },
   card: {
     flex: 1,

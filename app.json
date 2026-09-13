@@ -51,6 +51,12 @@
         {
           "savePhotosPermission": "Allow The Stoic Mirror to save quote cards to your photos."
         }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow The Stoic Mirror to choose a photo for your quote card."
+        }
       ]
     ],
     "experiments": {
