@@ -28,6 +28,7 @@ const MAPPING = {
   'text.alignright': 'format-align-right',
   'arrow.uturn.backward': 'undo',
   'photo.badge.plus': 'add-photo-alternate',
+  'square.and.pencil': 'edit',
 } as IconMapping;
 
 /**

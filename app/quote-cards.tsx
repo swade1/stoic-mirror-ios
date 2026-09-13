@@ -8,6 +8,9 @@ import {
   ScrollView,
   Alert,
   LayoutChangeEvent,
+  TextInput,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
@@ -46,6 +49,12 @@ interface SavedQuote {
   text_size_scale: number | null;
   card_line_breaks: number[] | null;
   text_align: string | null;
+  // Card-only override of the quote's wording — shortened, personalized,
+  // or modernized for this composed card specifically. Never touches the
+  // canonical `quote` field, which History/Counsel/etc. still show
+  // verbatim; this column exists so a card can diverge from the
+  // historical record without the record itself ever being at risk.
+  card_quote_text: string | null;
 }
 
 // Only used for the legacy single-block (no custom line breaks) rendering
@@ -92,6 +101,8 @@ export default function QuoteCardsScreen() {
   const [sharing, setSharing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [showTextStylePanel, setShowTextStylePanel] = useState(false);
+  const [showTextEditPanel, setShowTextEditPanel] = useState(false);
+  const [editingQuoteText, setEditingQuoteText] = useState('');
   const [cardSize, setCardSize] = useState({ width: 0, height: 0 });
   // The text block's real rendered size, measured via onLayout rather than
   // approximated — needed now that custom line breaks make both width and
@@ -160,7 +171,10 @@ export default function QuoteCardsScreen() {
     ? { id: 'personal', url: personalPhotoUri }
     : quote ? resolveQuoteBackground(backgrounds, quote.background_photo_id) : null;
   const showEditor = !showPicker && !!background;
-  const words = quote ? splitIntoWords(quote.quote) : [];
+  // The card-only override, when present, is what actually renders and
+  // gets shared/saved — the canonical quote.quote is untouched either way.
+  const displayQuoteText = quote?.card_quote_text ?? quote?.quote ?? '';
+  const words = splitIntoWords(displayQuoteText);
   const hasCustomBreaks = !!quote?.card_line_breaks && quote.card_line_breaks.length > 0;
   const customLines = hasCustomBreaks ? groupWordsIntoLines(words, quote!.card_line_breaks!) : null;
   // While editing, lines are grouped from the live draft (editingBreaks) so
@@ -213,7 +227,7 @@ export default function QuoteCardsScreen() {
         const [{ data: quoteRow, error }, backgroundList] = await Promise.all([
           supabase
             .from('saved_quotes')
-            .select('id, quote, author, source, background_photo_id, text_offset_x, text_offset_y, text_color, text_size_scale, card_line_breaks, text_align')
+            .select('id, quote, author, source, background_photo_id, text_offset_x, text_offset_y, text_color, text_size_scale, card_line_breaks, text_align, card_quote_text')
             .eq('id', quoteId)
             .eq('user_id', session.user.id)
             .single(),
@@ -233,6 +247,7 @@ export default function QuoteCardsScreen() {
             setShowPicker(true);
             setImageLoaded(false);
             setPersonalPhotoUri(null);
+            setShowTextEditPanel(false);
           }
           setLoading(false);
         }
@@ -369,10 +384,52 @@ export default function QuoteCardsScreen() {
     if (editingLines) {
       handleDoneEditingLines();
     } else {
+      if (showTextEditPanel) handleDoneEditingText();
       setBreaksState({ current: new Set(quote?.card_line_breaks ?? []), history: [] });
       setShowTextStylePanel(false);
       setEditingLines(true);
     }
+  };
+
+  const toggleTextStylePanel = () => {
+    if (!showTextStylePanel) {
+      if (editingLines) handleDoneEditingLines();
+      if (showTextEditPanel) handleDoneEditingText();
+    }
+    setShowTextStylePanel((v) => !v);
+  };
+
+  const toggleTextEditPanel = () => {
+    if (showTextEditPanel) {
+      handleDoneEditingText();
+      return;
+    }
+    if (editingLines) handleDoneEditingLines();
+    setEditingQuoteText(displayQuoteText);
+    setShowTextStylePanel(false);
+    setShowTextEditPanel(true);
+  };
+
+  const resetCardText = () => {
+    if (!quote) return;
+    setEditingQuoteText(quote.quote);
+  };
+
+  const handleDoneEditingText = () => {
+    if (!quote) return;
+    const trimmed = editingQuoteText.trim();
+    if (trimmed.length === 0) return;
+    // A break set is a list of word-indices into the previous wording —
+    // editing the text invalidates those indices outright, the same way
+    // picking a different background photo invalidates position/color/
+    // size/align (all tailored to something that just changed underneath
+    // them). Falls back to auto-wrap until the user re-breaks the new text.
+    setQuote({
+      ...quote,
+      card_quote_text: trimmed === quote.quote ? null : trimmed,
+      card_line_breaks: null,
+    });
+    setShowTextEditPanel(false);
   };
 
   // Routes every change to the current break set (a toggle or a Reset)
@@ -424,6 +481,7 @@ export default function QuoteCardsScreen() {
       text_size_scale: quote.text_size_scale,
       card_line_breaks: quote.card_line_breaks,
       text_align: quote.text_align,
+      card_quote_text: quote.card_quote_text,
     }).eq('id', quote.id);
   };
 
@@ -508,7 +566,7 @@ export default function QuoteCardsScreen() {
             <Text style={styles.backButtonText}>History</Text>
           </TouchableOpacity>
 
-          <Text style={styles.pickerQuote}>&ldquo;{quote.quote}&rdquo;</Text>
+          <Text style={styles.pickerQuote}>&ldquo;{displayQuoteText}&rdquo;</Text>
           <Text style={styles.pickerAttribution}>— {quote.author}, {quote.source}</Text>
 
           <Text style={styles.pickerLabel}>Choose a background</Text>
@@ -635,7 +693,7 @@ export default function QuoteCardsScreen() {
                     })
                   ) : (
                     <Text style={[styles.quoteText, { color: textColor, fontSize: 22 * sizeScale, lineHeight: 30 * sizeScale, textAlign }]}>
-                      &ldquo;{quote.quote}&rdquo;
+                      &ldquo;{displayQuoteText}&rdquo;
                     </Text>
                   )}
                   <Text style={[styles.attribution, { color: textColor, fontSize: 13 * sizeScale }]}>
@@ -657,8 +715,8 @@ export default function QuoteCardsScreen() {
           </TouchableOpacity>
 
           {editingLines && (
-            <View style={[styles.lineEditBar, { bottom: insets.bottom + 4 }]}>
-              <Text style={styles.lineEditBarText}>Tap on a word to break the line after that word</Text>
+            <View style={[styles.lineEditBar, { bottom: insets.bottom - 8 }]}>
+              <Text style={styles.lineEditBarText}>{'Tap on a word to add a line break\nTap again to re-join'}</Text>
               <View style={styles.lineEditActions}>
                 <TouchableOpacity
                   onPress={handleUndoBreak}
@@ -684,6 +742,51 @@ export default function QuoteCardsScreen() {
                 </TouchableOpacity>
               </View>
             </View>
+          )}
+
+          {showTextEditPanel && (
+            <KeyboardAvoidingView
+              behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+              style={styles.textEditPanelWrapper}
+              pointerEvents="box-none"
+            >
+              <View style={[styles.textEditPanel, { marginBottom: insets.bottom + 52 }]}>
+                <Text style={styles.textStylePanelLabel}>Edit Quote Text</Text>
+                <TextInput
+                  style={styles.textEditInput}
+                  value={editingQuoteText}
+                  onChangeText={setEditingQuoteText}
+                  multiline
+                  autoFocus
+                  placeholder="Quote text"
+                  placeholderTextColor="#6a6050"
+                />
+                <View style={styles.textEditActions}>
+                  <TouchableOpacity
+                    onPress={resetCardText}
+                    accessibilityRole="button"
+                    accessibilityLabel="Reset to original wording"
+                  >
+                    <Text style={styles.resetText}>Reset to Original</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={handleDoneEditingText}
+                    disabled={editingQuoteText.trim().length === 0}
+                    accessibilityRole="button"
+                    accessibilityLabel="Save quote text changes"
+                  >
+                    <Text
+                      style={[
+                        styles.textEditDoneText,
+                        editingQuoteText.trim().length === 0 && styles.textEditDoneTextDisabled,
+                      ]}
+                    >
+                      Done
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </KeyboardAvoidingView>
           )}
 
           {showTextStylePanel && (
@@ -765,11 +868,19 @@ export default function QuoteCardsScreen() {
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.actionButton, showTextStylePanel && styles.actionButtonActive]}
-              onPress={() => setShowTextStylePanel((v) => !v)}
+              onPress={toggleTextStylePanel}
               accessibilityRole="button"
               accessibilityLabel="Text color and size"
             >
               <IconSymbol name="textformat" size={18} color="#c9b97a" />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.actionButton, showTextEditPanel && styles.actionButtonActive]}
+              onPress={toggleTextEditPanel}
+              accessibilityRole="button"
+              accessibilityLabel={showTextEditPanel ? 'Done editing quote text' : 'Edit quote text'}
+            >
+              <IconSymbol name="square.and.pencil" size={18} color="#c9b97a" />
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.actionButton, editingLines && styles.actionButtonActive]}
@@ -958,6 +1069,45 @@ const styles = StyleSheet.create({
   },
   actionButtonActive: {
     backgroundColor: 'rgba(201,185,122,0.25)',
+  },
+  textEditPanelWrapper: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    justifyContent: 'flex-end',
+  },
+  textEditPanel: {
+    marginHorizontal: 16,
+    backgroundColor: 'rgba(15,14,12,0.95)',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#4a4540',
+    padding: 16,
+    gap: 10,
+  },
+  textEditInput: {
+    minHeight: 100,
+    maxHeight: 180,
+    fontSize: 16,
+    lineHeight: 22,
+    color: '#f0ead6',
+    fontStyle: 'italic',
+    textAlignVertical: 'top',
+  },
+  textEditActions: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  textEditDoneText: {
+    fontSize: 14,
+    color: '#c9b97a',
+    fontWeight: '600',
+  },
+  textEditDoneTextDisabled: {
+    color: '#4a4540',
   },
   textStylePanel: {
     position: 'absolute',
