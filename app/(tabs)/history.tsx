@@ -172,6 +172,14 @@ export default function HistoryScreen() {
             <IconSymbol name="textformat.size" size={20} color="#c9b97a" />
           </TouchableOpacity>
           <TouchableOpacity
+            onPress={() => router.push('/slideshow-photos')}
+            accessibilityRole="button"
+            accessibilityLabel="Slideshow"
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
+            <IconSymbol name="play.rectangle" size={20} color="#c9b97a" />
+          </TouchableOpacity>
+          <TouchableOpacity
             onPress={() => {
               setSearchVisible(!searchVisible);
               setSearchQuery('');

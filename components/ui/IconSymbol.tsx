@@ -29,6 +29,11 @@ const MAPPING = {
   'arrow.uturn.backward': 'undo',
   'photo.badge.plus': 'add-photo-alternate',
   'square.and.pencil': 'edit',
+  'play.rectangle': 'slideshow',
+  'plus': 'add',
+  'xmark.circle.fill': 'cancel',
+  'xmark': 'close',
+  'pause.fill': 'pause',
 } as IconMapping;
 
 /**
