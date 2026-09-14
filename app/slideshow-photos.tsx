@@ -130,9 +130,19 @@ export default function SlideshowPhotosScreen() {
     }
   };
 
-  const removePhoto = (id: string) => {
+  const removePhoto = async (id: string) => {
+    // Optimistic, but not fire-and-forget: the previous version never
+    // awaited or checked this delete, so a failed request (network blip,
+    // anything) left the row in Supabase while the UI already showed it
+    // gone — Play does its own fresh fetch and would still include it.
+    // Reverting the optimistic removal on failure keeps what's on screen
+    // truthful to what's actually in the database.
     setPhotos((prev) => prev.filter((p) => p.id !== id));
-    supabase.from('slideshow_photos').delete().eq('id', id);
+    const { error } = await supabase.from('slideshow_photos').delete().eq('id', id);
+    if (error) {
+      await load();
+      Alert.alert('Remove Failed', error.message);
+    }
   };
 
   return (
