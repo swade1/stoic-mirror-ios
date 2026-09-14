@@ -5,6 +5,45 @@ const BUCKET = 'quote-backgrounds';
 export interface QuoteBackground {
   id: string;
   url: string;
+  category: string | null;
+}
+
+// Derives a background's category from a filename naming convention — the
+// text before the first hyphen, e.g. "sunset-garden.jpg" -> "sunset". A
+// filename with no hyphen has no category (the photo still shows under
+// "All", it just doesn't get its own filter chip). This lets a photo be
+// categorized just by naming it consistently when it's dropped into the
+// bucket — no separate tagging step or database table needed while the
+// collection is still small.
+export function deriveCategoryFromFilename(filename: string): string | null {
+  const withoutExtension = filename.replace(/\.[^.]+$/, '');
+  const hyphenIndex = withoutExtension.indexOf('-');
+  if (hyphenIndex <= 0) return null;
+  return withoutExtension.slice(0, hyphenIndex).toLowerCase();
+}
+
+// The distinct categories present in a background list, sorted
+// alphabetically — used to build the filter-chip row. Backgrounds with no
+// category (no hyphen in the filename) don't contribute one.
+export function getBackgroundCategories(backgrounds: QuoteBackground[]): string[] {
+  const categories = new Set<string>();
+  backgrounds.forEach((bg) => {
+    if (bg.category) categories.add(bg.category);
+  });
+  return Array.from(categories).sort();
+}
+
+// Appends a cache-busting query param derived from the file's last-modified
+// timestamp. The public URL for a given filename never changes even when
+// its content does, so re-uploading a replacement under the same name (a
+// fixed crop, say) leaves any cache — a CDN in front of Storage, or the
+// app's own image cache, which keys purely on URL — with no signal that
+// there's anything new to fetch. Folding updated_at into the URL means the
+// URL itself changes whenever the file's content does, which is the only
+// reliable way to invalidate those caches.
+export function withCacheBust(url: string, updatedAt: string | null | undefined): string {
+  if (!updatedAt) return url;
+  return `${url}?v=${encodeURIComponent(updatedAt)}`;
 }
 
 // Lists whatever photos currently exist in the quote-backgrounds Storage
@@ -19,7 +58,8 @@ export async function listQuoteBackgrounds(): Promise<QuoteBackground[]> {
     .filter((file) => file.id !== null) // exclude the bucket's own placeholder folder entries
     .map((file) => ({
       id: file.name,
-      url: supabase.storage.from(BUCKET).getPublicUrl(file.name).data.publicUrl,
+      url: withCacheBust(supabase.storage.from(BUCKET).getPublicUrl(file.name).data.publicUrl, file.updated_at),
+      category: deriveCategoryFromFilename(file.name),
     }))
     .sort((a, b) => a.id.localeCompare(b.id));
 }

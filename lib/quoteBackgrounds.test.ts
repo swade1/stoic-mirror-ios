@@ -1,4 +1,10 @@
-import { listQuoteBackgrounds, resolveQuoteBackground } from './quoteBackgrounds';
+import {
+  listQuoteBackgrounds,
+  resolveQuoteBackground,
+  deriveCategoryFromFilename,
+  getBackgroundCategories,
+  withCacheBust,
+} from './quoteBackgrounds';
 
 const mockList = jest.fn();
 const mockGetPublicUrl = jest.fn();
@@ -23,11 +29,11 @@ describe('listQuoteBackgrounds', () => {
     }));
   });
 
-  it('lists bucket contents as sorted {id, url} pairs', async () => {
+  it('lists bucket contents as sorted {id, url, category} entries, with the URL cache-busted by updated_at', async () => {
     mockList.mockResolvedValue({
       data: [
-        { id: '2', name: 'sunset.jpg' },
-        { id: '1', name: 'mountain.jpg' },
+        { id: '2', name: 'sunset-garden.jpg', updated_at: '2026-01-02T00:00:00.000Z' },
+        { id: '1', name: 'mountain.jpg', updated_at: '2026-01-01T00:00:00.000Z' },
       ],
       error: null,
     });
@@ -35,8 +41,16 @@ describe('listQuoteBackgrounds', () => {
     const result = await listQuoteBackgrounds();
 
     expect(result).toEqual([
-      { id: 'mountain.jpg', url: 'https://cdn.example.com/mountain.jpg' },
-      { id: 'sunset.jpg', url: 'https://cdn.example.com/sunset.jpg' },
+      {
+        id: 'mountain.jpg',
+        url: 'https://cdn.example.com/mountain.jpg?v=2026-01-01T00%3A00%3A00.000Z',
+        category: null,
+      },
+      {
+        id: 'sunset-garden.jpg',
+        url: 'https://cdn.example.com/sunset-garden.jpg?v=2026-01-02T00%3A00%3A00.000Z',
+        category: 'sunset',
+      },
     ]);
   });
 
@@ -44,14 +58,20 @@ describe('listQuoteBackgrounds', () => {
     mockList.mockResolvedValue({
       data: [
         { id: null, name: '.emptyFolderPlaceholder' },
-        { id: '1', name: 'mountain.jpg' },
+        { id: '1', name: 'mountain.jpg', updated_at: '2026-01-01T00:00:00.000Z' },
       ],
       error: null,
     });
 
     const result = await listQuoteBackgrounds();
 
-    expect(result).toEqual([{ id: 'mountain.jpg', url: 'https://cdn.example.com/mountain.jpg' }]);
+    expect(result).toEqual([
+      {
+        id: 'mountain.jpg',
+        url: 'https://cdn.example.com/mountain.jpg?v=2026-01-01T00%3A00%3A00.000Z',
+        category: null,
+      },
+    ]);
   });
 
   it('throws when the Storage API returns an error', async () => {
@@ -63,10 +83,10 @@ describe('listQuoteBackgrounds', () => {
 
 describe('resolveQuoteBackground', () => {
   const backgrounds = [
-    { id: 'mountain.jpg', url: 'https://cdn.example.com/mountain.jpg' },
-    { id: 'sunset.jpg', url: 'https://cdn.example.com/sunset.jpg' },
-    { id: 'forest.jpg', url: 'https://cdn.example.com/forest.jpg' },
-    { id: 'ocean.jpg', url: 'https://cdn.example.com/ocean.jpg' },
+    { id: 'mountain.jpg', url: 'https://cdn.example.com/mountain.jpg', category: null },
+    { id: 'sunset.jpg', url: 'https://cdn.example.com/sunset.jpg', category: null },
+    { id: 'forest.jpg', url: 'https://cdn.example.com/forest.jpg', category: null },
+    { id: 'ocean.jpg', url: 'https://cdn.example.com/ocean.jpg', category: null },
   ];
 
   it('returns null when the collection is empty', () => {
@@ -83,5 +103,86 @@ describe('resolveQuoteBackground', () => {
 
   it('returns null when the stored id no longer exists in the bucket', () => {
     expect(resolveQuoteBackground(backgrounds, 'deleted-photo.jpg')).toBeNull();
+  });
+});
+
+describe('deriveCategoryFromFilename', () => {
+  it('takes the text before the first hyphen', () => {
+    expect(deriveCategoryFromFilename('sunset-garden.jpg')).toBe('sunset');
+  });
+
+  it('lowercases the category', () => {
+    expect(deriveCategoryFromFilename('Sunset-Garden.jpg')).toBe('sunset');
+  });
+
+  it('uses only the first hyphen when there are several', () => {
+    expect(deriveCategoryFromFilename('beach-palm-tree.png')).toBe('beach');
+  });
+
+  it('returns null when there is no hyphen', () => {
+    expect(deriveCategoryFromFilename('mountain.jpg')).toBeNull();
+  });
+
+  it('returns null when the filename starts with a hyphen', () => {
+    expect(deriveCategoryFromFilename('-untitled.jpg')).toBeNull();
+  });
+
+  it('ignores the file extension', () => {
+    expect(deriveCategoryFromFilename('waterfall-01.jpeg')).toBe('waterfall');
+  });
+});
+
+describe('getBackgroundCategories', () => {
+  it('returns the distinct categories, sorted alphabetically', () => {
+    const backgrounds = [
+      { id: '1', url: 'a', category: 'sunset' },
+      { id: '2', url: 'b', category: 'beach' },
+      { id: '3', url: 'c', category: 'sunset' },
+      { id: '4', url: 'd', category: 'ocean' },
+    ];
+    expect(getBackgroundCategories(backgrounds)).toEqual(['beach', 'ocean', 'sunset']);
+  });
+
+  it('ignores backgrounds with no category', () => {
+    const backgrounds = [
+      { id: '1', url: 'a', category: 'sunset' },
+      { id: '2', url: 'b', category: null },
+    ];
+    expect(getBackgroundCategories(backgrounds)).toEqual(['sunset']);
+  });
+
+  it('returns an empty array when nothing is categorized', () => {
+    const backgrounds = [
+      { id: '1', url: 'a', category: null },
+      { id: '2', url: 'b', category: null },
+    ];
+    expect(getBackgroundCategories(backgrounds)).toEqual([]);
+  });
+
+  it('returns an empty array for an empty list', () => {
+    expect(getBackgroundCategories([])).toEqual([]);
+  });
+});
+
+describe('withCacheBust', () => {
+  it('appends the timestamp as a URL-encoded query param', () => {
+    expect(withCacheBust('https://cdn.example.com/mountain.jpg', '2026-01-01T00:00:00.000Z')).toBe(
+      'https://cdn.example.com/mountain.jpg?v=2026-01-01T00%3A00%3A00.000Z'
+    );
+  });
+
+  it('returns the URL unchanged when there is no timestamp', () => {
+    expect(withCacheBust('https://cdn.example.com/mountain.jpg', null)).toBe(
+      'https://cdn.example.com/mountain.jpg'
+    );
+    expect(withCacheBust('https://cdn.example.com/mountain.jpg', undefined)).toBe(
+      'https://cdn.example.com/mountain.jpg'
+    );
+  });
+
+  it('gives two different timestamps two different URLs', () => {
+    const first = withCacheBust('https://cdn.example.com/mountain.jpg', '2026-01-01T00:00:00.000Z');
+    const second = withCacheBust('https://cdn.example.com/mountain.jpg', '2026-01-02T00:00:00.000Z');
+    expect(first).not.toBe(second);
   });
 });
