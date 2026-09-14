@@ -79,6 +79,43 @@ describe('listQuoteBackgrounds', () => {
 
     await expect(listQuoteBackgrounds()).rejects.toThrow('network down');
   });
+
+  it('pages through the bucket when a single call returns a full page, instead of silently dropping the rest', async () => {
+    // Storage's list() caps a single call at 100 entries — a bucket with
+    // more files than that has to be paged through, or everything past
+    // the 100th silently disappears (the actual bug this covers: a
+    // "Water" category landing right at that boundary).
+    const firstPage = Array.from({ length: 100 }, (_, i) => ({
+      id: String(i),
+      name: `photo-${String(i).padStart(3, '0')}.jpg`,
+      updated_at: '2026-01-01T00:00:00.000Z',
+    }));
+    const secondPage = [
+      { id: '100', name: 'water-lake.jpg', updated_at: '2026-01-01T00:00:00.000Z' },
+    ];
+    mockList
+      .mockResolvedValueOnce({ data: firstPage, error: null })
+      .mockResolvedValueOnce({ data: secondPage, error: null });
+
+    const result = await listQuoteBackgrounds();
+
+    expect(mockList).toHaveBeenCalledTimes(2);
+    expect(mockList).toHaveBeenNthCalledWith(1, '', { limit: 100, offset: 0 });
+    expect(mockList).toHaveBeenNthCalledWith(2, '', { limit: 100, offset: 100 });
+    expect(result).toHaveLength(101);
+    expect(result.map((bg) => bg.id)).toContain('water-lake.jpg');
+  });
+
+  it('stops after one call when the bucket has fewer files than a full page', async () => {
+    mockList.mockResolvedValue({
+      data: [{ id: '1', name: 'mountain.jpg', updated_at: '2026-01-01T00:00:00.000Z' }],
+      error: null,
+    });
+
+    await listQuoteBackgrounds();
+
+    expect(mockList).toHaveBeenCalledTimes(1);
+  });
 });
 
 describe('resolveQuoteBackground', () => {

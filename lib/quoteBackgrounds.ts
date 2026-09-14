@@ -46,15 +46,29 @@ export function withCacheBust(url: string, updatedAt: string | null | undefined)
   return `${url}?v=${encodeURIComponent(updatedAt)}`;
 }
 
+// Storage's list() defaults to (and caps a single call at) 100 entries —
+// undocumented in a way that's easy to miss until the bucket quietly
+// grows past it. A bucket sorted alphabetically with more than 100 files
+// silently drops everything after the 100th from a single call (observed:
+// a "Water" category landing right at that boundary, with most of its
+// photos cut off) rather than erroring, so this has to page through
+// every batch itself instead of trusting one call to return everything.
+const LIST_PAGE_SIZE = 100;
+
 // Lists whatever photos currently exist in the quote-backgrounds Storage
 // bucket. New photos dropped into the bucket via the Supabase dashboard
 // show up here on next call — no app update needed, since the bucket is
 // the source of truth, not a bundled/code-referenced list.
 export async function listQuoteBackgrounds(): Promise<QuoteBackground[]> {
-  const { data, error } = await supabase.storage.from(BUCKET).list();
-  if (error) throw error;
+  const files = [];
+  for (let offset = 0; ; offset += LIST_PAGE_SIZE) {
+    const { data, error } = await supabase.storage.from(BUCKET).list('', { limit: LIST_PAGE_SIZE, offset });
+    if (error) throw error;
+    files.push(...(data ?? []));
+    if (!data || data.length < LIST_PAGE_SIZE) break;
+  }
 
-  return (data ?? [])
+  return files
     .filter((file) => file.id !== null) // exclude the bucket's own placeholder folder entries
     .map((file) => ({
       id: file.name,
