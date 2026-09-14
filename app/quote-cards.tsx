@@ -5,12 +5,10 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
+  Pressable,
   ScrollView,
   Alert,
   LayoutChangeEvent,
-  TextInput,
-  KeyboardAvoidingView,
-  Platform,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
@@ -20,16 +18,18 @@ import * as Sharing from 'expo-sharing';
 import * as MediaLibrary from 'expo-media-library';
 import * as ImagePicker from 'expo-image-picker';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
-import Animated, { useSharedValue, useAnimatedStyle, runOnJS } from 'react-native-reanimated';
+import Animated, { useSharedValue, useAnimatedStyle } from 'react-native-reanimated';
 import { supabase } from '@/lib/supabase';
 import { IconSymbol } from '@/components/ui/IconSymbol';
+import { DraggableTextBox, type TextBox } from '@/components/DraggableTextBox';
 import {
   listQuoteBackgrounds,
   resolveQuoteBackground,
   getBackgroundCategories,
   type QuoteBackground,
 } from '@/lib/quoteBackgrounds';
-import { DEFAULT_TEXT_POSITION, pixelsToFraction, fractionToPixels } from '@/lib/textPosition';
+import { DEFAULT_TEXT_POSITION } from '@/lib/textPosition';
+import { flattenManualLineBreaks } from '@/lib/quoteCardText';
 import {
   TEXT_COLOR_OPTIONS,
   DEFAULT_TEXT_COLOR,
@@ -37,10 +37,11 @@ import {
   DEFAULT_TEXT_SIZE_SCALE,
   TEXT_ALIGN_OPTIONS,
   DEFAULT_TEXT_ALIGN,
+  TEXT_FONT_OPTIONS,
+  DEFAULT_TEXT_FONT,
+  resolveTextFontOption,
   type TextAlignValue,
 } from '@/lib/textStyleOptions';
-import { splitIntoWords, groupWordsIntoLines, indexWordsByLine } from '@/lib/quoteLineBreaks';
-import { pushUndoState, popUndoState } from '@/lib/undoStack';
 
 interface SavedQuote {
   id: string;
@@ -48,26 +49,58 @@ interface SavedQuote {
   author: string;
   source: string;
   background_photo_id: string | null;
-  text_offset_x: number | null;
-  text_offset_y: number | null;
   text_color: string | null;
+  text_font: string | null;
   text_size_scale: number | null;
-  card_line_breaks: number[] | null;
-  text_align: string | null;
-  // Card-only override of the quote's wording — shortened, personalized,
-  // or modernized for this composed card specifically. Never touches the
-  // canonical `quote` field, which History/Counsel/etc. still show
-  // verbatim; this column exists so a card can diverge from the
-  // historical record without the record itself ever being at risk.
-  card_quote_text: string | null;
+  // Free-form text pieces composed onto the card — each independently
+  // positioned/draggable and freely typed, like a sticker in Instagram
+  // Stories or Canva. Untouched (never edited/dragged/added to), this
+  // stays null and the card shows one default piece (deriveDefaultBoxes)
+  // with the quote + attribution, at the default position — the same
+  // "materialize on first change" laziness the old position fields had.
+  card_text_boxes: TextBox[] | null;
 }
 
-// Only used for the legacy single-block (no custom line breaks) rendering
-// path, to give word-wrap a reasonable max width. Once custom line breaks
-// are in play, the box's size is measured live instead (see
-// textBlockSize/onLayout below) — a fixed estimate can't work once each
-// line's width is deliberately different from the others.
+// Margin from the card's edge a box's width is capped against, so a box
+// never runs edge-to-edge with no breathing room.
 const TEXT_BOX_MARGIN = 24;
+
+const newBoxId = () => `box-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+
+function deriveDefaultBoxes(quote: SavedQuote): TextBox[] {
+  return [
+    {
+      id: 'default',
+      text: `${quote.quote}\n\n— ${quote.author}, ${quote.source}`,
+      align: DEFAULT_TEXT_ALIGN,
+      offsetX: null,
+      offsetY: null,
+    },
+  ];
+}
+
+// A new photo invalidates position, alignment, line breaks, and how many
+// pieces the card is split into — all of that was tailored to the old
+// photo's specific shape. Wording survives, though: losing your photo
+// shouldn't mean losing what you wrote. Collapsing every box's text back
+// into one single default-positioned block (rather than keeping each
+// box, just with its position/alignment reset) avoids every old box
+// reappearing stacked on top of each other at the same default spot.
+// Joined with a single space, not a blank line — joining with a blank
+// line would visually recreate the exact "split into pieces" look this
+// is meant to undo, just inside one box instead of across several.
+function mergeBoxesForNewPhoto(boxes: TextBox[] | null): TextBox[] | null {
+  if (!boxes || boxes.length === 0) return null;
+  return [
+    {
+      id: newBoxId(),
+      text: boxes.map((b) => flattenManualLineBreaks(b.text)).join(' '),
+      align: DEFAULT_TEXT_ALIGN,
+      offsetX: null,
+      offsetY: null,
+    },
+  ];
+}
 
 export default function QuoteCardsScreen() {
   const router = useRouter();
@@ -91,34 +124,14 @@ export default function QuoteCardsScreen() {
   // Natural pixel dimensions of the picked photo, needed to compute how
   // far it can be panned/zoomed before its edge would reveal empty space.
   const [personalPhotoSize, setPersonalPhotoSize] = useState<{ width: number; height: number } | null>(null);
-  // Editing happens in place on the visible card, not on a separate screen —
-  // the whole point is judging line length against the photo's shape, which
-  // is impossible if the photo isn't on screen while editing.
-  const [editingLines, setEditingLines] = useState(false);
-  // The current draft and its undo history are kept in one state object,
-  // updated together via a single setState call — splitting them into two
-  // separate useState calls meant every change needed a nested setState
-  // inside the other's updater to keep them paired, and that nested call
-  // is an impure updater React is allowed to invoke more than once,
-  // which could desync the pairing (observed as an early break silently
-  // reverting). One atomic update removes the possibility entirely.
-  const [breaksState, setBreaksState] = useState<{ current: Set<number>; history: Set<number>[] }>({
-    current: new Set(),
-    history: [],
-  });
-  const editingBreaks = breaksState.current;
-  const breakHistory = breaksState.history;
+  // Which text box (by id) currently has its keyboard open, if any — null
+  // means every box is showing as plain, draggable, read-only text.
+  const [editingBoxId, setEditingBoxId] = useState<string | null>(null);
   const [imageLoaded, setImageLoaded] = useState(false);
   const [sharing, setSharing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [showTextStylePanel, setShowTextStylePanel] = useState(false);
-  const [showTextEditPanel, setShowTextEditPanel] = useState(false);
-  const [editingQuoteText, setEditingQuoteText] = useState('');
   const [cardSize, setCardSize] = useState({ width: 0, height: 0 });
-  // The text block's real rendered size, measured via onLayout rather than
-  // approximated — needed now that custom line breaks make both width and
-  // height unpredictable from a fixed formula.
-  const [textBlockSize, setTextBlockSize] = useState({ width: 0, height: 0 });
 
   const cardRef = useRef<View>(null);
   // Remembers horizontal scroll position in the background thumbnail
@@ -132,42 +145,13 @@ export default function QuoteCardsScreen() {
 
   const textColor = quote?.text_color ?? DEFAULT_TEXT_COLOR;
   const sizeScale = quote?.text_size_scale ?? DEFAULT_TEXT_SIZE_SCALE;
-  const textAlign = (quote?.text_align ?? DEFAULT_TEXT_ALIGN) as TextAlignValue;
-  // Controls how lines sit relative to each other in the block (a shared
-  // edge), not just how text is justified within a single line — that's
-  // what lets a left-aligned block keep every line flush against the same
-  // margin while only the opposite edge tapers to follow a photo's shape.
-  const boxAlignItems = textAlign === 'left' ? 'flex-start' : textAlign === 'right' ? 'flex-end' : 'center';
-  // The persisted horizontal fraction anchors to whichever edge the current
-  // alignment holds fixed (0 = left edge, 1 = right edge, 0.5 = center) —
-  // not always the box's midpoint. Anchoring to the midpoint made sense
-  // when every line was always centered, but for left/right alignment the
-  // box's measured width isn't stable (a fixed-width legacy block vs. a
-  // shrink-wrapped row of tappable words during editing render at
-  // different widths), and re-deriving position from a midpoint fraction
-  // on every width change visibly dragged the block toward the center of
-  // the screen. Anchoring to the aligned edge instead means a width change
-  // never moves that edge, only the opposite (ragged) one.
-  const boxAnchorX = textAlign === 'left' ? 0 : textAlign === 'right' ? 1 : 0.5;
-  // The un-dragged starting position also has to depend on alignment — a
-  // freshly left-aligned block anchored to a fraction meant for a centered
-  // block (0.5) would sit with its left edge at screen center, not near the
-  // left margin. These roughly match TEXT_BOX_MARGIN's inset from each edge.
-  const defaultAnchorX = textAlign === 'left' ? 0.06 : textAlign === 'right' ? 0.94 : DEFAULT_TEXT_POSITION.x;
-  const legacyMaxWidth = Math.max(0, Math.min(280, cardSize.width - TEXT_BOX_MARGIN * 2));
-  // Custom line breaks exist specifically so the user can decide how long a
-  // line is, including full width — capping it at the same narrow column
-  // used for the untouched default (legacyMaxWidth) would defeat that.
-  const customLineMaxWidth = Math.max(0, cardSize.width - TEXT_BOX_MARGIN * 2);
+  const fontOption = resolveTextFontOption(quote?.text_font ?? DEFAULT_TEXT_FONT);
+  // Alignment is per-box now (see TextBox.align) — each DraggableTextBox
+  // derives its own position-anchor edge from its own alignment.
+  const boxMaxWidth = Math.max(0, cardSize.width - TEXT_BOX_MARGIN * 2);
 
-  const translateX = useSharedValue(0);
-  const translateY = useSharedValue(0);
-  const startX = useSharedValue(0);
-  const startY = useSharedValue(0);
   const cardWidthShared = useSharedValue(0);
   const cardHeightShared = useSharedValue(0);
-  const textBlockWidthShared = useSharedValue(0);
-  const textBlockHeightShared = useSharedValue(0);
 
   // Personal-photo pan/zoom — session-only, reset whenever a new photo is
   // picked or the quote reloads, same as personalPhotoUri itself.
@@ -187,12 +171,10 @@ export default function QuoteCardsScreen() {
   useEffect(() => {
     cardWidthShared.value = cardSize.width;
     cardHeightShared.value = cardSize.height;
-    textBlockWidthShared.value = textBlockSize.width;
-    textBlockHeightShared.value = textBlockSize.height;
     photoImageWidthShared.value = personalPhotoSize?.width ?? 0;
     photoImageHeightShared.value = personalPhotoSize?.height ?? 0;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cardSize.width, cardSize.height, textBlockSize.width, textBlockSize.height, personalPhotoSize]);
+  }, [cardSize.width, cardSize.height, personalPhotoSize]);
 
   // A personal photo, when picked, takes precedence over the curated
   // lookup — reuses the same {id, url} shape so every downstream use of
@@ -203,43 +185,6 @@ export default function QuoteCardsScreen() {
     ? { id: 'personal', url: personalPhotoUri }
     : quote ? resolveQuoteBackground(backgrounds, quote.background_photo_id) : null;
   const showEditor = !showPicker && !!background;
-  // The card-only override, when present, is what actually renders and
-  // gets shared/saved — the canonical quote.quote is untouched either way.
-  const displayQuoteText = quote?.card_quote_text ?? quote?.quote ?? '';
-  const words = splitIntoWords(displayQuoteText);
-  const hasCustomBreaks = !!quote?.card_line_breaks && quote.card_line_breaks.length > 0;
-  const customLines = hasCustomBreaks ? groupWordsIntoLines(words, quote!.card_line_breaks!) : null;
-  // While editing, lines are grouped from the live draft (editingBreaks) so
-  // the shape on screen updates the instant a word is tapped — this is the
-  // preview, there's no separate "Done" step to see the result.
-  const editingLinesGrouped = editingLines ? indexWordsByLine(words, Array.from(editingBreaks)) : null;
-  // Both the persisted custom-line layout and the live editing layout need
-  // each line to size to its own content instead of stretching to a shared
-  // box width, and during editing the box is also capped at the legacy
-  // auto-wrap width so a not-yet-broken line still wraps sensibly.
-  const useCenteredBox = hasCustomBreaks || editingLines;
-
-  // Position the draggable box once we know both the card's real
-  // dimensions and the text block's real measured size — using the
-  // quote's persisted fraction if it has one, otherwise a sensible
-  // default (centered, lower third). Deliberately keyed on quote?.id, not
-  // the whole quote object: chooseBackground mutates quote.background_photo_id
-  // on the same object, and re-running this on that change would reset
-  // the drag position every time the photo changes, which should persist
-  // independently. Re-running on textBlockSize changes (from a size, line-
-  // break, or any other change that affects the block's rendered
-  // dimensions) re-derives the top-left position from the unchanged
-  // center fraction, keeping the visual center anchored rather than
-  // letting it drift when the block's shape changes.
-  useEffect(() => {
-    if (!quote || cardSize.width === 0 || cardSize.height === 0) return;
-    if (textBlockSize.width === 0 || textBlockSize.height === 0) return;
-    const fx = quote.text_offset_x ?? defaultAnchorX;
-    const fy = quote.text_offset_y ?? DEFAULT_TEXT_POSITION.y;
-    translateX.value = fractionToPixels(fx, cardSize.width) - textBlockSize.width * boxAnchorX;
-    translateY.value = fractionToPixels(fy, cardSize.height) - textBlockSize.height / 2;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [quote?.id, cardSize.width, cardSize.height, textBlockSize.width, textBlockSize.height, boxAnchorX, defaultAnchorX]);
 
   useFocusEffect(
     useCallback(() => {
@@ -259,7 +204,7 @@ export default function QuoteCardsScreen() {
         const [{ data: quoteRow, error }, backgroundList] = await Promise.all([
           supabase
             .from('saved_quotes')
-            .select('id, quote, author, source, background_photo_id, text_offset_x, text_offset_y, text_color, text_size_scale, card_line_breaks, text_align, card_quote_text')
+            .select('id, quote, author, source, background_photo_id, text_color, text_size_scale, text_font, card_text_boxes')
             .eq('id', quoteId)
             .eq('user_id', session.user.id)
             .single(),
@@ -283,7 +228,7 @@ export default function QuoteCardsScreen() {
             photoTranslateX.value = 0;
             photoTranslateY.value = 0;
             photoScale.value = 1;
-            setShowTextEditPanel(false);
+            setEditingBoxId(null);
             setSelectedCategory(null);
             backgroundScrollX.current = 0;
           }
@@ -306,52 +251,13 @@ export default function QuoteCardsScreen() {
     setCardSize({ width: w, height: h });
   };
 
-  const handleTextBlockLayout = (e: LayoutChangeEvent) => {
-    const { width: w, height: h } = e.nativeEvent.layout;
-    setTextBlockSize({ width: w, height: h });
-  };
-
-  const persistPosition = (x: number, y: number) => {
-    if (!quote || cardSize.width === 0 || cardSize.height === 0) return;
-    if (textBlockSize.width === 0 || textBlockSize.height === 0) return;
-    const fx = pixelsToFraction(x + textBlockSize.width * boxAnchorX, cardSize.width);
-    const fy = pixelsToFraction(y + textBlockSize.height / 2, cardSize.height);
-    // Local state only (see the draft-formatting note above) — but still
-    // needs the functional setQuote form, not a stale closed-over `quote`,
-    // otherwise a later size/color/line-break change spreads a stale quote
-    // object (still showing the pre-drag offset) back into state, and the
-    // position-reset effect falls back to the default position, discarding
-    // wherever the user actually dragged the text to.
-    setQuote((prev) => (prev ? { ...prev, text_offset_x: fx, text_offset_y: fy } : prev));
-  };
-
-  const pan = Gesture.Pan()
-    .enabled(!editingLines)
-    .onStart(() => {
-      startX.value = translateX.value;
-      startY.value = translateY.value;
-    })
-    .onUpdate((e) => {
-      const maxX = Math.max(0, cardWidthShared.value - textBlockWidthShared.value);
-      const maxY = Math.max(0, cardHeightShared.value - textBlockHeightShared.value);
-      translateX.value = Math.min(maxX, Math.max(0, startX.value + e.translationX));
-      translateY.value = Math.min(maxY, Math.max(0, startY.value + e.translationY));
-    })
-    .onEnd(() => {
-      runOnJS(persistPosition)(translateX.value, translateY.value);
-    });
-
-  const animatedTextStyle = useAnimatedStyle(() => ({
-    transform: [{ translateX: translateX.value }, { translateY: translateY.value }],
-  }));
-
   const MAX_PHOTO_ZOOM = 4;
 
   // Bounds math is inlined here rather than calling the (tested, but
   // cross-module) computePhotoPanBounds/clamp from lib/photoTransform.ts
-  // — matching how the text-drag gesture above does its own clamp math
-  // inline, rather than risk a worklet imported from another file
-  // silently miscompiling/misbehaving on the UI thread with no error.
+  // — matching how the text-drag gesture in DraggableTextBox does its own
+  // clamp math inline, rather than risk a worklet imported from another
+  // file silently miscompiling/misbehaving on the UI thread with no error.
   const photoPan = Gesture.Pan()
     // Without a minimum distance, Pan can claim a stationary tap before
     // the double-tap gesture (raced against it below) gets a chance to
@@ -424,7 +330,7 @@ export default function QuoteCardsScreen() {
     ],
   }));
 
-  // Background, color, size, align, position, and line breaks are all
+  // Background, color, size, align, and every text box are all
   // draft-only — they only touch local state here. Nothing is written to
   // Supabase until the user actually commits (Save to Photos or Share, via
   // commitFormatting below), so navigating away from an in-progress attempt
@@ -432,9 +338,10 @@ export default function QuoteCardsScreen() {
   // the last truly-saved state fresh next time this screen is opened.
   const chooseBackground = (bg: QuoteBackground) => {
     if (!quote) return;
-    // A new photo invalidates the old formatting — position, line breaks,
-    // color, size, and alignment were all tailored to the previous photo's
-    // specific shape and don't carry any meaning on a different one. A
+    // A new photo invalidates the old positions — every box's spot was
+    // tailored to the previous photo's specific shape and doesn't carry
+    // any meaning on a different one. Typed wording survives, though:
+    // losing your photo isn't the same as losing what you wrote. A
     // previously-active personal photo counts as "changed" too, since
     // quote.background_photo_id is null while one is active.
     const changed = quote.background_photo_id !== bg.id;
@@ -447,12 +354,10 @@ export default function QuoteCardsScreen() {
       ...quote,
       background_photo_id: bg.id,
       ...(changed ? {
-        text_offset_x: null,
-        text_offset_y: null,
+        card_text_boxes: mergeBoxesForNewPhoto(quote.card_text_boxes),
         text_color: null,
         text_size_scale: null,
-        card_line_breaks: null,
-        text_align: null,
+        text_font: null,
       } : {}),
     });
     setShowPicker(false);
@@ -496,16 +401,14 @@ export default function QuoteCardsScreen() {
     photoTranslateY.value = 0;
     photoScale.value = 1;
     // Same formatting reset as chooseBackground — a personal photo is
-    // always a change of background, so this always resets.
+    // always a change of background, so this always resets positions.
     setQuote({
       ...quote,
       background_photo_id: null,
-      text_offset_x: null,
-      text_offset_y: null,
+      card_text_boxes: mergeBoxesForNewPhoto(quote.card_text_boxes),
       text_color: null,
       text_size_scale: null,
-      card_line_breaks: null,
-      text_align: null,
+      text_font: null,
     });
     setShowPicker(false);
     setImageLoaded(false);
@@ -521,105 +424,103 @@ export default function QuoteCardsScreen() {
     setQuote({ ...quote, text_size_scale: scale });
   };
 
-  const chooseTextAlign = (align: TextAlignValue) => {
+  const chooseTextFont = (font: string | null) => {
     if (!quote) return;
-    // A dragged x-position means something different under each alignment
-    // (the block's center vs. its left/right edge) — carrying the same raw
-    // fraction across a change in alignment reinterprets it under the new
-    // anchor and lands somewhere nonsensical (e.g. a block dragged to the
-    // left margin under Left, then switched to Center, ends up centered
-    // *on* the left margin instead of the screen). Clearing it lets the
-    // block snap to that alignment's own sensible starting position;
-    // vertical position is unaffected since alignment is horizontal-only.
-    setQuote({ ...quote, text_align: align, text_offset_x: null });
+    setQuote({ ...quote, text_font: font });
   };
 
-  const toggleLineEditing = () => {
-    if (editingLines) {
-      handleDoneEditingLines();
-    } else {
-      if (showTextEditPanel) handleDoneEditingText();
-      setBreaksState({ current: new Set(quote?.card_line_breaks ?? []), history: [] });
-      setShowTextStylePanel(false);
-      setEditingLines(true);
-    }
+  // Alignment is per-box, so this changes just the one box currently
+  // being edited, not the whole card.
+  const changeBoxAlign = (id: string, align: TextAlignValue) => {
+    setQuote((prev) => {
+      if (!prev) return prev;
+      const boxes = prev.card_text_boxes ?? deriveDefaultBoxes(prev);
+      // A dragged x-position means something different under each
+      // alignment (the box's center vs. its left/right edge) — carrying
+      // the same raw fraction across a change in alignment reinterprets
+      // it under the new anchor and lands somewhere nonsensical (e.g. a
+      // box dragged to the left margin under Left, then switched to
+      // Center, ends up centered *on* the left margin instead of the
+      // screen). Clearing this box's x position lets it snap to the new
+      // alignment's own sensible starting position; vertical position is
+      // unaffected since alignment is horizontal-only.
+      return {
+        ...prev,
+        card_text_boxes: boxes.map((b) => (b.id === id ? { ...b, align, offsetX: null } : b)),
+      };
+    });
   };
 
   const toggleTextStylePanel = () => {
-    if (!showTextStylePanel) {
-      if (editingLines) handleDoneEditingLines();
-      if (showTextEditPanel) handleDoneEditingText();
+    if (!showTextStylePanel && editingBoxId) {
+      finishEditingBox(editingBoxId);
     }
     setShowTextStylePanel((v) => !v);
   };
 
-  const toggleTextEditPanel = () => {
-    if (showTextEditPanel) {
-      handleDoneEditingText();
-      return;
-    }
-    if (editingLines) handleDoneEditingLines();
-    setEditingQuoteText(displayQuoteText);
+  // Materializes the derived default box(es) into real state the first
+  // time anything is touched, same laziness the old position fields had —
+  // untouched cards keep writing nothing to Supabase.
+  const startEditingBox = (id: string) => {
+    if (!quote) return;
+    setQuote((prev) => (prev && !prev.card_text_boxes ? { ...prev, card_text_boxes: deriveDefaultBoxes(prev) } : prev));
     setShowTextStylePanel(false);
-    setShowTextEditPanel(true);
+    setEditingBoxId(id);
   };
 
-  const resetCardText = () => {
-    if (!quote) return;
-    setEditingQuoteText(quote.quote);
+  const changeBoxText = (id: string, text: string) => {
+    setQuote((prev) => {
+      if (!prev) return prev;
+      const boxes = prev.card_text_boxes ?? deriveDefaultBoxes(prev);
+      return { ...prev, card_text_boxes: boxes.map((b) => (b.id === id ? { ...b, text } : b)) };
+    });
   };
 
-  const handleDoneEditingText = () => {
+  const persistBoxPosition = (id: string, offsetX: number, offsetY: number) => {
+    setQuote((prev) => {
+      if (!prev) return prev;
+      const boxes = prev.card_text_boxes ?? deriveDefaultBoxes(prev);
+      return { ...prev, card_text_boxes: boxes.map((b) => (b.id === id ? { ...b, offsetX, offsetY } : b)) };
+    });
+  };
+
+  const deleteBox = (id: string) => {
+    setQuote((prev) => {
+      if (!prev) return prev;
+      const boxes = prev.card_text_boxes ?? deriveDefaultBoxes(prev);
+      return { ...prev, card_text_boxes: boxes.filter((b) => b.id !== id) };
+    });
+    setEditingBoxId((current) => (current === id ? null : current));
+  };
+
+  // A box left empty when editing ends is just discarded rather than
+  // kept as an invisible, un-tappable ghost — matching how an empty text
+  // layer in Instagram/Canva simply disappears if you tap away without
+  // typing anything.
+  const finishEditingBox = (id: string) => {
+    setEditingBoxId((current) => (current === id ? null : current));
+    setQuote((prev) => {
+      if (!prev || !prev.card_text_boxes) return prev;
+      const box = prev.card_text_boxes.find((b) => b.id === id);
+      if (!box || box.text.trim().length > 0) return prev;
+      return { ...prev, card_text_boxes: prev.card_text_boxes.filter((b) => b.id !== id) };
+    });
+  };
+
+  const addTextBox = () => {
     if (!quote) return;
-    const trimmed = editingQuoteText.trim();
-    if (trimmed.length === 0) return;
-    // A break set is a list of word-indices into the previous wording —
-    // editing the text invalidates those indices outright, the same way
-    // picking a different background photo invalidates position/color/
-    // size/align (all tailored to something that just changed underneath
-    // them). Falls back to auto-wrap until the user re-breaks the new text.
+    const boxes = quote.card_text_boxes ?? deriveDefaultBoxes(quote);
+    const id = newBoxId();
+    // A concrete starting position, not null-falls-back-to-default — the
+    // default position is where the first box already sits, and stacking
+    // a brand new box exactly on top of it would look like nothing
+    // happened when the button was tapped.
     setQuote({
       ...quote,
-      card_quote_text: trimmed === quote.quote ? null : trimmed,
-      card_line_breaks: null,
+      card_text_boxes: [...boxes, { id, text: '', align: DEFAULT_TEXT_ALIGN, offsetX: null, offsetY: 0.5 }],
     });
-    setShowTextEditPanel(false);
-  };
-
-  // Routes every change to the current break set (a toggle or a Reset)
-  // through one place, updating it and its undo history together in a
-  // single setState call — that's what makes Undo work for both, not just
-  // individual word taps, without the two ever being able to desync.
-  const applyBreaksChange = (compute: (prev: Set<number>) => Set<number>) => {
-    setBreaksState((state) => ({
-      current: compute(state.current),
-      history: pushUndoState(state.history, state.current),
-    }));
-  };
-
-  const toggleBreak = (index: number) => {
-    applyBreaksChange((prev) => {
-      const next = new Set(prev);
-      if (next.has(index)) next.delete(index);
-      else next.add(index);
-      return next;
-    });
-  };
-
-  const handleUndoBreak = () => {
-    setBreaksState((state) => {
-      const popped = popUndoState(state.history);
-      if (!popped) return state;
-      return { current: popped.value, history: popped.history };
-    });
-  };
-
-  const handleDoneEditingLines = () => {
-    if (!quote) return;
-    const sorted = Array.from(editingBreaks).sort((a, b) => a - b);
-    const breaks = sorted.length > 0 ? sorted : null;
-    setQuote({ ...quote, card_line_breaks: breaks });
-    setEditingLines(false);
+    setShowTextStylePanel(false);
+    setEditingBoxId(id);
   };
 
   // The one place formatting actually gets written — called from Save to
@@ -629,18 +530,15 @@ export default function QuoteCardsScreen() {
     if (!quote) return;
     await supabase.from('saved_quotes').update({
       background_photo_id: quote.background_photo_id,
-      text_offset_x: quote.text_offset_x,
-      text_offset_y: quote.text_offset_y,
       text_color: quote.text_color,
       text_size_scale: quote.text_size_scale,
-      card_line_breaks: quote.card_line_breaks,
-      text_align: quote.text_align,
-      card_quote_text: quote.card_quote_text,
+      text_font: quote.text_font,
+      card_text_boxes: quote.card_text_boxes,
     }).eq('id', quote.id);
   };
 
   const handleShare = async () => {
-    if (!cardRef.current || sharing) return;
+    if (!cardRef.current || sharing || editingBoxId) return;
     setSharing(true);
     try {
       const isAvailable = await Sharing.isAvailableAsync();
@@ -659,7 +557,7 @@ export default function QuoteCardsScreen() {
   };
 
   const handleSaveToPhotos = async () => {
-    if (!cardRef.current || saving) return;
+    if (!cardRef.current || saving || editingBoxId) return;
     setSaving(true);
     try {
       // writeOnly: true — only ever need to add a photo, never read the
@@ -717,6 +615,8 @@ export default function QuoteCardsScreen() {
   const filteredBackgrounds = selectedCategory
     ? backgrounds.filter((bg) => bg.category === selectedCategory)
     : backgrounds;
+  const boxes = quote.card_text_boxes ?? deriveDefaultBoxes(quote);
+  const editingBox = editingBoxId ? boxes.find((b) => b.id === editingBoxId) ?? null : null;
 
   return (
     <View style={styles.container}>
@@ -726,13 +626,13 @@ export default function QuoteCardsScreen() {
             style={styles.backButtonInline}
             onPress={() => router.back()}
             accessibilityRole="button"
-            accessibilityLabel="Back to History"
+            accessibilityLabel="Select a new quote"
           >
             <IconSymbol name="chevron.left" size={16} color="#c9b97a" />
-            <Text style={styles.backButtonText}>History</Text>
+            <Text style={styles.backButtonText}>Select a new quote</Text>
           </TouchableOpacity>
 
-          <Text style={styles.pickerQuote}>&ldquo;{displayQuoteText}&rdquo;</Text>
+          <Text style={styles.pickerQuote}>&ldquo;{quote.quote}&rdquo;</Text>
           <Text style={styles.pickerAttribution}>— {quote.author}, {quote.source}</Text>
 
           <Text style={styles.pickerLabel}>Choose a background</Text>
@@ -872,97 +772,47 @@ export default function QuoteCardsScreen() {
             )}
             {/* Purely decorative — pointerEvents="none" so it doesn't sit
                 in the way of the photo pan/pinch gesture layered beneath it
-                (the text block's gesture is layered above this, unaffected). */}
+                (the text boxes' gestures are layered above this, unaffected). */}
             <LinearGradient
               colors={['transparent', 'rgba(0,0,0,0.5)']}
               style={StyleSheet.absoluteFill}
               pointerEvents="none"
             />
 
-            {cardSize.width > 0 && (
-              <GestureDetector gesture={pan}>
-                <Animated.View
-                  style={[
-                    styles.textBox,
-                    // The same maxWidth cap has to apply whether this is
-                    // the live editor or the final saved render — a group
-                    // of words the user never explicitly broke wraps on
-                    // its own either way, and it needs to wrap at the same
-                    // width both times, or what was WYSIWYG during editing
-                    // silently stops matching the card once you exit.
-                    !useCenteredBox ? { width: legacyMaxWidth } : { alignItems: boxAlignItems, maxWidth: customLineMaxWidth },
-                    animatedTextStyle,
-                  ]}
-                  onLayout={handleTextBlockLayout}
-                >
-                  {editingLines ? (
-                    editingLinesGrouped!.map((line, i) => (
-                      <View key={i} style={[styles.editableLineRow, { justifyContent: boxAlignItems }]}>
-                        {line.map(({ word, index }) => {
-                          const isLastOverall = index === words.length - 1;
-                          const hasBreak = editingBreaks.has(index);
-                          const display = `${index === 0 ? '“' : ''}${word}${isLastOverall ? '”' : ''}`;
-                          const wordNode = (
-                            <Text
-                              style={[
-                                styles.quoteText,
-                                { color: textColor, fontSize: 22 * sizeScale, lineHeight: 30 * sizeScale },
-                              ]}
-                            >
-                              {display}{!isLastOverall ? ' ' : ''}
-                            </Text>
-                          );
-                          if (isLastOverall) {
-                            return <React.Fragment key={index}>{wordNode}</React.Fragment>;
-                          }
-                          return (
-                            <TouchableOpacity
-                              key={index}
-                              onPress={() => toggleBreak(index)}
-                              accessibilityRole="button"
-                              accessibilityState={{ selected: hasBreak }}
-                              accessibilityLabel={hasBreak ? `Remove line break after ${word}` : `Add line break after ${word}`}
-                            >
-                              {wordNode}
-                            </TouchableOpacity>
-                          );
-                        })}
-                      </View>
-                    ))
-                  ) : hasCustomBreaks ? (
-                    customLines!.map((line, i) => {
-                      const isFirst = i === 0;
-                      const isLast = i === customLines!.length - 1;
-                      return (
-                        <Text
-                          key={i}
-                          style={[
-                            styles.quoteText,
-                            // alignItems on the box only positions each
-                            // Text's own bounding box relative to its
-                            // siblings — a group the user left unbroken
-                            // that's still wide enough to wrap on its own
-                            // needs textAlign too, or that internal wrap
-                            // silently defaults to RN's left-aligned norm
-                            // regardless of the chosen alignment.
-                            { color: textColor, fontSize: 22 * sizeScale, lineHeight: 30 * sizeScale, textAlign },
-                          ]}
-                        >
-                          {isFirst ? '“' : ''}{line}{isLast ? '”' : ''}
-                        </Text>
-                      );
-                    })
-                  ) : (
-                    <Text style={[styles.quoteText, { color: textColor, fontSize: 22 * sizeScale, lineHeight: 30 * sizeScale, textAlign }]}>
-                      &ldquo;{displayQuoteText}&rdquo;
-                    </Text>
-                  )}
-                  <Text style={[styles.attribution, { color: textColor, fontSize: 13 * sizeScale }]}>
-                    — {quote.author}, {quote.source}
-                  </Text>
-                </Animated.View>
-              </GestureDetector>
+            {/* Tapping empty card area while a box is being edited commits
+                and exits that edit, matching Instagram/Canva's
+                tap-outside-to-finish behavior. Only present while editing,
+                so it never intercepts a tap meant for the photo gesture
+                underneath the rest of the time. */}
+            {editingBoxId && (
+              <Pressable
+                style={StyleSheet.absoluteFill}
+                onPress={() => finishEditingBox(editingBoxId)}
+                accessibilityElementsHidden
+                importantForAccessibility="no-hide-descendants"
+              />
             )}
+
+            {cardSize.width > 0 && boxes.map((box) => (
+              <DraggableTextBox
+                key={box.id}
+                box={box}
+                cardWidth={cardSize.width}
+                cardHeight={cardSize.height}
+                maxWidth={boxMaxWidth}
+                defaultOffsetY={DEFAULT_TEXT_POSITION.y}
+                isEditing={editingBoxId === box.id}
+                textColor={textColor}
+                fontSize={22 * sizeScale}
+                lineHeight={30 * sizeScale}
+                fontFamily={fontOption.fontFamily}
+                fontStyle={fontOption.fontStyle}
+                fontWeight={fontOption.fontWeight}
+                onStartEditing={startEditingBox}
+                onChangeText={changeBoxText}
+                onPersistPosition={persistBoxPosition}
+              />
+            ))}
           </View>
 
           {!personalPhotoUri && filteredBackgrounds.length > 1 && (
@@ -990,10 +840,10 @@ export default function QuoteCardsScreen() {
             style={[styles.backButtonFloating, { top: insets.top + 12 }]}
             onPress={() => router.back()}
             accessibilityRole="button"
-            accessibilityLabel="Back to History"
+            accessibilityLabel="Select a new quote"
           >
             <IconSymbol name="chevron.left" size={16} color="#c9b97a" />
-            <Text style={styles.backButtonText}>History</Text>
+            <Text style={styles.backButtonText}>Select a new quote</Text>
           </TouchableOpacity>
 
           {personalPhotoUri && (
@@ -1002,83 +852,77 @@ export default function QuoteCardsScreen() {
             </View>
           )}
 
-          {editingLines && (
-            <View style={[styles.lineEditBar, { bottom: insets.bottom - 8 }]}>
-              <Text style={styles.lineEditBarText}>{'Tap on a word to add a line break\nTap again to re-join'}</Text>
-              <View style={styles.lineEditActions}>
+          {editingBoxId && editingBox && (
+            <View style={[styles.textBoxEditBar, { bottom: insets.bottom - 8 }]}>
+              <View style={styles.textBoxEditActions}>
+                {TEXT_ALIGN_OPTIONS.map((option) => {
+                  const selected = editingBox.align === option.value;
+                  const iconName =
+                    option.value === 'left' ? 'text.alignleft' :
+                    option.value === 'right' ? 'text.alignright' :
+                    'text.aligncenter';
+                  return (
+                    <TouchableOpacity
+                      key={option.value}
+                      onPress={() => changeBoxAlign(editingBoxId, option.value)}
+                      hitSlop={8}
+                      accessibilityRole="radio"
+                      accessibilityState={{ selected }}
+                      accessibilityLabel={`Align this text ${option.label}`}
+                    >
+                      <IconSymbol name={iconName} size={16} color={selected ? '#f0ead6' : '#a89f88'} />
+                    </TouchableOpacity>
+                  );
+                })}
                 <TouchableOpacity
-                  onPress={handleUndoBreak}
-                  disabled={breakHistory.length === 0}
+                  onPress={() => deleteBox(editingBoxId)}
                   hitSlop={8}
                   accessibilityRole="button"
-                  accessibilityLabel="Undo last line break change"
-                  accessibilityState={{ disabled: breakHistory.length === 0 }}
+                  accessibilityLabel="Delete this text"
                 >
-                  <IconSymbol
-                    name="arrow.uturn.backward"
-                    size={16}
-                    color={breakHistory.length === 0 ? '#4a4540' : '#c9b97a'}
-                  />
+                  <IconSymbol name="xmark.circle.fill" size={18} color="#c9b97a" />
                 </TouchableOpacity>
                 <TouchableOpacity
-                  onPress={() => applyBreaksChange(() => new Set())}
+                  onPress={() => finishEditingBox(editingBoxId)}
                   hitSlop={8}
                   accessibilityRole="button"
-                  accessibilityLabel="Reset to automatic line wrapping"
+                  accessibilityLabel="Done editing text"
                 >
-                  <Text style={styles.resetText}>Reset</Text>
+                  <Text style={styles.resetText}>Done</Text>
                 </TouchableOpacity>
               </View>
             </View>
           )}
 
-          {showTextEditPanel && (
-            <KeyboardAvoidingView
-              behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-              style={styles.textEditPanelWrapper}
-              pointerEvents="box-none"
-            >
-              <View style={[styles.textEditPanel, { marginBottom: insets.bottom + 52 }]}>
-                <Text style={styles.textStylePanelLabel}>Edit Quote Text</Text>
-                <TextInput
-                  style={styles.textEditInput}
-                  value={editingQuoteText}
-                  onChangeText={setEditingQuoteText}
-                  multiline
-                  autoFocus
-                  placeholder="Quote text"
-                  placeholderTextColor="#6a6050"
-                />
-                <View style={styles.textEditActions}>
-                  <TouchableOpacity
-                    onPress={resetCardText}
-                    accessibilityRole="button"
-                    accessibilityLabel="Reset to original wording"
-                  >
-                    <Text style={styles.resetText}>Reset to Original</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    onPress={handleDoneEditingText}
-                    disabled={editingQuoteText.trim().length === 0}
-                    accessibilityRole="button"
-                    accessibilityLabel="Save quote text changes"
-                  >
-                    <Text
-                      style={[
-                        styles.textEditDoneText,
-                        editingQuoteText.trim().length === 0 && styles.textEditDoneTextDisabled,
-                      ]}
-                    >
-                      Done
-                    </Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-            </KeyboardAvoidingView>
-          )}
-
           {showTextStylePanel && (
             <View style={[styles.textStylePanel, { bottom: insets.bottom + 108 }]}>
+              <Text style={styles.textStylePanelLabel}>Font</Text>
+              <View style={styles.fontRow}>
+                {TEXT_FONT_OPTIONS.map((option) => {
+                  const selected = (quote.text_font ?? null) === option.value;
+                  return (
+                    <TouchableOpacity
+                      key={option.label}
+                      onPress={() => chooseTextFont(option.value)}
+                      accessibilityRole="radio"
+                      accessibilityState={{ selected }}
+                      accessibilityLabel={`Font ${option.label}`}
+                      style={[styles.sizeOption, selected && styles.sizeOptionSelected]}
+                    >
+                      <Text
+                        style={[
+                          styles.sizeOptionText,
+                          selected && styles.sizeOptionTextSelected,
+                          { fontFamily: option.fontFamily, fontStyle: option.fontStyle, fontWeight: option.fontWeight },
+                        ]}
+                      >
+                        {option.label}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+
               <Text style={styles.textStylePanelLabel}>Color</Text>
               <View style={styles.swatchRow}>
                 {TEXT_COLOR_OPTIONS.map((option) => {
@@ -1119,29 +963,6 @@ export default function QuoteCardsScreen() {
                   );
                 })}
               </View>
-
-              <Text style={styles.textStylePanelLabel}>Align</Text>
-              <View style={styles.alignRow}>
-                {TEXT_ALIGN_OPTIONS.map((option) => {
-                  const selected = textAlign === option.value;
-                  const iconName =
-                    option.value === 'left' ? 'text.alignleft' :
-                    option.value === 'right' ? 'text.alignright' :
-                    'text.aligncenter';
-                  return (
-                    <TouchableOpacity
-                      key={option.value}
-                      onPress={() => chooseTextAlign(option.value)}
-                      accessibilityRole="radio"
-                      accessibilityState={{ selected }}
-                      accessibilityLabel={`Align text ${option.label}`}
-                      style={[styles.alignOption, selected && styles.alignOptionSelected]}
-                    >
-                      <IconSymbol name={iconName} size={18} color={selected ? '#f0ead6' : '#a89f88'} />
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
             </View>
           )}
 
@@ -1163,34 +984,26 @@ export default function QuoteCardsScreen() {
               <IconSymbol name="textformat" size={18} color="#c9b97a" />
             </TouchableOpacity>
             <TouchableOpacity
-              style={[styles.actionButton, showTextEditPanel && styles.actionButtonActive]}
-              onPress={toggleTextEditPanel}
+              style={styles.actionButton}
+              onPress={addTextBox}
               accessibilityRole="button"
-              accessibilityLabel={showTextEditPanel ? 'Done editing quote text' : 'Edit quote text'}
+              accessibilityLabel="Add text"
             >
-              <IconSymbol name="square.and.pencil" size={18} color="#c9b97a" />
+              <IconSymbol name="plus" size={18} color="#c9b97a" />
             </TouchableOpacity>
             <TouchableOpacity
-              style={[styles.actionButton, editingLines && styles.actionButtonActive]}
-              onPress={toggleLineEditing}
-              accessibilityRole="button"
-              accessibilityLabel={editingLines ? 'Done editing line breaks' : 'Edit line breaks'}
-            >
-              <IconSymbol name="arrow.turn.down.left" size={18} color="#c9b97a" />
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.actionButton, (!imageLoaded || saving) && styles.actionButtonDisabled]}
+              style={[styles.actionButton, (!imageLoaded || saving || !!editingBoxId) && styles.actionButtonDisabled]}
               onPress={handleSaveToPhotos}
-              disabled={!imageLoaded || saving}
+              disabled={!imageLoaded || saving || !!editingBoxId}
               accessibilityRole="button"
               accessibilityLabel="Save this quote card to Photos"
             >
               <IconSymbol name="square.and.arrow.down" size={18} color={imageLoaded ? '#c9b97a' : '#6a6050'} />
             </TouchableOpacity>
             <TouchableOpacity
-              style={[styles.actionButton, (!imageLoaded || sharing) && styles.actionButtonDisabled]}
+              style={[styles.actionButton, (!imageLoaded || sharing || !!editingBoxId) && styles.actionButtonDisabled]}
               onPress={handleShare}
-              disabled={!imageLoaded || sharing}
+              disabled={!imageLoaded || sharing || !!editingBoxId}
               accessibilityRole="button"
               accessibilityLabel="Share this quote card"
             >
@@ -1328,24 +1141,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#0f0e0c',
     overflow: 'hidden',
   },
-  textBox: {
-    position: 'absolute',
-    left: 0,
-    top: 0,
-  },
-  quoteText: {
-    fontSize: 22,
-    lineHeight: 30,
-    color: '#f0ead6',
-    fontStyle: 'italic',
-    fontWeight: '600',
-  },
-  attribution: {
-    fontSize: 13,
-    color: '#c9b97a',
-    letterSpacing: 0.5,
-    marginTop: 10,
-  },
   backButtonFloating: {
     position: 'absolute',
     left: 16,
@@ -1412,45 +1207,6 @@ const styles = StyleSheet.create({
   actionButtonActive: {
     backgroundColor: 'rgba(201,185,122,0.25)',
   },
-  textEditPanelWrapper: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    justifyContent: 'flex-end',
-  },
-  textEditPanel: {
-    marginHorizontal: 16,
-    backgroundColor: 'rgba(15,14,12,0.95)',
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: '#4a4540',
-    padding: 16,
-    gap: 10,
-  },
-  textEditInput: {
-    minHeight: 100,
-    maxHeight: 180,
-    fontSize: 16,
-    lineHeight: 22,
-    color: '#f0ead6',
-    fontStyle: 'italic',
-    textAlignVertical: 'top',
-  },
-  textEditActions: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  textEditDoneText: {
-    fontSize: 14,
-    color: '#c9b97a',
-    fontWeight: '600',
-  },
-  textEditDoneTextDisabled: {
-    color: '#4a4540',
-  },
   textStylePanel: {
     position: 'absolute',
     left: 16,
@@ -1470,7 +1226,14 @@ const styles = StyleSheet.create({
   },
   swatchRow: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: 12,
+    marginBottom: 8,
+  },
+  fontRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
     marginBottom: 8,
   },
   swatch: {
@@ -1507,47 +1270,19 @@ const styles = StyleSheet.create({
     color: '#f0ead6',
     fontWeight: '600',
   },
-  alignRow: {
-    flexDirection: 'row',
-    gap: 10,
-  },
-  alignOption: {
-    width: 40,
-    height: 40,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: '#4a4540',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  alignOptionSelected: {
-    borderColor: '#c9b97a',
-    backgroundColor: 'rgba(201,185,122,0.15)',
-  },
-  editableLineRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'center',
-  },
-  lineEditBar: {
+  textBoxEditBar: {
     position: 'absolute',
     left: 16,
     right: 16,
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: 'rgba(15,14,12,0.75)',
     paddingHorizontal: 14,
     paddingVertical: 10,
     borderRadius: 12,
   },
-  lineEditBarText: {
-    flexShrink: 1,
-    marginRight: 12,
-    fontSize: 12,
-    color: '#c9b97a',
-  },
-  lineEditActions: {
+  textBoxEditActions: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 16,

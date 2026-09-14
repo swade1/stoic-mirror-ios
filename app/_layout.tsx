@@ -12,6 +12,10 @@ import Purchases from 'react-native-purchases';
 import * as Notifications from 'expo-notifications';
 import { syncNotificationSchedule, isReminderNotificationId } from '@/lib/notifications';
 import { FontScaleProvider } from '@/contexts/FontScaleContext';
+import { PlayfairDisplay_600SemiBold_Italic } from '@expo-google-fonts/playfair-display';
+import { Cormorant_600SemiBold_Italic } from '@expo-google-fonts/cormorant';
+import { Cinzel_600SemiBold } from '@expo-google-fonts/cinzel';
+import { LibreBaskerville_600SemiBold_Italic } from '@expo-google-fonts/libre-baskerville';
 
 const DarkTheme: Theme = {
   dark: true,
@@ -33,8 +37,14 @@ const DarkTheme: Theme = {
 
 
 export default function RootLayout() {
+  // The quote-card font picker (lib/textStyleOptions.ts) references these
+  // exact export names as fontFamily values — keep the two in sync.
   const [loaded] = useFonts({
     SpaceMono: require('../assets/fonts/SpaceMono-Regular.ttf'),
+    PlayfairDisplay_600SemiBold_Italic,
+    Cormorant_600SemiBold_Italic,
+    Cinzel_600SemiBold,
+    LibreBaskerville_600SemiBold_Italic,
   });
   const [isSignedIn, setIsSignedIn] = useState<boolean | null>(null);
   // Tracks the previous signed-in state so we can tell a genuine sign-in
