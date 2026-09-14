@@ -11,7 +11,10 @@ import { supabase } from '@/lib/supabase';
 import { IconSymbol } from '@/components/ui/IconSymbol';
 
 const SLIDE_DURATION_MS = 7000;
-const FADE_DURATION_MS = 300;
+// Fade out, then fade in — each phase gets this long, so the full
+// transition is roughly double. Slower/more deliberate than a typical UI
+// transition on purpose, to match a calmer, more contemplative feel.
+const FADE_DURATION_MS = 900;
 
 export default function SlideshowPlayScreen() {
   const router = useRouter();
