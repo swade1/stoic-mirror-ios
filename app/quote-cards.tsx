@@ -23,7 +23,12 @@ import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, { useSharedValue, useAnimatedStyle, runOnJS } from 'react-native-reanimated';
 import { supabase } from '@/lib/supabase';
 import { IconSymbol } from '@/components/ui/IconSymbol';
-import { listQuoteBackgrounds, resolveQuoteBackground, type QuoteBackground } from '@/lib/quoteBackgrounds';
+import {
+  listQuoteBackgrounds,
+  resolveQuoteBackground,
+  getBackgroundCategories,
+  type QuoteBackground,
+} from '@/lib/quoteBackgrounds';
 import { DEFAULT_TEXT_POSITION, pixelsToFraction, fractionToPixels } from '@/lib/textPosition';
 import {
   TEXT_COLOR_OPTIONS,
@@ -72,6 +77,9 @@ export default function QuoteCardsScreen() {
   const [quote, setQuote] = useState<SavedQuote | null>(null);
   const [notFound, setNotFound] = useState(false);
   const [backgrounds, setBackgrounds] = useState<QuoteBackground[]>([]);
+  // null = "All". Reset whenever the quote reloads, matching how the
+  // picker itself always reopens fresh rather than resuming a filter.
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [showPicker, setShowPicker] = useState(true);
   // A photo picked from the user's own library. Deliberately session-only
@@ -113,6 +121,14 @@ export default function QuoteCardsScreen() {
   const [textBlockSize, setTextBlockSize] = useState({ width: 0, height: 0 });
 
   const cardRef = useRef<View>(null);
+  // Remembers horizontal scroll position in the background thumbnail
+  // strip so reopening the picker (e.g. via the "change background" icon
+  // after trying a photo) returns to where the user was browsing, instead
+  // of jumping back to the first thumbnail every time. A ref rather than
+  // state since it only needs to survive remounts, never trigger a
+  // re-render on its own.
+  const backgroundScrollRef = useRef<ScrollView>(null);
+  const backgroundScrollX = useRef(0);
 
   const textColor = quote?.text_color ?? DEFAULT_TEXT_COLOR;
   const sizeScale = quote?.text_size_scale ?? DEFAULT_TEXT_SIZE_SCALE;
@@ -268,6 +284,8 @@ export default function QuoteCardsScreen() {
             photoTranslateY.value = 0;
             photoScale.value = 1;
             setShowTextEditPanel(false);
+            setSelectedCategory(null);
+            backgroundScrollX.current = 0;
           }
           setLoading(false);
         }
@@ -439,6 +457,19 @@ export default function QuoteCardsScreen() {
     });
     setShowPicker(false);
     setImageLoaded(false);
+  };
+
+  // Cycles to the next/previous background within whatever category is
+  // currently filtered (filteredBackgrounds, defined below) — lets the
+  // user quickly compare photos without reopening the picker each time.
+  // Wraps around at either end rather than stopping, since the point is
+  // fast back-and-forth comparison, not a bounded list.
+  const advanceBackground = (direction: 1 | -1) => {
+    if (!quote || filteredBackgrounds.length === 0) return;
+    const currentIndex = filteredBackgrounds.findIndex((bg) => bg.id === quote.background_photo_id);
+    const baseIndex = currentIndex === -1 ? 0 : currentIndex;
+    const nextIndex = (baseIndex + direction + filteredBackgrounds.length) % filteredBackgrounds.length;
+    chooseBackground(filteredBackgrounds[nextIndex]);
   };
 
   const choosePersonalPhoto = async () => {
@@ -682,6 +713,11 @@ export default function QuoteCardsScreen() {
     );
   }
 
+  const backgroundCategories = getBackgroundCategories(backgrounds);
+  const filteredBackgrounds = selectedCategory
+    ? backgrounds.filter((bg) => bg.category === selectedCategory)
+    : backgrounds;
+
   return (
     <View style={styles.container}>
       {!showEditor ? (
@@ -700,10 +736,47 @@ export default function QuoteCardsScreen() {
           <Text style={styles.pickerAttribution}>— {quote.author}, {quote.source}</Text>
 
           <Text style={styles.pickerLabel}>Choose a background</Text>
+          {backgroundCategories.length > 0 && (
+            <View style={styles.categoryChipContent}>
+              {['all', ...backgroundCategories].map((cat) => {
+                const value = cat === 'all' ? null : cat;
+                const selected = selectedCategory === value;
+                const label = cat === 'all' ? 'All' : cat.charAt(0).toUpperCase() + cat.slice(1);
+                return (
+                  <TouchableOpacity
+                    key={cat}
+                    onPress={() => {
+                      // A deliberate category change starts that category
+                      // fresh — only returning to an unchanged filter
+                      // (via the picker closing and reopening) restores a
+                      // remembered position.
+                      backgroundScrollX.current = 0;
+                      backgroundScrollRef.current?.scrollTo({ x: 0, animated: true });
+                      setSelectedCategory(value);
+                    }}
+                    accessibilityRole="radio"
+                    accessibilityState={{ selected }}
+                    accessibilityLabel={`Filter backgrounds: ${label}`}
+                    style={[styles.categoryChip, selected && styles.categoryChipSelected]}
+                  >
+                    <Text style={[styles.categoryChipText, selected && styles.categoryChipTextSelected]}>
+                      {label}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          )}
           <ScrollView
+            ref={backgroundScrollRef}
             horizontal
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={styles.pickerStripContent}
+            onScroll={(e) => { backgroundScrollX.current = e.nativeEvent.contentOffset.x; }}
+            scrollEventThrottle={16}
+            onContentSizeChange={() => {
+              backgroundScrollRef.current?.scrollTo({ x: backgroundScrollX.current, animated: false });
+            }}
           >
             <TouchableOpacity
               onPress={choosePersonalPhoto}
@@ -714,12 +787,14 @@ export default function QuoteCardsScreen() {
               <IconSymbol name="photo.badge.plus" size={28} color="#c9b97a" />
               <Text style={styles.personalPhotoTileText}>Your Photo</Text>
             </TouchableOpacity>
-            {backgrounds.length === 0 ? (
+            {filteredBackgrounds.length === 0 ? (
               <Text style={styles.pickerEmptyText}>
-                No background photos yet — add some to the quote-backgrounds bucket.
+                {backgrounds.length === 0
+                  ? 'No background photos yet — add some to the quote-backgrounds bucket.'
+                  : 'No backgrounds in this category yet.'}
               </Text>
             ) : (
-              backgrounds.map((bg) => {
+              filteredBackgrounds.map((bg) => {
                 const selected = quote.background_photo_id === bg.id;
                 return (
                   <TouchableOpacity
@@ -889,6 +964,27 @@ export default function QuoteCardsScreen() {
               </GestureDetector>
             )}
           </View>
+
+          {!personalPhotoUri && filteredBackgrounds.length > 1 && (
+            <>
+              <TouchableOpacity
+                style={styles.backgroundNavButton}
+                onPress={() => advanceBackground(-1)}
+                accessibilityRole="button"
+                accessibilityLabel="Previous background photo"
+              >
+                <IconSymbol name="chevron.left" size={20} color="#c9b97a" />
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.backgroundNavButton, styles.backgroundNavButtonRight]}
+                onPress={() => advanceBackground(1)}
+                accessibilityRole="button"
+                accessibilityLabel="Next background photo"
+              >
+                <IconSymbol name="chevron.right" size={20} color="#c9b97a" />
+              </TouchableOpacity>
+            </>
+          )}
 
           <TouchableOpacity
             style={[styles.backButtonFloating, { top: insets.top + 12 }]}
@@ -1166,6 +1262,31 @@ const styles = StyleSheet.create({
     gap: 12,
     paddingBottom: 24,
   },
+  categoryChipContent: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    paddingBottom: 12,
+  },
+  categoryChip: {
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#4a4540',
+  },
+  categoryChipSelected: {
+    borderColor: '#c9b97a',
+    backgroundColor: 'rgba(201,185,122,0.15)',
+  },
+  categoryChipText: {
+    fontSize: 13,
+    color: '#a89f88',
+  },
+  categoryChipTextSelected: {
+    color: '#f0ead6',
+    fontWeight: '600',
+  },
   pickerEmptyText: {
     fontSize: 13,
     color: '#a89f88',
@@ -1235,6 +1356,22 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 20,
+  },
+  backgroundNavButton: {
+    position: 'absolute',
+    left: 12,
+    top: '50%',
+    marginTop: -20,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(15,14,12,0.5)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  backgroundNavButtonRight: {
+    left: undefined,
+    right: 12,
   },
   backButtonText: {
     fontSize: 14,
