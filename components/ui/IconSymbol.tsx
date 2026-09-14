@@ -34,6 +34,7 @@ const MAPPING = {
   'xmark.circle.fill': 'cancel',
   'xmark': 'close',
   'pause.fill': 'pause',
+  'gearshape': 'settings',
 } as IconMapping;
 
 /**
