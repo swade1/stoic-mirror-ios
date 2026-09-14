@@ -74,11 +74,16 @@ export default function SlideshowPhotosScreen() {
   const addPhotos = async () => {
     setAdding(true);
     try {
-      // Read permission (not just the write-only grant Save to Photos
-      // uses) — needed for the picker to hand back a stable assetId at
-      // all, and for MediaLibrary to resolve that asset again in a later
-      // session, which is the whole premise of this feature.
-      await MediaLibrary.requestPermissionsAsync();
+      // Deliberately not requesting MediaLibrary read permission here.
+      // Doing so on every "Add Photos" tap re-triggers iOS's photo-access
+      // flow, and once the app already has Limited Access granted from an
+      // earlier add, that can surface the system's "manage your selected
+      // photos" screen instead of a fresh picker — which shows everything
+      // ever granted as pre-selected, so confirming it hands back every
+      // photo instead of just the new ones (the bug this comment is
+      // replacing a fix for). The personal-photo picker in the quote card
+      // editor uses this same API with no permission call and has never
+      // shown the problem.
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ['images'],
         allowsMultipleSelection: true,
@@ -108,7 +113,14 @@ export default function SlideshowPhotosScreen() {
         sort_order: nextOrder++,
       }));
 
-      const { error } = await supabase.from('slideshow_photos').insert(rows);
+      // upsert + ignoreDuplicates rather than a plain insert: the table
+      // has a unique (user_id, asset_id) constraint, and if the client-
+      // side existingIds check above ever misses a case (a stale photos
+      // list, a race between two rapid adds), this makes re-adding an
+      // already-present photo a harmless no-op instead of a thrown error.
+      const { error } = await supabase
+        .from('slideshow_photos')
+        .upsert(rows, { onConflict: 'user_id,asset_id', ignoreDuplicates: true });
       if (error) throw error;
       await load();
     } catch (err) {
