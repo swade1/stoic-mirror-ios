@@ -1,4 +1,4 @@
-import { listAmbientTracks, deriveTrackName } from './ambientTracks';
+import { listAmbientTracks, deriveTrackName, withCacheBust } from './ambientTracks';
 
 const mockList = jest.fn();
 const mockGetPublicUrl = jest.fn();
@@ -45,11 +45,11 @@ describe('listAmbientTracks', () => {
     }));
   });
 
-  it('lists bucket contents as sorted {id, url, name} entries', async () => {
+  it('lists bucket contents as sorted {id, url, name} entries, with the URL cache-busted by updated_at', async () => {
     mockList.mockResolvedValue({
       data: [
-        { id: '2', name: 'rain-on-leaves.mp3' },
-        { id: '1', name: 'evening-birdsong.mp3' },
+        { id: '2', name: 'rain-on-leaves.mp3', updated_at: '2026-01-02T00:00:00.000Z' },
+        { id: '1', name: 'evening-birdsong.mp3', updated_at: '2026-01-01T00:00:00.000Z' },
       ],
       error: null,
     });
@@ -57,8 +57,16 @@ describe('listAmbientTracks', () => {
     const result = await listAmbientTracks();
 
     expect(result).toEqual([
-      { id: 'evening-birdsong.mp3', url: 'https://cdn.example.com/evening-birdsong.mp3', name: 'Evening Birdsong' },
-      { id: 'rain-on-leaves.mp3', url: 'https://cdn.example.com/rain-on-leaves.mp3', name: 'Rain On Leaves' },
+      {
+        id: 'evening-birdsong.mp3',
+        url: 'https://cdn.example.com/evening-birdsong.mp3?v=2026-01-01T00%3A00%3A00.000Z',
+        name: 'Evening Birdsong',
+      },
+      {
+        id: 'rain-on-leaves.mp3',
+        url: 'https://cdn.example.com/rain-on-leaves.mp3?v=2026-01-02T00%3A00%3A00.000Z',
+        name: 'Rain On Leaves',
+      },
     ]);
   });
 
@@ -66,14 +74,16 @@ describe('listAmbientTracks', () => {
     mockList.mockResolvedValue({
       data: [
         { id: null, name: '.emptyFolderPlaceholder' },
-        { id: '1', name: 'rain.mp3' },
+        { id: '1', name: 'rain.mp3', updated_at: '2026-01-01T00:00:00.000Z' },
       ],
       error: null,
     });
 
     const result = await listAmbientTracks();
 
-    expect(result).toEqual([{ id: 'rain.mp3', url: 'https://cdn.example.com/rain.mp3', name: 'Rain' }]);
+    expect(result).toEqual([
+      { id: 'rain.mp3', url: 'https://cdn.example.com/rain.mp3?v=2026-01-01T00%3A00%3A00.000Z', name: 'Rain' },
+    ]);
   });
 
   it('throws when the Storage API returns an error', async () => {
@@ -98,5 +108,24 @@ describe('listAmbientTracks', () => {
     expect(mockList).toHaveBeenNthCalledWith(1, '', { limit: 100, offset: 0 });
     expect(mockList).toHaveBeenNthCalledWith(2, '', { limit: 100, offset: 100 });
     expect(result).toHaveLength(101);
+  });
+});
+
+describe('withCacheBust', () => {
+  it('appends the timestamp as a URL-encoded query param', () => {
+    expect(withCacheBust('https://cdn.example.com/rain.mp3', '2026-01-01T00:00:00.000Z')).toBe(
+      'https://cdn.example.com/rain.mp3?v=2026-01-01T00%3A00%3A00.000Z'
+    );
+  });
+
+  it('returns the URL unchanged when there is no timestamp', () => {
+    expect(withCacheBust('https://cdn.example.com/rain.mp3', null)).toBe('https://cdn.example.com/rain.mp3');
+    expect(withCacheBust('https://cdn.example.com/rain.mp3', undefined)).toBe('https://cdn.example.com/rain.mp3');
+  });
+
+  it('gives two different timestamps two different URLs', () => {
+    const first = withCacheBust('https://cdn.example.com/rain.mp3', '2026-01-01T00:00:00.000Z');
+    const second = withCacheBust('https://cdn.example.com/rain.mp3', '2026-01-02T00:00:00.000Z');
+    expect(first).not.toBe(second);
   });
 });

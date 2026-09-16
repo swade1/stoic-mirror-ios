@@ -13,6 +13,19 @@ export interface AmbientTrack {
   name: string;
 }
 
+// Appends a cache-busting query param derived from the file's last-modified
+// timestamp — same fix, same reason, as quoteBackgrounds.ts's withCacheBust:
+// a Storage public URL never changes when a file is overwritten under the
+// same name (e.g. re-normalizing a track's loudness), so any cache keyed
+// purely on URL — a CDN in front of Storage, or the app's own audio/image
+// cache — has no signal there's anything new to fetch. Folding updated_at
+// into the URL means the URL itself changes whenever the file's content
+// does, which is the only reliable way to invalidate those caches.
+export function withCacheBust(url: string, updatedAt: string | null | undefined): string {
+  if (!updatedAt) return url;
+  return `${url}?v=${encodeURIComponent(updatedAt)}`;
+}
+
 // Turns a filename like "rain-on-leaves.mp3" into a display name like
 // "Rain On Leaves" — no category convention needed here the way
 // quote-backgrounds has one, this bucket isn't expected to need filtering.
@@ -45,7 +58,7 @@ export async function listAmbientTracks(): Promise<AmbientTrack[]> {
     .filter((file) => file.id !== null) // exclude the bucket's own placeholder folder entries
     .map((file) => ({
       id: file.name,
-      url: supabase.storage.from(BUCKET).getPublicUrl(file.name).data.publicUrl,
+      url: withCacheBust(supabase.storage.from(BUCKET).getPublicUrl(file.name).data.publicUrl, file.updated_at),
       name: deriveTrackName(file.name),
     }))
     .sort((a, b) => a.name.localeCompare(b.name));
