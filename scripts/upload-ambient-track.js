@@ -5,6 +5,10 @@
 //
 //   node scripts/upload-ambient-track.js "ready/Rain On Leaves Loop.mp3" "Rain On Leaves Loop.mp3"
 //
+// Add --replace to overwrite an existing file at that name (e.g. re-upload
+// after re-normalizing a track already in the bucket) — upload fails on a
+// name collision by default, so this has to be opt-in.
+//
 // Reads SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY from .env.
 const fs = require('fs');
 const path = require('path');
@@ -20,9 +24,11 @@ function loadEnv() {
   return env;
 }
 
-const [, , filePath, destName] = process.argv;
+const args = process.argv.slice(2).filter((a) => a !== '--replace');
+const replace = process.argv.includes('--replace');
+const [filePath, destName] = args;
 if (!filePath || !destName) {
-  console.error('Usage: node scripts/upload-ambient-track.js <local file path> <destination filename>');
+  console.error('Usage: node scripts/upload-ambient-track.js <local file path> <destination filename> [--replace]');
   process.exit(1);
 }
 
@@ -39,7 +45,7 @@ const buffer = fs.readFileSync(filePath);
 
 supabase.storage
   .from('ambient-tracks')
-  .upload(destName, buffer, { contentType: 'audio/mpeg', upsert: false })
+  .upload(destName, buffer, { contentType: 'audio/mpeg', upsert: replace })
   .then(({ data, error }) => {
     if (error) {
       console.error('UPLOAD_ERROR', error.message);

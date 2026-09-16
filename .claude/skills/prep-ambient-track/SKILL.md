@@ -1,6 +1,6 @@
 ---
 name: prep-ambient-track
-description: Trim a source audio file to a given loop start/end, bake in a fade, and upload it to the ambient-tracks Supabase bucket as a new slideshow ambient track. Use when Susan (the app's creator) provides a source audio file plus a loop start and end time — typically found with pymusiclooper — and wants it added as an ambient background track for the slideshow.
+description: Trim a source audio file to a given loop start/end, loudness-normalize it, bake in a fade, and upload it to the ambient-tracks Supabase bucket as a new slideshow ambient track. Use when Susan (the app's creator) provides a source audio file plus a loop start and end time — typically found with pymusiclooper — and wants it added as an ambient background track for the slideshow.
 ---
 
 # Prep Ambient Track
@@ -27,7 +27,7 @@ The app just does `player.loop = true` on the whole uploaded file ([app/slidesho
    ffmpeg -i "<source file>" -ss <loop start> -to <loop end> "<scratch>/trimmed.mp3"
    ```
 
-2. **Bake in a fade** using the repo's existing prep script, which adds a short fade-in/out (10% of clip length, capped 0.15–2s) so even a near-perfect loop point doesn't click at the seam:
+2. **Normalize loudness and bake in a fade** using the repo's existing prep script. It two-pass normalizes to -18 LUFS integrated / -1.5 dBTP true peak (so this track sits at the same perceived volume as every other ambient track regardless of how loud its source was mastered), then adds a short fade-in/out (10% of clip length, capped 0.15–2s) so even a near-perfect loop point doesn't click at the seam. Requires `jq` in addition to `ffmpeg`.
    ```bash
    scripts/prep-ambient-track.sh "<scratch>/trimmed.mp3" "<scratch>/<Track Display Name>.mp3"
    ```
@@ -36,7 +36,7 @@ The app just does `player.loop = true` on the whole uploaded file ([app/slidesho
    ```bash
    node scripts/upload-ambient-track.js "<scratch>/<Track Display Name>.mp3" "<Track Display Name>.mp3"
    ```
-   This script reads `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` from `.env` itself — no need to source them first.
+   This script reads `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` from `.env` itself — no need to source them first. Add `--replace` if a track of that exact name is already in the bucket and this is meant to overwrite it (e.g. re-normalizing an existing track) — without it, upload fails on the name collision rather than risk silently overwriting something.
 
 4. **Verify** the upload landed, via the Supabase MCP `execute_sql` tool against project `fazvbphkzlutghzpvsli`:
    ```sql
