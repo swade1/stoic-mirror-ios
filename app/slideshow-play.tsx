@@ -71,12 +71,27 @@ export default function SlideshowPlayScreen() {
   // opens, then fades out after CONTROLS_IDLE_MS of no interaction so they
   // stop sitting on top of any text near the top of the image.
   const [controlsVisible, setControlsVisible] = useState(true);
+  // Two fixed Image slots used only for the 'slide' transition, swapped
+  // back and forth rather than having one Image's source track
+  // currentIndex directly. A slot's uri is only ever changed while it's
+  // off-screen (see goTo) — never while it's the visible one — so there's
+  // no moment where a slot's position and its photo can disagree. An
+  // earlier version kept a single "base" layer whose source followed
+  // currentIndex and reset its position at the same time; that requires a
+  // React state update (the source swap) and a Reanimated shared-value
+  // write (the position reset) to land in the same frame, and they don't
+  // — the shared value reaches the UI thread first, so the base layer
+  // would briefly sit at rest still showing the outgoing photo, i.e. the
+  // previous slide flashing back.
+  const [slotUris, setSlotUris] = useState<[string | null, string | null]>([null, null]);
+  const [activeSlot, setActiveSlot] = useState<0 | 1>(0);
 
   const player = useAudioPlayer(null);
 
   const opacity = useSharedValue(1);
   const controlsOpacity = useSharedValue(1);
-  const translateX = useSharedValue(0);
+  const slotTranslateX0 = useSharedValue(0);
+  const slotTranslateX1 = useSharedValue(0);
   // Fill of the current slide's progress segment, 0 to 1.
   const progress = useSharedValue(0);
   // How much of the current slide's duration is left, in ms — the single
@@ -159,15 +174,16 @@ export default function SlideshowPlayScreen() {
           setAmbientTrackUrl(resolvedTrackUrl);
           setAmbientVolume(resolvedVolume);
           setSleepMinutes(null);
-          // TEMP DEBUG — remove once the black-slide bug is diagnosed.
-          console.log(`[SLIDESHOW] load resolved ${resolved.length} rows -> ${resolved.filter((u) => !!u).length} valid URIs:`, resolved);
-          setUris(resolved.filter((u): u is string => !!u));
+          const validUris = resolved.filter((u): u is string => !!u);
+          setUris(validUris);
           setCurrentIndex(0);
+          setSlotUris([validUris[0] ?? null, null]);
+          setActiveSlot(0);
           setPaused(false);
           transitioningRef.current = false;
-          pendingSlideDirectionRef.current = null;
           opacity.value = 1;
-          translateX.value = 0;
+          slotTranslateX0.value = 0;
+          slotTranslateX1.value = 0;
           progress.value = 0;
           remainingMsRef.current = resolvedDuration * 1000;
           setLoading(false);
@@ -215,74 +231,55 @@ export default function SlideshowPlayScreen() {
   // second time — the slide it lands on never gets its full display
   // duration, which looks exactly like "every other slide flashes by".
   const transitioningRef = useRef(false);
-  // Set the moment a slide-out finishes, read by the effect below once the
-  // new photo has actually committed — see that effect's comment for why
-  // the slide-in can't just be started here, inside the worklet callback.
-  const pendingSlideDirectionRef = useRef<1 | -1 | null>(null);
 
+  // Slide: the currently-active slot slides out while the other (inactive)
+  // slot — already loaded with the next photo and positioned off-screen —
+  // slides in, in lockstep, over one continuous animation. Both photos are
+  // prefetched up front (see the Image.prefetch effect above), so there's
+  // no load-gate to wait on: this is what actually fixes the black-slide
+  // bug, since the earlier version slid the current photo fully off-screen
+  // first and only then waited for the next photo's onLoad before sliding
+  // it in. Fade is untouched — it never had that gap since the same single
+  // Image just crossfades in place.
   const goTo = useCallback((nextIndex: number, direction: 1 | -1) => {
-    // TEMP DEBUG — remove once the black-slide bug is diagnosed.
-    console.log(`[SLIDESHOW] goTo called: nextIndex=${nextIndex} direction=${direction} transition=${transition} alreadyTransitioning=${transitioningRef.current}`);
     if (transitioningRef.current) return;
     transitioningRef.current = true;
     let advanced = false;
     // Runs on the JS thread (it's only ever invoked via runOnJS below) —
     // setting a plain ref's .current here is safe in a way it would not
     // be from inside the worklet itself.
-    const finishAdvance = () => {
+    const finishAdvance = (settledSlot?: 0 | 1) => {
       if (advanced) return;
       advanced = true;
       transitioningRef.current = false;
-      if (transition === 'slide') pendingSlideDirectionRef.current = direction;
-      // TEMP DEBUG
-      console.log(`[SLIDESHOW] finishAdvance: setting currentIndex=${nextIndex} uri=${uris[nextIndex]}`);
+      if (settledSlot !== undefined) setActiveSlot(settledSlot);
       advanceToIndex(nextIndex);
+      progress.value = 0;
     };
     if (transition === 'slide') {
-      translateX.value = withTiming(-direction * width, { duration: TRANSITION_PHASE_MS }, (finished) => {
-        if (finished) {
-          runOnJS(finishAdvance)();
-        }
+      const incomingSlot: 0 | 1 = activeSlot === 0 ? 1 : 0;
+      const outgoingX = activeSlot === 0 ? slotTranslateX0 : slotTranslateX1;
+      const incomingX = incomingSlot === 0 ? slotTranslateX0 : slotTranslateX1;
+      setSlotUris((prev) => {
+        const next: [string | null, string | null] = [...prev];
+        next[incomingSlot] = uris[nextIndex];
+        return next;
+      });
+      incomingX.value = direction * width;
+      incomingX.value = withTiming(0, { duration: TRANSITION_PHASE_MS * 2 });
+      outgoingX.value = withTiming(-direction * width, { duration: TRANSITION_PHASE_MS * 2 }, (finished) => {
+        if (finished) runOnJS(finishAdvance)(incomingSlot);
       });
     } else {
       opacity.value = withTiming(0, { duration: TRANSITION_PHASE_MS }, (finished) => {
         if (finished) {
           runOnJS(finishAdvance)();
-          progress.value = 0;
           opacity.value = withTiming(1, { duration: TRANSITION_PHASE_MS });
         }
       });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [transition, width, advanceToIndex]);
-
-  // TEMP DEBUG — remove once the black-slide bug is diagnosed.
-  useEffect(() => {
-    console.log(`[SLIDESHOW] currentIndex effect fired: currentIndex=${currentIndex} uri=${uris[currentIndex]} pendingSlideDirection=${pendingSlideDirectionRef.current}`);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentIndex]);
-
-  // Starts the slide-in half of the 'slide' transition. Gated on the
-  // Image's own onLoad/onError — not on currentIndex changing — because
-  // React committing the new `uri` prop only means expo-image has been
-  // *asked* to show the new photo, not that the native view has actually
-  // finished rendering it yet (that's still an async bridge round-trip,
-  // even for a prefetched/cached image). Starting the position animation
-  // any earlier than "the view confirms it's showing something" risks
-  // revealing the view while it's still blank, which reads as a black
-  // slide. onError is wired to the same handler as a safety net, so a
-  // failed load doesn't leave the slideshow stuck mid-transition forever.
-  const handleImageReady = useCallback(() => {
-    // TEMP DEBUG — remove once the black-slide bug is diagnosed.
-    console.log(`[SLIDESHOW] handleImageReady fired: currentIndex=${currentIndex} pendingSlideDirection=${pendingSlideDirectionRef.current}`);
-    const direction = pendingSlideDirectionRef.current;
-    if (direction === null) return;
-    pendingSlideDirectionRef.current = null;
-    translateX.value = direction * width;
-    translateX.value = withTiming(0, { duration: TRANSITION_PHASE_MS });
-    progress.value = 0;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [width]);
+  }, [transition, advanceToIndex, activeSlot, uris, width]);
 
   const advance = useCallback((direction: 1 | -1) => {
     if (uris.length === 0) return;
@@ -535,9 +532,16 @@ export default function SlideshowPlayScreen() {
 
   const gesture = Gesture.Race(pan, tap);
 
-  const animatedStyle = useAnimatedStyle(() => ({
+  const fadeAnimatedStyle = useAnimatedStyle(() => ({
     opacity: opacity.value,
-    transform: [{ translateX: translateX.value }],
+  }));
+
+  const slot0AnimatedStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: slotTranslateX0.value }],
+  }));
+
+  const slot1AnimatedStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: slotTranslateX1.value }],
   }));
 
   const controlsAnimatedStyle = useAnimatedStyle(() => ({
@@ -573,15 +577,20 @@ export default function SlideshowPlayScreen() {
   return (
     <GestureDetector gesture={gesture}>
       <View style={styles.container}>
-        <Animated.View style={[StyleSheet.absoluteFill, animatedStyle]}>
-          <Image
-            source={{ uri: uris[currentIndex] }}
-            style={StyleSheet.absoluteFill}
-            contentFit="cover"
-            onLoad={handleImageReady}
-            onError={handleImageReady}
-          />
-        </Animated.View>
+        {transition === 'slide' ? (
+          <>
+            <Animated.View style={[StyleSheet.absoluteFill, slot0AnimatedStyle]}>
+              {slotUris[0] && <Image source={{ uri: slotUris[0] }} style={StyleSheet.absoluteFill} contentFit="cover" />}
+            </Animated.View>
+            <Animated.View style={[StyleSheet.absoluteFill, slot1AnimatedStyle]}>
+              {slotUris[1] && <Image source={{ uri: slotUris[1] }} style={StyleSheet.absoluteFill} contentFit="cover" />}
+            </Animated.View>
+          </>
+        ) : (
+          <Animated.View style={[StyleSheet.absoluteFill, fadeAnimatedStyle]}>
+            <Image source={{ uri: uris[currentIndex] }} style={StyleSheet.absoluteFill} contentFit="cover" />
+          </Animated.View>
+        )}
 
         <Animated.View
           style={[StyleSheet.absoluteFill, controlsAnimatedStyle]}
