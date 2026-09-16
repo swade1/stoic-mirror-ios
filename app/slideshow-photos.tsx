@@ -1,5 +1,5 @@
 import React, { useCallback, useState } from 'react';
-import { useFocusEffect, useRouter } from 'expo-router';
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { View, Text, StyleSheet, TouchableOpacity, FlatList, Alert, ActivityIndicator } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
@@ -7,6 +7,7 @@ import * as ImagePicker from 'expo-image-picker';
 import * as MediaLibrary from 'expo-media-library';
 import { supabase } from '@/lib/supabase';
 import { IconSymbol } from '@/components/ui/IconSymbol';
+import { listAmbientTracks, type AmbientTrack } from '@/lib/ambientTracks';
 
 interface SlideshowPhoto {
   id: string;
@@ -16,6 +17,7 @@ interface SlideshowPhoto {
 }
 
 type SlideshowTransition = 'fade' | 'slide';
+type AmbientVolume = 'low' | 'medium' | 'high';
 
 const COLUMN_COUNT = 3;
 const DEFAULT_DURATION_SECONDS = 7;
@@ -24,18 +26,29 @@ const TRANSITION_OPTIONS: { label: string; value: SlideshowTransition }[] = [
   { label: 'Fade', value: 'fade' },
   { label: 'Slide', value: 'slide' },
 ];
+const VOLUME_OPTIONS: { label: string; value: AmbientVolume }[] = [
+  { label: 'Low', value: 'low' },
+  { label: 'Medium', value: 'medium' },
+  { label: 'High', value: 'high' },
+];
 
 export default function SlideshowPhotosScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { collectionId } = useLocalSearchParams<{ collectionId: string }>();
+  const [collectionName, setCollectionName] = useState('Slideshow');
   const [photos, setPhotos] = useState<SlideshowPhoto[]>([]);
   const [loading, setLoading] = useState(true);
   const [adding, setAdding] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [durationSeconds, setDurationSeconds] = useState(DEFAULT_DURATION_SECONDS);
   const [transition, setTransition] = useState<SlideshowTransition>('fade');
+  const [tracks, setTracks] = useState<AmbientTrack[]>([]);
+  const [ambientTrackId, setAmbientTrackId] = useState<string | null>(null);
+  const [ambientVolume, setAmbientVolume] = useState<AmbientVolume>('medium');
 
   const load = useCallback(async () => {
+    if (!collectionId) return;
     setLoading(true);
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) {
@@ -44,22 +57,29 @@ export default function SlideshowPhotosScreen() {
       return;
     }
 
-    const [{ data, error }, { data: profileRow }] = await Promise.all([
+    const [{ data, error }, { data: collectionRow }, tracksResult] = await Promise.all([
       supabase
         .from('slideshow_photos')
         .select('id, asset_id, sort_order')
         .eq('user_id', session.user.id)
+        .eq('collection_id', collectionId)
         .order('sort_order', { ascending: true }),
       supabase
-        .from('profiles')
-        .select('slideshow_duration_seconds, slideshow_transition')
-        .eq('id', session.user.id)
+        .from('slideshow_collections')
+        .select('name, slideshow_duration_seconds, slideshow_transition, ambient_track_id, ambient_volume')
+        .eq('id', collectionId)
         .single(),
+      listAmbientTracks().catch(() => [] as AmbientTrack[]),
     ]);
 
-    if (profileRow) {
-      setDurationSeconds(profileRow.slideshow_duration_seconds ?? DEFAULT_DURATION_SECONDS);
-      setTransition(profileRow.slideshow_transition === 'slide' ? 'slide' : 'fade');
+    setTracks(tracksResult);
+
+    if (collectionRow) {
+      setCollectionName(collectionRow.name);
+      setDurationSeconds(collectionRow.slideshow_duration_seconds ?? DEFAULT_DURATION_SECONDS);
+      setTransition(collectionRow.slideshow_transition === 'slide' ? 'slide' : 'fade');
+      setAmbientTrackId(collectionRow.ambient_track_id ?? null);
+      setAmbientVolume(collectionRow.ambient_volume === 'low' || collectionRow.ambient_volume === 'high' ? collectionRow.ambient_volume : 'medium');
     }
 
     if (error || !data) {
@@ -90,11 +110,12 @@ export default function SlideshowPhotosScreen() {
 
     setPhotos(resolved.filter((p): p is SlideshowPhoto => !!p.uri));
     setLoading(false);
-  }, []);
+  }, [collectionId]);
 
   useFocusEffect(useCallback(() => { load(); }, [load]));
 
   const addPhotos = async () => {
+    if (!collectionId) return;
     setAdding(true);
     try {
       // Deliberately not requesting MediaLibrary read permission here.
@@ -132,18 +153,21 @@ export default function SlideshowPhotosScreen() {
       let nextOrder = photos.length > 0 ? Math.max(...photos.map((p) => p.sortOrder)) + 1 : 0;
       const rows = newAssets.map((a) => ({
         user_id: session.user.id,
+        collection_id: collectionId,
         asset_id: a.assetId as string,
         sort_order: nextOrder++,
       }));
 
       // upsert + ignoreDuplicates rather than a plain insert: the table
-      // has a unique (user_id, asset_id) constraint, and if the client-
-      // side existingIds check above ever misses a case (a stale photos
-      // list, a race between two rapid adds), this makes re-adding an
+      // has a unique (user_id, collection_id, asset_id) constraint — the
+      // same photo can belong to more than one collection, just not
+      // appear twice within the same one — and if the client-side
+      // existingIds check above ever misses a case (a stale photos list,
+      // a race between two rapid adds), this makes re-adding an
       // already-present photo a harmless no-op instead of a thrown error.
       const { error } = await supabase
         .from('slideshow_photos')
-        .upsert(rows, { onConflict: 'user_id,asset_id', ignoreDuplicates: true });
+        .upsert(rows, { onConflict: 'user_id,collection_id,asset_id', ignoreDuplicates: true });
       if (error) throw error;
       await load();
     } catch (err) {
@@ -170,19 +194,35 @@ export default function SlideshowPhotosScreen() {
 
   // Both write straight through — unlike the quote-card editor's
   // formatting, there's no expensive capture step to defer a commit
-  // past, so there's nothing draft-only to gain by staging these.
+  // past, so there's nothing draft-only to gain by staging these. Settings
+  // live on the collection itself, not the user's profile, since the
+  // whole point of separate collections is that each can be paced/styled
+  // differently.
   const chooseDuration = async (seconds: number) => {
+    if (!collectionId) return;
     setDurationSeconds(seconds);
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) return;
-    await supabase.from('profiles').update({ slideshow_duration_seconds: seconds }).eq('id', session.user.id);
+    await supabase.from('slideshow_collections').update({ slideshow_duration_seconds: seconds }).eq('id', collectionId);
   };
 
   const chooseTransition = async (value: SlideshowTransition) => {
+    if (!collectionId) return;
     setTransition(value);
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) return;
-    await supabase.from('profiles').update({ slideshow_transition: value }).eq('id', session.user.id);
+    await supabase.from('slideshow_collections').update({ slideshow_transition: value }).eq('id', collectionId);
+  };
+
+  // Selecting "None" (id null) is how volume becomes moot — there's no
+  // separate off state for volume itself, it's just unused until a real
+  // track is chosen again.
+  const chooseAmbientTrack = async (trackId: string | null) => {
+    if (!collectionId) return;
+    setAmbientTrackId(trackId);
+    await supabase.from('slideshow_collections').update({ ambient_track_id: trackId }).eq('id', collectionId);
+  };
+
+  const chooseAmbientVolume = async (value: AmbientVolume) => {
+    if (!collectionId) return;
+    setAmbientVolume(value);
+    await supabase.from('slideshow_collections').update({ ambient_volume: value }).eq('id', collectionId);
   };
 
   return (
@@ -191,11 +231,11 @@ export default function SlideshowPhotosScreen() {
         <TouchableOpacity
           onPress={() => router.back()}
           accessibilityRole="button"
-          accessibilityLabel="Back to History"
+          accessibilityLabel="Back to Slideshows"
         >
           <IconSymbol name="chevron.left" size={16} color="#c9b97a" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Slideshow</Text>
+        <Text style={styles.headerTitle} numberOfLines={1}>{collectionName}</Text>
         <View style={styles.headerActions}>
           <TouchableOpacity
             onPress={() => setShowSettings((v) => !v)}
@@ -205,7 +245,7 @@ export default function SlideshowPhotosScreen() {
             <IconSymbol name="gearshape" size={20} color={showSettings ? '#f0ead6' : '#c9b97a'} />
           </TouchableOpacity>
           <TouchableOpacity
-            onPress={() => router.push('/slideshow-play')}
+            onPress={() => router.push({ pathname: '/slideshow-play', params: { collectionId } })}
             disabled={photos.length === 0}
             accessibilityRole="button"
             accessibilityLabel="Play slideshow"
@@ -252,6 +292,54 @@ export default function SlideshowPhotosScreen() {
               );
             })}
           </View>
+
+          <Text style={styles.settingsLabel}>Ambient Music</Text>
+          <View style={styles.chipRow}>
+            <TouchableOpacity
+              onPress={() => chooseAmbientTrack(null)}
+              accessibilityRole="radio"
+              accessibilityState={{ selected: ambientTrackId === null }}
+              style={[styles.chip, ambientTrackId === null && styles.chipSelected]}
+            >
+              <Text style={[styles.chipText, ambientTrackId === null && styles.chipTextSelected]}>None</Text>
+            </TouchableOpacity>
+            {tracks.map((track) => {
+              const selected = ambientTrackId === track.id;
+              return (
+                <TouchableOpacity
+                  key={track.id}
+                  onPress={() => chooseAmbientTrack(track.id)}
+                  accessibilityRole="radio"
+                  accessibilityState={{ selected }}
+                  style={[styles.chip, selected && styles.chipSelected]}
+                >
+                  <Text style={[styles.chipText, selected && styles.chipTextSelected]}>{track.name}</Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+
+          {ambientTrackId !== null && (
+            <>
+              <Text style={styles.settingsLabel}>Volume</Text>
+              <View style={styles.chipRow}>
+                {VOLUME_OPTIONS.map((option) => {
+                  const selected = ambientVolume === option.value;
+                  return (
+                    <TouchableOpacity
+                      key={option.value}
+                      onPress={() => chooseAmbientVolume(option.value)}
+                      accessibilityRole="radio"
+                      accessibilityState={{ selected }}
+                      style={[styles.chip, selected && styles.chipSelected]}
+                    >
+                      <Text style={[styles.chipText, selected && styles.chipTextSelected]}>{option.label}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </>
+          )}
         </View>
       )}
 

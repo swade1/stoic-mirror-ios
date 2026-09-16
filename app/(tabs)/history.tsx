@@ -172,7 +172,7 @@ export default function HistoryScreen() {
             <IconSymbol name="textformat.size" size={20} color="#c9b97a" />
           </TouchableOpacity>
           <TouchableOpacity
-            onPress={() => router.push('/slideshow-photos')}
+            onPress={() => router.push('/slideshow-collections')}
             accessibilityRole="button"
             accessibilityLabel="Slideshow"
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
@@ -504,6 +504,7 @@ const styles = StyleSheet.create({
     flex: 1,
     color: '#f0ead6',
     fontSize: 15,
+    lineHeight: 20,
   },
   searchResults: {
     fontSize: 12,

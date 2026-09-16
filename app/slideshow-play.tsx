@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { useFocusEffect, useRouter } from 'expo-router';
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { View, Text, StyleSheet, TouchableOpacity, Alert, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
@@ -15,21 +15,37 @@ import Animated, {
   cancelAnimation,
   Easing,
 } from 'react-native-reanimated';
+import { useAudioPlayer } from 'expo-audio';
 import { supabase } from '@/lib/supabase';
 import { IconSymbol } from '@/components/ui/IconSymbol';
+import { listAmbientTracks, type AmbientTrack } from '@/lib/ambientTracks';
 
 type SlideshowTransition = 'fade' | 'slide';
+type AmbientVolume = 'low' | 'medium' | 'high';
 
 const DEFAULT_DURATION_SECONDS = 7;
 // Fade out, then fade in (or slide out, then slide in) — each phase gets
 // this long, so the full transition is roughly double. Slower/more
 // deliberate than a typical UI transition on purpose, to match a calmer,
-// more contemplative feel.
+// more contemplative feel. Also reused as the ambient-music fade-out
+// duration on exit, for the same unhurried pacing.
 const TRANSITION_PHASE_MS = 900;
+// Kept deliberately subdued at every level — this is background
+// ambience, never meant to compete with the visual/text experience.
+const VOLUME_GAIN: Record<AmbientVolume, number> = { low: 0.15, medium: 0.35, high: 0.6 };
+const SLEEP_TIMER_OPTIONS_MIN = [5, 10, 15, 30];
+// How long the controls (progress bar, share/timer/close icons) stay
+// visible after the last interaction before fading out — long enough not
+// to feel twitchy, matching the app's generally unhurried pacing, but
+// short enough that they're out of the way of the image/text most of the
+// time a slide is just sitting there being read.
+const CONTROLS_IDLE_MS = 4000;
+const CONTROLS_FADE_MS = 500;
 
 export default function SlideshowPlayScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { collectionId } = useLocalSearchParams<{ collectionId: string }>();
   const { width } = useWindowDimensions();
   // Keeps the screen awake for the life of this component — a slideshow
   // is meant to be watched hands-off, and the phone would otherwise
@@ -42,8 +58,24 @@ export default function SlideshowPlayScreen() {
   const [paused, setPaused] = useState(false);
   const [durationSeconds, setDurationSeconds] = useState(DEFAULT_DURATION_SECONDS);
   const [transition, setTransition] = useState<SlideshowTransition>('fade');
+  const [ambientTrackUrl, setAmbientTrackUrl] = useState<string | null>(null);
+  const [ambientVolume, setAmbientVolume] = useState<AmbientVolume>('medium');
+  // Session-only — never persisted, always starts back at Off. "How long
+  // do I want to watch right now" is a fresh choice each sitting, not a
+  // trait of the collection the way duration/transition/music are.
+  const [sleepMinutes, setSleepMinutes] = useState<number | null>(null);
+  const [sleepRemainingLabel, setSleepRemainingLabel] = useState<string | null>(null);
+  const [showSleepPanel, setShowSleepPanel] = useState(false);
+  // Whether the progress bar / share / timer / close controls are showing.
+  // Defaults visible so the affordances are obvious the moment the screen
+  // opens, then fades out after CONTROLS_IDLE_MS of no interaction so they
+  // stop sitting on top of any text near the top of the image.
+  const [controlsVisible, setControlsVisible] = useState(true);
+
+  const player = useAudioPlayer(null);
 
   const opacity = useSharedValue(1);
+  const controlsOpacity = useSharedValue(1);
   const translateX = useSharedValue(0);
   // Fill of the current slide's progress segment, 0 to 1.
   const progress = useSharedValue(0);
@@ -52,40 +84,69 @@ export default function SlideshowPlayScreen() {
   // fill read from, so pausing freezes them in lockstep (the fill
   // visually promises exactly when the next slide will actually appear,
   // not an approximation) and resuming continues rather than restarting.
+  // Written in exactly two places: advanceToIndex resets it to a full
+  // duration on every slide change, and the pause-banking effect below
+  // decrements it. Nothing else may touch it — see that effect's comment
+  // for why an earlier version that also decremented it from the timer
+  // effect's cleanup corrupted every other slide's duration.
   const remainingMsRef = useRef(DEFAULT_DURATION_SECONDS * 1000);
+  // When the current timer/animation run actually started, so the
+  // pause-banking effect can compute how much of it was really spent.
+  const startedAtRef = useRef(0);
 
   useFocusEffect(
     useCallback(() => {
       let cancelled = false;
 
       const load = async () => {
+        if (!collectionId) { setLoading(false); return; }
         setLoading(true);
         const { data: { session } } = await supabase.auth.getSession();
         if (!session || cancelled) { setLoading(false); return; }
 
-        const [{ data: photoRows, error }, { data: profileRow }] = await Promise.all([
+        const [{ data: photoRows, error }, { data: collectionRow }, ambientTracks] = await Promise.all([
           supabase
             .from('slideshow_photos')
             .select('asset_id')
             .eq('user_id', session.user.id)
+            .eq('collection_id', collectionId)
             .order('sort_order', { ascending: true }),
           supabase
-            .from('profiles')
-            .select('slideshow_duration_seconds, slideshow_transition')
-            .eq('id', session.user.id)
+            .from('slideshow_collections')
+            .select('slideshow_duration_seconds, slideshow_transition, ambient_track_id, ambient_volume')
+            .eq('id', collectionId)
             .single(),
+          listAmbientTracks().catch(() => [] as AmbientTrack[]),
         ]);
 
         if (error || !photoRows || cancelled) { setLoading(false); return; }
 
-        const resolvedDuration = profileRow?.slideshow_duration_seconds ?? DEFAULT_DURATION_SECONDS;
-        const resolvedTransition: SlideshowTransition = profileRow?.slideshow_transition === 'slide' ? 'slide' : 'fade';
+        const resolvedDuration = collectionRow?.slideshow_duration_seconds ?? DEFAULT_DURATION_SECONDS;
+        const resolvedTransition: SlideshowTransition = collectionRow?.slideshow_transition === 'slide' ? 'slide' : 'fade';
+        // If the selected track was since removed from the bucket, this
+        // just quietly resolves to null — a stale content-catalog
+        // reference isn't user data, so it's left alone rather than
+        // auto-clearing the collection's setting or erroring.
+        const resolvedTrackUrl = collectionRow?.ambient_track_id
+          ? ambientTracks.find((t) => t.id === collectionRow.ambient_track_id)?.url ?? null
+          : null;
+        const resolvedVolume: AmbientVolume =
+          collectionRow?.ambient_volume === 'low' || collectionRow?.ambient_volume === 'high'
+            ? collectionRow.ambient_volume
+            : 'medium';
 
         const resolved = await Promise.all(
           photoRows.map(async (row) => {
             try {
               const info = await MediaLibrary.getAssetInfoAsync(row.asset_id);
-              return info?.localUri ?? info?.uri ?? null;
+              // localUri only — info.uri (the ph:// asset-library reference
+              // some iCloud-only photos fall back to when they haven't
+              // finished downloading locally) isn't something expo-image
+              // can actually render, and a failed render just shows the
+              // screen's near-black background through, i.e. a blank slide.
+              // Skipping it here is the same treatment a thrown error
+              // already gets below.
+              return info?.localUri ?? null;
             } catch {
               return null;
             }
@@ -95,9 +156,16 @@ export default function SlideshowPlayScreen() {
         if (!cancelled) {
           setDurationSeconds(resolvedDuration);
           setTransition(resolvedTransition);
+          setAmbientTrackUrl(resolvedTrackUrl);
+          setAmbientVolume(resolvedVolume);
+          setSleepMinutes(null);
+          // TEMP DEBUG — remove once the black-slide bug is diagnosed.
+          console.log(`[SLIDESHOW] load resolved ${resolved.length} rows -> ${resolved.filter((u) => !!u).length} valid URIs:`, resolved);
           setUris(resolved.filter((u): u is string => !!u));
           setCurrentIndex(0);
           setPaused(false);
+          transitioningRef.current = false;
+          pendingSlideDirectionRef.current = null;
           opacity.value = 1;
           translateX.value = 0;
           progress.value = 0;
@@ -109,40 +177,112 @@ export default function SlideshowPlayScreen() {
       load();
       return () => { cancelled = true; };
       // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [])
+    }, [collectionId])
   );
 
-  // Resets the countdown for whichever slide just became current —
-  // called from the UI thread via runOnJS at the exact moment a
-  // transition (auto or manual) finishes, so it's correct regardless of
-  // what triggered the change.
-  const resetCountdown = useCallback(() => {
+  // Warms expo-image's cache for the whole collection up front. Without
+  // this, swapping the single Image element's source.uri mid-transition
+  // can briefly show a blank frame while the new photo decodes — which
+  // reads as a black slide, since the container behind it is near-black.
+  // Collections here are curated card sets (small), so prefetching all of
+  // them at once is cheap and means no slide is ever decoding on demand.
+  useEffect(() => {
+    if (uris.length === 0) return;
+    Image.prefetch(uris).catch(() => {});
+  }, [uris]);
+
+  // Advances to a new slide and resets its countdown in one JS-thread
+  // call, not two separate runOnJS calls — setCurrentIndex can trigger
+  // React's re-render (and the timer effect's cleanup, which reads
+  // remainingMsRef) before a *second*, independently-scheduled runOnJS
+  // call actually runs, so a standalone "reset the ref" call raced the
+  // state update: every other slide, the cleanup read the ref before it
+  // had been reset, computed a negative remaining time, clamped to 0,
+  // and the next slide's timer fired almost instantly. Doing both in one
+  // synchronous call makes the ordering safe by construction.
+  const advanceToIndex = useCallback((nextIndex: number) => {
     remainingMsRef.current = durationSeconds * 1000;
+    setCurrentIndex(nextIndex);
   }, [durationSeconds]);
 
+  // Guards against a slide ever advancing twice for one logical transition:
+  // transitioningRef blocks a *new* goTo call from starting while one is
+  // already in flight (e.g. an overlapping auto-advance and swipe), and the
+  // per-call `advanced` flag blocks the *same* transition's own completion
+  // callback from running its body twice, in case the underlying
+  // withTiming callback ever fires more than once for a single animation.
+  // Without this, a duplicate call skips straight to advanceToIndex a
+  // second time — the slide it lands on never gets its full display
+  // duration, which looks exactly like "every other slide flashes by".
+  const transitioningRef = useRef(false);
+  // Set the moment a slide-out finishes, read by the effect below once the
+  // new photo has actually committed — see that effect's comment for why
+  // the slide-in can't just be started here, inside the worklet callback.
+  const pendingSlideDirectionRef = useRef<1 | -1 | null>(null);
+
   const goTo = useCallback((nextIndex: number, direction: 1 | -1) => {
+    // TEMP DEBUG — remove once the black-slide bug is diagnosed.
+    console.log(`[SLIDESHOW] goTo called: nextIndex=${nextIndex} direction=${direction} transition=${transition} alreadyTransitioning=${transitioningRef.current}`);
+    if (transitioningRef.current) return;
+    transitioningRef.current = true;
+    let advanced = false;
+    // Runs on the JS thread (it's only ever invoked via runOnJS below) —
+    // setting a plain ref's .current here is safe in a way it would not
+    // be from inside the worklet itself.
+    const finishAdvance = () => {
+      if (advanced) return;
+      advanced = true;
+      transitioningRef.current = false;
+      if (transition === 'slide') pendingSlideDirectionRef.current = direction;
+      // TEMP DEBUG
+      console.log(`[SLIDESHOW] finishAdvance: setting currentIndex=${nextIndex} uri=${uris[nextIndex]}`);
+      advanceToIndex(nextIndex);
+    };
     if (transition === 'slide') {
       translateX.value = withTiming(-direction * width, { duration: TRANSITION_PHASE_MS }, (finished) => {
         if (finished) {
-          runOnJS(setCurrentIndex)(nextIndex);
-          runOnJS(resetCountdown)();
-          progress.value = 0;
-          translateX.value = direction * width;
-          translateX.value = withTiming(0, { duration: TRANSITION_PHASE_MS });
+          runOnJS(finishAdvance)();
         }
       });
     } else {
       opacity.value = withTiming(0, { duration: TRANSITION_PHASE_MS }, (finished) => {
         if (finished) {
-          runOnJS(setCurrentIndex)(nextIndex);
-          runOnJS(resetCountdown)();
+          runOnJS(finishAdvance)();
           progress.value = 0;
           opacity.value = withTiming(1, { duration: TRANSITION_PHASE_MS });
         }
       });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [transition, width, resetCountdown]);
+  }, [transition, width, advanceToIndex]);
+
+  // TEMP DEBUG — remove once the black-slide bug is diagnosed.
+  useEffect(() => {
+    console.log(`[SLIDESHOW] currentIndex effect fired: currentIndex=${currentIndex} uri=${uris[currentIndex]} pendingSlideDirection=${pendingSlideDirectionRef.current}`);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentIndex]);
+
+  // Starts the slide-in half of the 'slide' transition. Gated on the
+  // Image's own onLoad/onError — not on currentIndex changing — because
+  // React committing the new `uri` prop only means expo-image has been
+  // *asked* to show the new photo, not that the native view has actually
+  // finished rendering it yet (that's still an async bridge round-trip,
+  // even for a prefetched/cached image). Starting the position animation
+  // any earlier than "the view confirms it's showing something" risks
+  // revealing the view while it's still blank, which reads as a black
+  // slide. onError is wired to the same handler as a safety net, so a
+  // failed load doesn't leave the slideshow stuck mid-transition forever.
+  const handleImageReady = useCallback(() => {
+    // TEMP DEBUG — remove once the black-slide bug is diagnosed.
+    console.log(`[SLIDESHOW] handleImageReady fired: currentIndex=${currentIndex} pendingSlideDirection=${pendingSlideDirectionRef.current}`);
+    const direction = pendingSlideDirectionRef.current;
+    if (direction === null) return;
+    pendingSlideDirectionRef.current = null;
+    translateX.value = direction * width;
+    translateX.value = withTiming(0, { duration: TRANSITION_PHASE_MS });
+    progress.value = 0;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [width]);
 
   const advance = useCallback((direction: 1 | -1) => {
     if (uris.length === 0) return;
@@ -151,26 +291,223 @@ export default function SlideshowPlayScreen() {
 
   const togglePaused = useCallback(() => setPaused((p) => !p), []);
 
-  // Drives both the auto-advance timer and the visual progress fill from
-  // whatever time is actually left on this slide. On cleanup (pausing, a
-  // slide change, or unmount) it banks however much time was actually
-  // spent back into remainingMsRef, so a later resume picks up where it
-  // left off instead of restarting the full duration.
+  const idleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Reveals the controls and restarts the idle countdown — call this on
+  // every real interaction (tap, swipe, pressing one of the controls
+  // themselves) so the controls stay up while someone's actually engaging
+  // with the screen and only fade once they've stopped.
+  const showControls = useCallback(() => {
+    setControlsVisible(true);
+    if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
+    idleTimerRef.current = setTimeout(() => setControlsVisible(false), CONTROLS_IDLE_MS);
+  }, []);
+
+  useEffect(() => {
+    controlsOpacity.value = withTiming(controlsVisible ? 1 : 0, { duration: CONTROLS_FADE_MS });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [controlsVisible]);
+
+  // Starts the initial idle countdown once the slideshow actually has
+  // something on screen, and makes sure no stray timeout survives unmount.
+  useEffect(() => {
+    if (!loading) showControls();
+    return () => {
+      if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading]);
+
+  // The sleep timer picker needs the controls to stay put the whole time
+  // it's open, however long someone takes to choose — suspend the idle
+  // countdown while it's showing, and give the controls a fresh full
+  // CONTROLS_IDLE_MS once it closes rather than picking up a countdown
+  // that may have been paused partway through.
+  useEffect(() => {
+    if (showSleepPanel) {
+      if (idleTimerRef.current) {
+        clearTimeout(idleTimerRef.current);
+        idleTimerRef.current = null;
+      }
+      setControlsVisible(true);
+    } else {
+      showControls();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showSleepPanel]);
+
+  // Reveal-only first tap, matching Photos/YouTube: while the controls are
+  // hidden, a tap just brings them back rather than also pausing — pausing
+  // is only what a tap does once the controls are already up.
+  const handleTap = useCallback(() => {
+    if (!controlsVisible) {
+      showControls();
+      return;
+    }
+    showControls();
+    togglePaused();
+  }, [controlsVisible, showControls, togglePaused]);
+
+  // Runs the auto-advance timer and the visual progress fill for
+  // whatever time is actually left on this slide (remainingMsRef).
+  // Deliberately does NOT touch remainingMsRef itself, on pause or
+  // otherwise — only reads it. advanceToIndex is what resets it on a
+  // slide change, and the pause-banking effect below is what decrements
+  // it on a pause; if this cleanup also decremented it, a natural slide
+  // change (which fires this cleanup too, since currentIndex is a dep)
+  // would double-subtract elapsed time from a ref advanceToIndex had
+  // already reset moments earlier, corrupting it back toward zero — the
+  // bug that made every other slide flash by almost instantly.
   useEffect(() => {
     if (paused || uris.length <= 1) return;
-    const startedAt = Date.now();
+    startedAtRef.current = Date.now();
     const remaining = remainingMsRef.current;
     progress.value = withTiming(1, { duration: remaining, easing: Easing.linear });
     const timer = setTimeout(() => advance(1), remaining);
     return () => {
       clearTimeout(timer);
       cancelAnimation(progress);
-      remainingMsRef.current = Math.max(0, remainingMsRef.current - (Date.now() - startedAt));
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentIndex, paused, uris.length, durationSeconds, advance]);
+  }, [currentIndex, paused, uris.length, advance]);
+
+  // The only place remainingMsRef is decremented — fires solely when
+  // `paused` becomes true, never on a natural slide change (it doesn't
+  // depend on currentIndex), so it can never race advanceToIndex's reset.
+  // Banks whatever time was actually spent since the timer effect above
+  // last started, so resuming continues instead of restarting.
+  useEffect(() => {
+    if (!paused) return;
+    remainingMsRef.current = Math.max(0, remainingMsRef.current - (Date.now() - startedAtRef.current));
+  }, [paused]);
+
+  // Ambient music is independent of individual slide pause/resume —
+  // pausing to read one slide longer shouldn't cut the music, it's
+  // ambient, not tied to the visual timer. Starts looping once on load
+  // (or whenever a different track was selected) and otherwise plays
+  // continuously until the screen is left.
+  useEffect(() => {
+    if (!ambientTrackUrl) {
+      player.pause();
+      return;
+    }
+    player.loop = true;
+    player.volume = VOLUME_GAIN[ambientVolume];
+    player.replace(ambientTrackUrl);
+    player.play();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ambientTrackUrl]);
+
+  // Guards fadeOutAudio's interval so a second call (e.g. a double-tap on
+  // Close before the first fade finishes) can't leave two intervals
+  // running at once — without this, an orphaned interval from a stale
+  // fade could still be ticking after the one that actually navigated
+  // away has unmounted the screen and released the native player,
+  // throwing when it next tried to set player.volume on a dead object.
+  const fadeIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Ramps the ambient track's volume down over TRANSITION_PHASE_MS before
+  // pausing it, matching the app's existing unhurried transition pacing
+  // rather than an abrupt cut — then calls onDone (always, even when
+  // nothing was playing, so callers can unconditionally chain onto it).
+  //
+  // Every native player call is wrapped in try/catch: expo-audio's shared
+  // native object can apparently be released out from under a still-valid
+  // JS reference (seen even on a single, non-overlapping fade — not just
+  // the double-tap race the fadeIntervalRef guard above handles), and a
+  // property set on a released player throws a native FunctionCallException
+  // that would otherwise crash the whole app over a purely cosmetic fade.
+  // If that happens mid-fade, there's nothing left to animate — just stop
+  // and finish closing.
+  const fadeOutAudio = useCallback((onDone: () => void) => {
+    if (fadeIntervalRef.current) {
+      clearInterval(fadeIntervalRef.current);
+      fadeIntervalRef.current = null;
+    }
+    let startVolume: number;
+    try {
+      if (!ambientTrackUrl || !player.playing) {
+        onDone();
+        return;
+      }
+      startVolume = player.volume;
+    } catch {
+      onDone();
+      return;
+    }
+    const steps = 8;
+    const stepMs = TRANSITION_PHASE_MS / steps;
+    let step = 0;
+    fadeIntervalRef.current = setInterval(() => {
+      step += 1;
+      try {
+        player.volume = Math.max(0, startVolume * (1 - step / steps));
+        if (step >= steps) {
+          clearInterval(fadeIntervalRef.current!);
+          fadeIntervalRef.current = null;
+          player.pause();
+          onDone();
+        }
+      } catch {
+        clearInterval(fadeIntervalRef.current!);
+        fadeIntervalRef.current = null;
+        onDone();
+      }
+    }, stepMs);
+  }, [ambientTrackUrl, player]);
+
+  // Belt-and-suspenders: if the screen unmounts by some path other than
+  // fadeOutAudio's own onDone (e.g. a hardware/gesture back nav racing a
+  // fade already in progress), stop the interval before it can touch a
+  // player that's about to be released.
+  useEffect(() => {
+    return () => {
+      if (fadeIntervalRef.current) {
+        clearInterval(fadeIntervalRef.current);
+        fadeIntervalRef.current = null;
+      }
+    };
+  }, []);
+
+  // The one place that actually leaves this screen — used by the close
+  // button and by the sleep timer's expiry, so both get the same
+  // fade-then-exit behavior instead of an abrupt cut.
+  const handleClose = useCallback(() => {
+    fadeOutAudio(() => router.back());
+  }, [fadeOutAudio, router]);
+
+  // Session-only real-wall-clock countdown — deliberately not tied to
+  // slide pause/resume (see the ambient-music effect above for the same
+  // reasoning): "stop in 10 minutes" means 10 real minutes, not 10
+  // minutes of unpaused viewing.
+  useEffect(() => {
+    if (sleepMinutes === null) {
+      setSleepRemainingLabel(null);
+      return;
+    }
+    const deadline = Date.now() + sleepMinutes * 60_000;
+    const tick = () => {
+      const remainingMs = deadline - Date.now();
+      if (remainingMs <= 0) {
+        setSleepRemainingLabel(null);
+        handleClose();
+        return;
+      }
+      setSleepRemainingLabel(`${Math.ceil(remainingMs / 60_000)} min`);
+    };
+    tick();
+    const interval = setInterval(tick, 30_000);
+    return () => clearInterval(interval);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sleepMinutes]);
+
+  const chooseSleepTimer = (minutes: number | null) => {
+    setSleepMinutes(minutes);
+    setShowSleepPanel(false);
+  };
 
   const handleShare = useCallback(async () => {
+    showControls();
     setPaused(true);
     try {
       const isAvailable = await Sharing.isAvailableAsync();
@@ -179,10 +516,10 @@ export default function SlideshowPlayScreen() {
     } catch (err) {
       Alert.alert('Share Failed', err instanceof Error ? err.message : 'Something went wrong.');
     }
-  }, [uris, currentIndex]);
+  }, [uris, currentIndex, showControls]);
 
   const tap = Gesture.Tap().onEnd(() => {
-    runOnJS(togglePaused)();
+    runOnJS(handleTap)();
   });
 
   const pan = Gesture.Pan()
@@ -191,6 +528,7 @@ export default function SlideshowPlayScreen() {
     // conflict in the quote card editor.
     .minDistance(20)
     .onEnd((e) => {
+      runOnJS(showControls)();
       if (e.translationX < -50) runOnJS(advance)(1);
       else if (e.translationX > 50) runOnJS(advance)(-1);
     });
@@ -200,6 +538,10 @@ export default function SlideshowPlayScreen() {
   const animatedStyle = useAnimatedStyle(() => ({
     opacity: opacity.value,
     transform: [{ translateX: translateX.value }],
+  }));
+
+  const controlsAnimatedStyle = useAnimatedStyle(() => ({
+    opacity: controlsOpacity.value,
   }));
 
   const progressFillStyle = useAnimatedStyle(() => ({
@@ -232,36 +574,94 @@ export default function SlideshowPlayScreen() {
     <GestureDetector gesture={gesture}>
       <View style={styles.container}>
         <Animated.View style={[StyleSheet.absoluteFill, animatedStyle]}>
-          <Image source={{ uri: uris[currentIndex] }} style={StyleSheet.absoluteFill} contentFit="cover" />
+          <Image
+            source={{ uri: uris[currentIndex] }}
+            style={StyleSheet.absoluteFill}
+            contentFit="cover"
+            onLoad={handleImageReady}
+            onError={handleImageReady}
+          />
         </Animated.View>
 
-        <View style={[styles.progressRow, { top: insets.top + 8 }]} pointerEvents="none">
-          {uris.map((_, i) => (
-            <View key={i} style={styles.progressSegment}>
-              {i < currentIndex && <View style={styles.progressSegmentFilled} />}
-              {i === currentIndex && <Animated.View style={[styles.progressSegmentFilled, progressFillStyle]} />}
+        <Animated.View
+          style={[StyleSheet.absoluteFill, controlsAnimatedStyle]}
+          pointerEvents={controlsVisible ? 'box-none' : 'none'}
+          accessibilityElementsHidden={!controlsVisible}
+          importantForAccessibility={controlsVisible ? 'auto' : 'no-hide-descendants'}
+        >
+          <View style={[styles.progressRow, { top: insets.top + 8 }]} pointerEvents="none">
+            {uris.map((_, i) => (
+              <View key={i} style={styles.progressSegment}>
+                {i < currentIndex && <View style={styles.progressSegmentFilled} />}
+                {i === currentIndex && <Animated.View style={[styles.progressSegmentFilled, progressFillStyle]} />}
+              </View>
+            ))}
+          </View>
+
+          <TouchableOpacity
+            style={[styles.shareButton, { top: insets.top + 24 }]}
+            onPress={handleShare}
+            accessibilityRole="button"
+            accessibilityLabel="Share this photo"
+          >
+            <IconSymbol name="paperplane.fill" size={16} color="#f0ead6" />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.timerButton, { top: insets.top + 24 }]}
+            onPress={() => setShowSleepPanel((v) => !v)}
+            accessibilityRole="button"
+            accessibilityLabel="Sleep timer"
+          >
+            <IconSymbol name="timer" size={16} color={sleepMinutes !== null ? '#c9b97a' : '#f0ead6'} />
+          </TouchableOpacity>
+
+          {sleepRemainingLabel && (
+            <View style={[styles.sleepBadge, { top: insets.top + 31 }]} pointerEvents="none">
+              <Text style={styles.sleepBadgeText}>{sleepRemainingLabel}</Text>
             </View>
-          ))}
-        </View>
+          )}
 
-        <TouchableOpacity
-          style={[styles.shareButton, { top: insets.top + 24 }]}
-          onPress={handleShare}
-          accessibilityRole="button"
-          accessibilityLabel="Share this photo"
-        >
-          <IconSymbol name="paperplane.fill" size={16} color="#f0ead6" />
-        </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.closeButton, { top: insets.top + 24 }]}
+            onPress={handleClose}
+            accessibilityRole="button"
+            accessibilityLabel="Close slideshow"
+            hitSlop={8}
+          >
+            <IconSymbol name="xmark" size={18} color="#f0ead6" />
+          </TouchableOpacity>
+        </Animated.View>
 
-        <TouchableOpacity
-          style={[styles.closeButton, { top: insets.top + 24 }]}
-          onPress={() => router.back()}
-          accessibilityRole="button"
-          accessibilityLabel="Close slideshow"
-          hitSlop={8}
-        >
-          <IconSymbol name="xmark" size={18} color="#f0ead6" />
-        </TouchableOpacity>
+        {showSleepPanel && (
+          <View style={[styles.sleepPanel, { top: insets.top + 64 }]}>
+            <Text style={styles.sleepPanelLabel}>Sleep Timer</Text>
+            <View style={styles.sleepChipRow}>
+              <TouchableOpacity
+                onPress={() => chooseSleepTimer(null)}
+                accessibilityRole="radio"
+                accessibilityState={{ selected: sleepMinutes === null }}
+                style={[styles.sleepChip, sleepMinutes === null && styles.sleepChipSelected]}
+              >
+                <Text style={[styles.sleepChipText, sleepMinutes === null && styles.sleepChipTextSelected]}>Off</Text>
+              </TouchableOpacity>
+              {SLEEP_TIMER_OPTIONS_MIN.map((minutes) => {
+                const selected = sleepMinutes === minutes;
+                return (
+                  <TouchableOpacity
+                    key={minutes}
+                    onPress={() => chooseSleepTimer(minutes)}
+                    accessibilityRole="radio"
+                    accessibilityState={{ selected }}
+                    style={[styles.sleepChip, selected && styles.sleepChipSelected]}
+                  >
+                    <Text style={[styles.sleepChipText, selected && styles.sleepChipTextSelected]}>{minutes} min</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </View>
+        )}
 
         {paused && (
           <View style={styles.pausedBadge}>
@@ -326,7 +726,7 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: 'rgba(15,14,12,0.6)',
+    backgroundColor: 'rgba(15,14,12,0.35)',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -336,9 +736,73 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: 'rgba(15,14,12,0.6)',
+    backgroundColor: 'rgba(15,14,12,0.35)',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  timerButton: {
+    position: 'absolute',
+    left: 62,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(15,14,12,0.35)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  sleepBadge: {
+    position: 'absolute',
+    left: 106,
+    backgroundColor: 'rgba(15,14,12,0.6)',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 10,
+  },
+  sleepBadgeText: {
+    fontSize: 11,
+    color: '#c9b97a',
+    fontWeight: '600',
+  },
+  sleepPanel: {
+    position: 'absolute',
+    left: 16,
+    backgroundColor: 'rgba(15,14,12,0.95)',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#4a4540',
+    padding: 14,
+    gap: 8,
+  },
+  sleepPanelLabel: {
+    fontSize: 11,
+    color: '#8a7e6e',
+    letterSpacing: 1,
+    textTransform: 'uppercase',
+  },
+  sleepChipRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    maxWidth: 220,
+  },
+  sleepChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#4a4540',
+  },
+  sleepChipSelected: {
+    borderColor: '#c9b97a',
+    backgroundColor: 'rgba(201,185,122,0.15)',
+  },
+  sleepChipText: {
+    fontSize: 12,
+    color: '#a89f88',
+  },
+  sleepChipTextSelected: {
+    color: '#f0ead6',
+    fontWeight: '600',
   },
   pausedBadge: {
     position: 'absolute',

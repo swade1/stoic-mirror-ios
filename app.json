@@ -14,7 +14,9 @@
       "infoPlist": {
         "NSSpeechRecognitionUsageDescription": "Allow The Stoic Mirror to use speech recognition.",
         "NSMicrophoneUsageDescription": "Allow The Stoic Mirror to use the microphone.",
-        "LSApplicationQueriesSchemes": ["itms-apps"]
+        "LSApplicationQueriesSchemes": [
+          "itms-apps"
+        ]
       }
     },
     "android": {
@@ -57,7 +59,8 @@
         {
           "photosPermission": "Allow The Stoic Mirror to choose a photo for your quote card."
         }
-      ]
+      ],
+      "expo-audio"
     ],
     "experiments": {
       "typedRoutes": true
