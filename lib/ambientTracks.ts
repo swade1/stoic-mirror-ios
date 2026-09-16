@@ -60,6 +60,18 @@ export function deriveTrackMood(filename: string): string | null {
   return withoutExtension.slice(0, hyphenIndex).toLowerCase();
 }
 
+// The distinct moods present in a track list, sorted alphabetically — used
+// to build the ambient-music picker's filter-chip row, the same way
+// getBackgroundCategories builds one for quote-backgrounds. Tracks with no
+// mood (no hyphen in the filename) don't contribute one.
+export function getTrackMoods(tracks: AmbientTrack[]): string[] {
+  const moods = new Set<string>();
+  tracks.forEach((track) => {
+    if (track.mood) moods.add(track.mood);
+  });
+  return Array.from(moods).sort();
+}
+
 // Lists whatever audio files currently exist in the ambient-tracks
 // Storage bucket. New tracks dropped into the bucket via the Supabase
 // dashboard show up here on next call — no app update needed, matching

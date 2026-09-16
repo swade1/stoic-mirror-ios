@@ -7,7 +7,7 @@ import * as ImagePicker from 'expo-image-picker';
 import * as MediaLibrary from 'expo-media-library';
 import { supabase } from '@/lib/supabase';
 import { IconSymbol } from '@/components/ui/IconSymbol';
-import { listAmbientTracks, type AmbientTrack } from '@/lib/ambientTracks';
+import { listAmbientTracks, getTrackMoods, type AmbientTrack } from '@/lib/ambientTracks';
 
 interface SlideshowPhoto {
   id: string;
@@ -44,6 +44,7 @@ export default function SlideshowPhotosScreen() {
   const [durationSeconds, setDurationSeconds] = useState(DEFAULT_DURATION_SECONDS);
   const [transition, setTransition] = useState<SlideshowTransition>('fade');
   const [tracks, setTracks] = useState<AmbientTrack[]>([]);
+  const [selectedMood, setSelectedMood] = useState<string | null>(null);
   const [ambientTrackId, setAmbientTrackId] = useState<string | null>(null);
   const [ambientVolume, setAmbientVolume] = useState<AmbientVolume>('medium');
 
@@ -225,6 +226,9 @@ export default function SlideshowPhotosScreen() {
     await supabase.from('slideshow_collections').update({ ambient_volume: value }).eq('id', collectionId);
   };
 
+  const trackMoods = getTrackMoods(tracks);
+  const filteredTracks = selectedMood ? tracks.filter((track) => track.mood === selectedMood) : tracks;
+
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <View style={styles.header}>
@@ -294,16 +298,39 @@ export default function SlideshowPhotosScreen() {
           </View>
 
           <Text style={styles.settingsLabel}>Ambient Music</Text>
+          {trackMoods.length > 0 && (
+            <View style={styles.chipRow}>
+              {['all', ...trackMoods].map((mood) => {
+                const value = mood === 'all' ? null : mood;
+                const selected = selectedMood === value;
+                const label = mood === 'all' ? 'All' : mood.charAt(0).toUpperCase() + mood.slice(1);
+                return (
+                  <TouchableOpacity
+                    key={mood}
+                    onPress={() => setSelectedMood(value)}
+                    accessibilityRole="radio"
+                    accessibilityState={{ selected }}
+                    accessibilityLabel={`Filter ambient music: ${label}`}
+                    style={[styles.chip, selected && styles.chipSelected]}
+                  >
+                    <Text style={[styles.chipText, selected && styles.chipTextSelected]}>{label}</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          )}
           <View style={styles.chipRow}>
-            <TouchableOpacity
-              onPress={() => chooseAmbientTrack(null)}
-              accessibilityRole="radio"
-              accessibilityState={{ selected: ambientTrackId === null }}
-              style={[styles.chip, ambientTrackId === null && styles.chipSelected]}
-            >
-              <Text style={[styles.chipText, ambientTrackId === null && styles.chipTextSelected]}>None</Text>
-            </TouchableOpacity>
-            {tracks.map((track) => {
+            {selectedMood === null && (
+              <TouchableOpacity
+                onPress={() => chooseAmbientTrack(null)}
+                accessibilityRole="radio"
+                accessibilityState={{ selected: ambientTrackId === null }}
+                style={[styles.chip, ambientTrackId === null && styles.chipSelected]}
+              >
+                <Text style={[styles.chipText, ambientTrackId === null && styles.chipTextSelected]}>None</Text>
+              </TouchableOpacity>
+            )}
+            {filteredTracks.map((track) => {
               const selected = ambientTrackId === track.id;
               return (
                 <TouchableOpacity

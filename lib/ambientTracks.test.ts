@@ -1,4 +1,4 @@
-import { listAmbientTracks, deriveTrackName, deriveTrackMood, withCacheBust } from './ambientTracks';
+import { listAmbientTracks, deriveTrackName, deriveTrackMood, getTrackMoods, withCacheBust } from './ambientTracks';
 
 const mockList = jest.fn();
 const mockGetPublicUrl = jest.fn();
@@ -51,6 +51,32 @@ describe('deriveTrackMood', () => {
 
   it('returns null for a leading hyphen rather than an empty-string mood', () => {
     expect(deriveTrackMood('-soft-piano-.mp3')).toBeNull();
+  });
+});
+
+describe('getTrackMoods', () => {
+  it('returns the distinct moods present, sorted alphabetically', () => {
+    const tracks = [
+      { id: '1', url: '', name: 'Ocean Waves', mood: 'still' },
+      { id: '2', url: '', name: 'Breathing Waves', mood: 'bright' },
+      { id: '3', url: '', name: 'Beach Memories', mood: 'solemn' },
+      { id: '4', url: '', name: 'Gentle Waves', mood: 'still' },
+    ];
+
+    expect(getTrackMoods(tracks)).toEqual(['bright', 'solemn', 'still']);
+  });
+
+  it('ignores tracks with no mood', () => {
+    const tracks = [
+      { id: '1', url: '', name: 'Rain', mood: null },
+      { id: '2', url: '', name: 'Breathing Waves', mood: 'bright' },
+    ];
+
+    expect(getTrackMoods(tracks)).toEqual(['bright']);
+  });
+
+  it('returns an empty array when no track has a mood', () => {
+    expect(getTrackMoods([{ id: '1', url: '', name: 'Rain', mood: null }])).toEqual([]);
   });
 });
 
