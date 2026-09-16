@@ -32,20 +32,32 @@ The app just does `player.loop = true` on the whole uploaded file ([app/slidesho
    scripts/prep-ambient-track.sh "<scratch>/trimmed.mp3" "<scratch>/<Track Display Name>.mp3"
    ```
 
-3. **Upload** to the `ambient-tracks` bucket (Supabase project `fazvbphkzlutghzpvsli`) using the service-role key — this is an admin action outside the app, so the anon key won't have write access:
+3. **Checksum the prepped file** before uploading — this is what step 4 confirms the bucket is actually serving, since audio can't be eyeballed for correctness the way a cropped image can:
+   ```bash
+   shasum -a 256 "<scratch>/<Track Display Name>.mp3"
+   ```
+
+4. **Upload** to the `ambient-tracks` bucket (Supabase project `fazvbphkzlutghzpvsli`) using the service-role key — this is an admin action outside the app, so the anon key won't have write access:
    ```bash
    node scripts/upload-ambient-track.js "<scratch>/<Track Display Name>.mp3" "<Track Display Name>.mp3"
    ```
    This script reads `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` from `.env` itself — no need to source them first. Add `--replace` if a track of that exact name is already in the bucket and this is meant to overwrite it (e.g. re-normalizing an existing track) — without it, upload fails on the name collision rather than risk silently overwriting something.
 
-4. **Verify** the upload landed, via the Supabase MCP `execute_sql` tool against project `fazvbphkzlutghzpvsli`:
-   ```sql
-   select name, created_at, metadata->>'size' as size_bytes
-   from storage.objects
-   where bucket_id = 'ambient-tracks'
-   order by created_at desc
-   limit 5;
-   ```
+5. **Verify** the upload landed and is actually being served, not just present in the bucket's metadata:
+   - Confirm the row via the Supabase MCP `execute_sql` tool against project `fazvbphkzlutghzpvsli`:
+     ```sql
+     select name, updated_at, metadata->>'size' as size_bytes
+     from storage.objects
+     where bucket_id = 'ambient-tracks'
+     order by updated_at desc
+     limit 5;
+     ```
+   - Then fetch what the public URL actually returns and compare its checksum to step 3's — a match proves the served bytes are exactly what was uploaded, which is the real fix verification (see below for why this matters more here than the metadata row does):
+     ```bash
+     curl -s "https://fazvbphkzlutghzpvsli.supabase.co/storage/v1/object/public/ambient-tracks/<url-encoded name>.mp3" -o "<scratch>/fetched.mp3"
+     shasum -a 256 "<scratch>/fetched.mp3"
+     ```
+   This matters most for a `--replace` upload — overwriting a file under the same name can leave a URL-keyed cache (Storage's CDN, or a client) serving the old bytes even though the bucket's own metadata looks fine (see [lib/ambientTracks.ts](../../../lib/ambientTracks.ts)'s `withCacheBust`, added after exactly this happened once — same bug, same fix, as `lib/quoteBackgrounds.ts`). A checksum mismatch here means the cache-bust isn't doing its job and needs investigating before reporting success.
 
 Use the session's scratchpad directory for intermediate files (`<scratch>` above) — never commit the trimmed/prepped audio into the repo itself.
 
