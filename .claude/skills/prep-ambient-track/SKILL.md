@@ -1,20 +1,31 @@
 ---
 name: prep-ambient-track
-description: Trim a source audio file to a given loop start/end, loudness-normalize it, bake in a fade, and upload it to the ambient-tracks Supabase bucket as a new slideshow ambient track. Use when Susan (the app's creator) provides a source audio file plus a loop start and end time — typically found with pymusiclooper — and wants it added as an ambient background track for the slideshow.
+description: Trim a source audio file to a given loop start/end, loudness-normalize it, bake in a fade, and upload it to the ambient-tracks Supabase bucket as a new slideshow ambient track, tagged with a mood. Use when Susan (the app's creator) provides a source audio file plus a loop start and end time — typically found with pymusiclooper — and wants it added as an ambient background track for the slideshow.
 ---
 
 # Prep Ambient Track
 
-Turns a raw audio file plus a loop start/end time into a ready-to-use ambient track in the app's `ambient-tracks` Supabase bucket. No app code change is involved — `lib/ambientTracks.ts` lists whatever's in the bucket automatically, and derives the display name from the filename (dashes/underscores → spaces, title-cased).
+Turns a raw audio file plus a loop start/end time into a ready-to-use, mood-tagged ambient track in the app's `ambient-tracks` Supabase bucket. No app code change is involved — `lib/ambientTracks.ts` lists whatever's in the bucket automatically, deriving both the display name and the mood from the filename (mood is the text before the first hyphen, same "category prefix" convention `lib/quoteBackgrounds.ts` uses).
 
 ## Inputs needed
 
-Confirm you have all four before starting — ask if any are missing:
+Confirm you have all five before starting — ask if any are missing:
 
 1. Source audio file path
 2. Loop start time (`MM:SS.mmm` or `HH:MM:SS.mmm`)
 3. Loop end time (same format)
-4. Desired track display name (e.g. "Rain On Leaves Loop") — the output filename will be `<name>.mp3`
+4. Desired track display name (e.g. "Rain On Leaves Loop")
+5. Mood — one of `Bright`, `Solemn`, or `Still` (see below). The output filename is `<Mood>-<Track Display Name>.mp3`.
+
+**Never guess or infer the mood yourself.** Claude has no audio-listening modality here — there's no way to judge whether a clip resolves major, minor, or neither by running a tool on it (key-detection algorithms exist but are unreliable on exactly the ambient/drone material this bucket tends to hold). Always ask Susan which mood applies; treat it as a required input like the loop points, not something to default or suggest.
+
+### The three moods
+
+Each is a single, checkable test — not a vibe — chosen so a track can't plausibly satisfy two at once:
+
+- **Bright** — resolves to a major chord; feels settled and pleasant.
+- **Solemn** — resolves to a minor chord; feels settled but weighty.
+- **Still** — doesn't clearly resolve either way — modal, ambiguous, or drone-based, no strong tonal pull.
 
 ## Why the file has to be pre-trimmed
 
@@ -27,19 +38,19 @@ The app just does `player.loop = true` on the whole uploaded file ([app/slidesho
    ffmpeg -i "<source file>" -ss <loop start> -to <loop end> "<scratch>/trimmed.mp3"
    ```
 
-2. **Normalize loudness and bake in a fade** using the repo's existing prep script. It two-pass normalizes to -18 LUFS integrated / -1.5 dBTP true peak (so this track sits at the same perceived volume as every other ambient track regardless of how loud its source was mastered), then adds a short fade-in/out (10% of clip length, capped 0.15–2s) so even a near-perfect loop point doesn't click at the seam. Requires `jq` in addition to `ffmpeg`.
+2. **Normalize loudness and bake in a fade** using the repo's existing prep script. It two-pass normalizes to -18 LUFS integrated / -1.5 dBTP true peak (so this track sits at the same perceived volume as every other ambient track regardless of how loud its source was mastered), then adds a short fade-in/out (10% of clip length, capped 0.15–2s) so even a near-perfect loop point doesn't click at the seam. Requires `jq` in addition to `ffmpeg`. Name the output file with the mood prefix already in place:
    ```bash
-   scripts/prep-ambient-track.sh "<scratch>/trimmed.mp3" "<scratch>/<Track Display Name>.mp3"
+   scripts/prep-ambient-track.sh "<scratch>/trimmed.mp3" "<scratch>/<Mood>-<Track Display Name>.mp3"
    ```
 
-3. **Checksum the prepped file** before uploading — this is what step 4 confirms the bucket is actually serving, since audio can't be eyeballed for correctness the way a cropped image can:
+3. **Checksum the prepped file** before uploading — this is what step 5 confirms the bucket is actually serving, since audio can't be eyeballed for correctness the way a cropped image can:
    ```bash
-   shasum -a 256 "<scratch>/<Track Display Name>.mp3"
+   shasum -a 256 "<scratch>/<Mood>-<Track Display Name>.mp3"
    ```
 
 4. **Upload** to the `ambient-tracks` bucket (Supabase project `fazvbphkzlutghzpvsli`) using the service-role key — this is an admin action outside the app, so the anon key won't have write access:
    ```bash
-   node scripts/upload-ambient-track.js "<scratch>/<Track Display Name>.mp3" "<Track Display Name>.mp3"
+   node scripts/upload-ambient-track.js "<scratch>/<Mood>-<Track Display Name>.mp3" "<Mood>-<Track Display Name>.mp3"
    ```
    This script reads `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` from `.env` itself — no need to source them first. Add `--replace` if a track of that exact name is already in the bucket and this is meant to overwrite it (e.g. re-normalizing an existing track) — without it, upload fails on the name collision rather than risk silently overwriting something.
 
@@ -61,4 +72,4 @@ The app just does `player.loop = true` on the whole uploaded file ([app/slidesho
 
 Use the session's scratchpad directory for intermediate files (`<scratch>` above) — never commit the trimmed/prepped audio into the repo itself.
 
-Report back the final track name and confirm it'll appear in the app's ambient music picker next time it fetches the list — no app update needed.
+Report back the final track name and mood, and confirm it'll appear in the app's ambient music picker next time it fetches the list — no app update needed.

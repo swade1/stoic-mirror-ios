@@ -11,6 +11,7 @@ export interface AmbientTrack {
   id: string;
   url: string;
   name: string;
+  mood: string | null;
 }
 
 // Appends a cache-busting query param derived from the file's last-modified
@@ -26,18 +27,37 @@ export function withCacheBust(url: string, updatedAt: string | null | undefined)
   return `${url}?v=${encodeURIComponent(updatedAt)}`;
 }
 
-// Turns a filename like "rain-on-leaves.mp3" into a display name like
-// "Rain On Leaves" — no category convention needed here the way
-// quote-backgrounds has one, this bucket isn't expected to need filtering.
+// Turns a filename like "Bright-Rain On Leaves Loop.mp3" into a display
+// name like "Rain On Leaves Loop" — dropping the mood prefix (see
+// deriveTrackMood below), the same "category before the first hyphen"
+// filename convention quote-backgrounds uses. A filename with no hyphen
+// has no mood, and the whole (extension-stripped) name is used as-is.
 export function deriveTrackName(filename: string): string {
   const withoutExtension = filename.replace(/\.[^.]+$/, '');
-  return withoutExtension
+  const hyphenIndex = withoutExtension.indexOf('-');
+  const nameOnly = hyphenIndex > 0 ? withoutExtension.slice(hyphenIndex + 1) : withoutExtension;
+  return nameOnly
     .replace(/[-_]+/g, ' ')
     .trim()
     .split(' ')
     .filter(Boolean)
     .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
     .join(' ');
+}
+
+// Derives a track's mood from the same filename convention — the text
+// before the first hyphen, e.g. "Bright-Rain On Leaves Loop.mp3" -> "bright".
+// Expected values are "bright" | "solemn" | "still" (see the
+// prep-ambient-track skill for what each means and how a track is judged
+// against them), but this doesn't validate against that set — an
+// unrecognized or missing prefix just means the track has no mood filter
+// applied to it rather than an error, the same tolerant treatment
+// quote-backgrounds gives an uncategorized photo.
+export function deriveTrackMood(filename: string): string | null {
+  const withoutExtension = filename.replace(/\.[^.]+$/, '');
+  const hyphenIndex = withoutExtension.indexOf('-');
+  if (hyphenIndex <= 0) return null;
+  return withoutExtension.slice(0, hyphenIndex).toLowerCase();
 }
 
 // Lists whatever audio files currently exist in the ambient-tracks
@@ -60,6 +80,7 @@ export async function listAmbientTracks(): Promise<AmbientTrack[]> {
       id: file.name,
       url: withCacheBust(supabase.storage.from(BUCKET).getPublicUrl(file.name).data.publicUrl, file.updated_at),
       name: deriveTrackName(file.name),
+      mood: deriveTrackMood(file.name),
     }))
     .sort((a, b) => a.name.localeCompare(b.name));
 }
