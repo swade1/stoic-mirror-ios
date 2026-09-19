@@ -7,7 +7,7 @@ import * as ImagePicker from 'expo-image-picker';
 import * as MediaLibrary from 'expo-media-library';
 import { supabase } from '@/lib/supabase';
 import { IconSymbol } from '@/components/ui/IconSymbol';
-import { listAmbientTracks, getTrackMoods, getTrackLengths, type AmbientTrack, type TrackLength } from '@/lib/ambientTracks';
+import { listAmbientTracks, type AmbientTrack } from '@/lib/ambientTracks';
 
 interface SlideshowPhoto {
   id: string;
@@ -17,7 +17,6 @@ interface SlideshowPhoto {
 }
 
 type SlideshowTransition = 'fade' | 'slide';
-type AmbientVolume = 'low' | 'medium' | 'high';
 
 const COLUMN_COUNT = 3;
 const DEFAULT_DURATION_SECONDS = 7;
@@ -25,11 +24,6 @@ const DURATION_OPTIONS = [3, 5, 7, 10, 15];
 const TRANSITION_OPTIONS: { label: string; value: SlideshowTransition }[] = [
   { label: 'Fade', value: 'fade' },
   { label: 'Slide', value: 'slide' },
-];
-const VOLUME_OPTIONS: { label: string; value: AmbientVolume }[] = [
-  { label: 'Low', value: 'low' },
-  { label: 'Medium', value: 'medium' },
-  { label: 'High', value: 'high' },
 ];
 
 export default function SlideshowPhotosScreen() {
@@ -43,15 +37,12 @@ export default function SlideshowPhotosScreen() {
   const [showSettings, setShowSettings] = useState(false);
   const [durationSeconds, setDurationSeconds] = useState(DEFAULT_DURATION_SECONDS);
   const [transition, setTransition] = useState<SlideshowTransition>('fade');
+  // Only kept here to resolve the currently selected track's display name
+  // for the summary row below — the actual picker (mood/length filters,
+  // track chips, volume) lives on its own screen now; see
+  // app/slideshow-ambient-music.tsx for why.
   const [tracks, setTracks] = useState<AmbientTrack[]>([]);
-  const [selectedMood, setSelectedMood] = useState<string | null>(null);
-  // Independent of selectedMood — the two filters narrow the track list
-  // together (mood AND length), not either/or, mirroring how comparable
-  // apps (Insight Timer, Gabby) treat type and duration as separate filter
-  // axes rather than folding one into the other.
-  const [selectedLength, setSelectedLength] = useState<TrackLength | null>(null);
   const [ambientTrackId, setAmbientTrackId] = useState<string | null>(null);
-  const [ambientVolume, setAmbientVolume] = useState<AmbientVolume>('medium');
 
   const load = useCallback(async () => {
     if (!collectionId) return;
@@ -72,7 +63,7 @@ export default function SlideshowPhotosScreen() {
         .order('sort_order', { ascending: true }),
       supabase
         .from('slideshow_collections')
-        .select('name, slideshow_duration_seconds, slideshow_transition, ambient_track_id, ambient_volume')
+        .select('name, slideshow_duration_seconds, slideshow_transition, ambient_track_id')
         .eq('id', collectionId)
         .single(),
       listAmbientTracks().catch(() => [] as AmbientTrack[]),
@@ -85,7 +76,6 @@ export default function SlideshowPhotosScreen() {
       setDurationSeconds(collectionRow.slideshow_duration_seconds ?? DEFAULT_DURATION_SECONDS);
       setTransition(collectionRow.slideshow_transition === 'slide' ? 'slide' : 'fade');
       setAmbientTrackId(collectionRow.ambient_track_id ?? null);
-      setAmbientVolume(collectionRow.ambient_volume === 'low' || collectionRow.ambient_volume === 'high' ? collectionRow.ambient_volume : 'medium');
     }
 
     if (error || !data) {
@@ -216,27 +206,7 @@ export default function SlideshowPhotosScreen() {
     await supabase.from('slideshow_collections').update({ slideshow_transition: value }).eq('id', collectionId);
   };
 
-  // Selecting "None" (id null) is how volume becomes moot — there's no
-  // separate off state for volume itself, it's just unused until a real
-  // track is chosen again.
-  const chooseAmbientTrack = async (trackId: string | null) => {
-    if (!collectionId) return;
-    setAmbientTrackId(trackId);
-    await supabase.from('slideshow_collections').update({ ambient_track_id: trackId }).eq('id', collectionId);
-  };
-
-  const chooseAmbientVolume = async (value: AmbientVolume) => {
-    if (!collectionId) return;
-    setAmbientVolume(value);
-    await supabase.from('slideshow_collections').update({ ambient_volume: value }).eq('id', collectionId);
-  };
-
-  const trackMoods = getTrackMoods(tracks);
-  const trackLengths = getTrackLengths(tracks);
-  const filteredTracks = tracks.filter(
-    (track) => (selectedMood === null || track.mood === selectedMood) &&
-      (selectedLength === null || track.length === selectedLength)
-  );
+  const selectedTrackName = ambientTrackId ? tracks.find((t) => t.id === ambientTrackId)?.name ?? 'None' : 'None';
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
@@ -307,96 +277,15 @@ export default function SlideshowPhotosScreen() {
           </View>
 
           <Text style={styles.settingsLabel}>Ambient Music</Text>
-          {trackMoods.length > 0 && (
-            <View style={styles.chipRow}>
-              {['all', ...trackMoods].map((mood) => {
-                const value = mood === 'all' ? null : mood;
-                const selected = selectedMood === value;
-                const label = mood === 'all' ? 'All' : mood.charAt(0).toUpperCase() + mood.slice(1);
-                return (
-                  <TouchableOpacity
-                    key={mood}
-                    onPress={() => setSelectedMood(value)}
-                    accessibilityRole="radio"
-                    accessibilityState={{ selected }}
-                    accessibilityLabel={`Filter ambient music: ${label}`}
-                    style={[styles.chip, selected && styles.chipSelected]}
-                  >
-                    <Text style={[styles.chipText, selected && styles.chipTextSelected]}>{label}</Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-          )}
-          {trackLengths.length > 0 && (
-            <View style={styles.chipRow}>
-              {(['all', ...trackLengths] as const).map((length) => {
-                const value = length === 'all' ? null : length;
-                const selected = selectedLength === value;
-                const label = length === 'all' ? 'All' : length.charAt(0).toUpperCase() + length.slice(1);
-                return (
-                  <TouchableOpacity
-                    key={length}
-                    onPress={() => setSelectedLength(value)}
-                    accessibilityRole="radio"
-                    accessibilityState={{ selected }}
-                    accessibilityLabel={`Filter ambient music by length: ${label}`}
-                    style={[styles.chip, selected && styles.chipSelected]}
-                  >
-                    <Text style={[styles.chipText, selected && styles.chipTextSelected]}>{label}</Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-          )}
-          <View style={styles.chipRow}>
-            {selectedMood === null && selectedLength === null && (
-              <TouchableOpacity
-                onPress={() => chooseAmbientTrack(null)}
-                accessibilityRole="radio"
-                accessibilityState={{ selected: ambientTrackId === null }}
-                style={[styles.chip, ambientTrackId === null && styles.chipSelected]}
-              >
-                <Text style={[styles.chipText, ambientTrackId === null && styles.chipTextSelected]}>None</Text>
-              </TouchableOpacity>
-            )}
-            {filteredTracks.map((track) => {
-              const selected = ambientTrackId === track.id;
-              return (
-                <TouchableOpacity
-                  key={track.id}
-                  onPress={() => chooseAmbientTrack(track.id)}
-                  accessibilityRole="radio"
-                  accessibilityState={{ selected }}
-                  style={[styles.chip, selected && styles.chipSelected]}
-                >
-                  <Text style={[styles.chipText, selected && styles.chipTextSelected]}>{track.name}</Text>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-
-          {ambientTrackId !== null && (
-            <>
-              <Text style={styles.settingsLabel}>Volume</Text>
-              <View style={styles.chipRow}>
-                {VOLUME_OPTIONS.map((option) => {
-                  const selected = ambientVolume === option.value;
-                  return (
-                    <TouchableOpacity
-                      key={option.value}
-                      onPress={() => chooseAmbientVolume(option.value)}
-                      accessibilityRole="radio"
-                      accessibilityState={{ selected }}
-                      style={[styles.chip, selected && styles.chipSelected]}
-                    >
-                      <Text style={[styles.chipText, selected && styles.chipTextSelected]}>{option.label}</Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
-            </>
-          )}
+          <TouchableOpacity
+            style={styles.ambientMusicRow}
+            onPress={() => router.push({ pathname: '/slideshow-ambient-music', params: { collectionId } })}
+            accessibilityRole="button"
+            accessibilityLabel={`Ambient music, currently ${selectedTrackName}`}
+          >
+            <Text style={styles.ambientMusicValue}>{selectedTrackName}</Text>
+            <IconSymbol name="chevron.right" size={14} color="#8a7e6e" />
+          </TouchableOpacity>
         </View>
       )}
 
@@ -516,6 +405,20 @@ const styles = StyleSheet.create({
   chipTextSelected: {
     color: '#f0ead6',
     fontWeight: '600',
+  },
+  ambientMusicRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#4a4540',
+  },
+  ambientMusicValue: {
+    fontSize: 14,
+    color: '#f0ead6',
   },
   loading: {
     marginTop: 60,
