@@ -7,7 +7,7 @@ import * as ImagePicker from 'expo-image-picker';
 import * as MediaLibrary from 'expo-media-library';
 import { supabase } from '@/lib/supabase';
 import { IconSymbol } from '@/components/ui/IconSymbol';
-import { listAmbientTracks, getTrackMoods, type AmbientTrack } from '@/lib/ambientTracks';
+import { listAmbientTracks, getTrackMoods, getTrackLengths, type AmbientTrack, type TrackLength } from '@/lib/ambientTracks';
 
 interface SlideshowPhoto {
   id: string;
@@ -45,6 +45,11 @@ export default function SlideshowPhotosScreen() {
   const [transition, setTransition] = useState<SlideshowTransition>('fade');
   const [tracks, setTracks] = useState<AmbientTrack[]>([]);
   const [selectedMood, setSelectedMood] = useState<string | null>(null);
+  // Independent of selectedMood — the two filters narrow the track list
+  // together (mood AND length), not either/or, mirroring how comparable
+  // apps (Insight Timer, Gabby) treat type and duration as separate filter
+  // axes rather than folding one into the other.
+  const [selectedLength, setSelectedLength] = useState<TrackLength | null>(null);
   const [ambientTrackId, setAmbientTrackId] = useState<string | null>(null);
   const [ambientVolume, setAmbientVolume] = useState<AmbientVolume>('medium');
 
@@ -227,7 +232,11 @@ export default function SlideshowPhotosScreen() {
   };
 
   const trackMoods = getTrackMoods(tracks);
-  const filteredTracks = selectedMood ? tracks.filter((track) => track.mood === selectedMood) : tracks;
+  const trackLengths = getTrackLengths(tracks);
+  const filteredTracks = tracks.filter(
+    (track) => (selectedMood === null || track.mood === selectedMood) &&
+      (selectedLength === null || track.length === selectedLength)
+  );
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
@@ -319,8 +328,29 @@ export default function SlideshowPhotosScreen() {
               })}
             </View>
           )}
+          {trackLengths.length > 0 && (
+            <View style={styles.chipRow}>
+              {(['all', ...trackLengths] as const).map((length) => {
+                const value = length === 'all' ? null : length;
+                const selected = selectedLength === value;
+                const label = length === 'all' ? 'All' : length.charAt(0).toUpperCase() + length.slice(1);
+                return (
+                  <TouchableOpacity
+                    key={length}
+                    onPress={() => setSelectedLength(value)}
+                    accessibilityRole="radio"
+                    accessibilityState={{ selected }}
+                    accessibilityLabel={`Filter ambient music by length: ${label}`}
+                    style={[styles.chip, selected && styles.chipSelected]}
+                  >
+                    <Text style={[styles.chipText, selected && styles.chipTextSelected]}>{label}</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          )}
           <View style={styles.chipRow}>
-            {selectedMood === null && (
+            {selectedMood === null && selectedLength === null && (
               <TouchableOpacity
                 onPress={() => chooseAmbientTrack(null)}
                 accessibilityRole="radio"
