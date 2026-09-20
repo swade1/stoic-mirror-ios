@@ -18,6 +18,8 @@ const MAPPING = {
   'paperplane.fill': 'send',
   'chevron.left.forwardslash.chevron.right': 'code',
   'chevron.right': 'chevron-right',
+  'chevron.up': 'expand-less',
+  'chevron.down': 'expand-more',
   'textformat.size': 'format-size',
   'photo.on.rectangle': 'photo-library',
   'square.and.arrow.down': 'save-alt',

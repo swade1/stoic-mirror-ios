@@ -1,12 +1,4 @@
-import {
-  listAmbientTracks,
-  deriveTrackName,
-  deriveTrackMood,
-  deriveTrackLength,
-  getTrackMoods,
-  getTrackLengths,
-  withCacheBust,
-} from './ambientTracks';
+import { listAmbientTracks, deriveTrackName, deriveTrackMood, getTrackMoods, withCacheBust } from './ambientTracks';
 
 const mockList = jest.fn();
 const mockGetPublicUrl = jest.fn();
@@ -42,16 +34,6 @@ describe('deriveTrackName', () => {
   it('treats a leading hyphen as no mood prefix, not an empty one', () => {
     expect(deriveTrackName('-soft-piano-.mp3')).toBe('Soft Piano');
   });
-
-  it('drops both the mood and length tags when both are present', () => {
-    expect(deriveTrackName('Bright-Short-Rain On Leaves.mp3')).toBe('Rain On Leaves');
-    expect(deriveTrackName('Solemn-Medium-Evening Birdsong.mp3')).toBe('Evening Birdsong');
-    expect(deriveTrackName('Still-Long-Bright Medley.mp3')).toBe('Bright Medley');
-  });
-
-  it('treats an unrecognized second segment as part of the name, not a length tag', () => {
-    expect(deriveTrackName('Bright-Rain-On-Leaves.mp3')).toBe('Rain On Leaves');
-  });
 });
 
 describe('deriveTrackMood', () => {
@@ -70,43 +52,15 @@ describe('deriveTrackMood', () => {
   it('returns null for a leading hyphen rather than an empty-string mood', () => {
     expect(deriveTrackMood('-soft-piano-.mp3')).toBeNull();
   });
-
-  it('still reads the mood correctly when a length tag is also present', () => {
-    expect(deriveTrackMood('Bright-Short-Rain On Leaves.mp3')).toBe('bright');
-  });
-});
-
-describe('deriveTrackLength', () => {
-  it('reads the recognized second segment, lowercased', () => {
-    expect(deriveTrackLength('Bright-Short-Rain On Leaves.mp3')).toBe('short');
-    expect(deriveTrackLength('Bright-Medium-Rain On Leaves.mp3')).toBe('medium');
-    expect(deriveTrackLength('Bright-Long-Rain On Leaves.mp3')).toBe('long');
-  });
-
-  it('is case-insensitive', () => {
-    expect(deriveTrackLength('Bright-SHORT-Rain On Leaves.mp3')).toBe('short');
-  });
-
-  it('returns null for a mood-only filename (no length tag)', () => {
-    expect(deriveTrackLength('Bright-Rain On Leaves Loop.mp3')).toBeNull();
-  });
-
-  it('returns null when there is no hyphen at all', () => {
-    expect(deriveTrackLength('rain.mp3')).toBeNull();
-  });
-
-  it('does not mistake an unrecognized second segment for a length tag', () => {
-    expect(deriveTrackLength('Bright-Rain-On-Leaves.mp3')).toBeNull();
-  });
 });
 
 describe('getTrackMoods', () => {
   it('returns the distinct moods present, sorted alphabetically', () => {
     const tracks = [
-      { id: '1', url: '', name: 'Ocean Waves', mood: 'still', length: null },
-      { id: '2', url: '', name: 'Breathing Waves', mood: 'bright', length: null },
-      { id: '3', url: '', name: 'Beach Memories', mood: 'solemn', length: null },
-      { id: '4', url: '', name: 'Gentle Waves', mood: 'still', length: null },
+      { id: '1', url: '', name: 'Ocean Waves', mood: 'still' },
+      { id: '2', url: '', name: 'Breathing Waves', mood: 'bright' },
+      { id: '3', url: '', name: 'Beach Memories', mood: 'solemn' },
+      { id: '4', url: '', name: 'Gentle Waves', mood: 'still' },
     ];
 
     expect(getTrackMoods(tracks)).toEqual(['bright', 'solemn', 'still']);
@@ -114,41 +68,15 @@ describe('getTrackMoods', () => {
 
   it('ignores tracks with no mood', () => {
     const tracks = [
-      { id: '1', url: '', name: 'Rain', mood: null, length: null },
-      { id: '2', url: '', name: 'Breathing Waves', mood: 'bright', length: null },
+      { id: '1', url: '', name: 'Rain', mood: null },
+      { id: '2', url: '', name: 'Breathing Waves', mood: 'bright' },
     ];
 
     expect(getTrackMoods(tracks)).toEqual(['bright']);
   });
 
   it('returns an empty array when no track has a mood', () => {
-    expect(getTrackMoods([{ id: '1', url: '', name: 'Rain', mood: null, length: null }])).toEqual([]);
-  });
-});
-
-describe('getTrackLengths', () => {
-  it('returns the distinct lengths present, in short/medium/long order regardless of input order', () => {
-    const tracks = [
-      { id: '1', url: '', name: 'A', mood: null, length: 'long' as const },
-      { id: '2', url: '', name: 'B', mood: null, length: 'short' as const },
-      { id: '3', url: '', name: 'C', mood: null, length: 'medium' as const },
-      { id: '4', url: '', name: 'D', mood: null, length: 'short' as const },
-    ];
-
-    expect(getTrackLengths(tracks)).toEqual(['short', 'medium', 'long']);
-  });
-
-  it('ignores tracks with no length tag', () => {
-    const tracks = [
-      { id: '1', url: '', name: 'A', mood: null, length: null },
-      { id: '2', url: '', name: 'B', mood: null, length: 'medium' as const },
-    ];
-
-    expect(getTrackLengths(tracks)).toEqual(['medium']);
-  });
-
-  it('returns an empty array when no track has a length tag', () => {
-    expect(getTrackLengths([{ id: '1', url: '', name: 'A', mood: null, length: null }])).toEqual([]);
+    expect(getTrackMoods([{ id: '1', url: '', name: 'Rain', mood: null }])).toEqual([]);
   });
 });
 
@@ -161,10 +89,10 @@ describe('listAmbientTracks', () => {
     }));
   });
 
-  it('lists bucket contents as sorted {id, url, name, mood, length} entries, with the URL cache-busted by updated_at', async () => {
+  it('lists bucket contents as sorted {id, url, name, mood} entries, with the URL cache-busted by updated_at', async () => {
     mockList.mockResolvedValue({
       data: [
-        { id: '2', name: 'Bright-Short-Rain On Leaves Loop.mp3', updated_at: '2026-01-02T00:00:00.000Z' },
+        { id: '2', name: 'Bright-Rain On Leaves Loop.mp3', updated_at: '2026-01-02T00:00:00.000Z' },
         { id: '1', name: 'Solemn-Evening Birdsong Loop.mp3', updated_at: '2026-01-01T00:00:00.000Z' },
       ],
       error: null,
@@ -178,19 +106,17 @@ describe('listAmbientTracks', () => {
         url: 'https://cdn.example.com/Solemn-Evening Birdsong Loop.mp3?v=2026-01-01T00%3A00%3A00.000Z',
         name: 'Evening Birdsong Loop',
         mood: 'solemn',
-        length: null,
       },
       {
-        id: 'Bright-Short-Rain On Leaves Loop.mp3',
-        url: 'https://cdn.example.com/Bright-Short-Rain On Leaves Loop.mp3?v=2026-01-02T00%3A00%3A00.000Z',
+        id: 'Bright-Rain On Leaves Loop.mp3',
+        url: 'https://cdn.example.com/Bright-Rain On Leaves Loop.mp3?v=2026-01-02T00%3A00%3A00.000Z',
         name: 'Rain On Leaves Loop',
         mood: 'bright',
-        length: 'short',
       },
     ]);
   });
 
-  it('gives an entry with no hyphen a null mood and null length', async () => {
+  it('gives an entry with no hyphen a null mood', async () => {
     mockList.mockResolvedValue({
       data: [{ id: '1', name: 'rain.mp3', updated_at: '2026-01-01T00:00:00.000Z' }],
       error: null,
@@ -199,13 +125,7 @@ describe('listAmbientTracks', () => {
     const result = await listAmbientTracks();
 
     expect(result).toEqual([
-      {
-        id: 'rain.mp3',
-        url: 'https://cdn.example.com/rain.mp3?v=2026-01-01T00%3A00%3A00.000Z',
-        name: 'Rain',
-        mood: null,
-        length: null,
-      },
+      { id: 'rain.mp3', url: 'https://cdn.example.com/rain.mp3?v=2026-01-01T00%3A00%3A00.000Z', name: 'Rain', mood: null },
     ]);
   });
 
@@ -213,7 +133,7 @@ describe('listAmbientTracks', () => {
     mockList.mockResolvedValue({
       data: [
         { id: null, name: '.emptyFolderPlaceholder' },
-        { id: '1', name: 'Still-Long-Rain.mp3', updated_at: '2026-01-01T00:00:00.000Z' },
+        { id: '1', name: 'Still-Rain.mp3', updated_at: '2026-01-01T00:00:00.000Z' },
       ],
       error: null,
     });
@@ -222,11 +142,10 @@ describe('listAmbientTracks', () => {
 
     expect(result).toEqual([
       {
-        id: 'Still-Long-Rain.mp3',
-        url: 'https://cdn.example.com/Still-Long-Rain.mp3?v=2026-01-01T00%3A00%3A00.000Z',
+        id: 'Still-Rain.mp3',
+        url: 'https://cdn.example.com/Still-Rain.mp3?v=2026-01-01T00%3A00%3A00.000Z',
         name: 'Rain',
         mood: 'still',
-        length: 'long',
       },
     ]);
   });

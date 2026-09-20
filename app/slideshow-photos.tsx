@@ -7,7 +7,6 @@ import * as ImagePicker from 'expo-image-picker';
 import * as MediaLibrary from 'expo-media-library';
 import { supabase } from '@/lib/supabase';
 import { IconSymbol } from '@/components/ui/IconSymbol';
-import { listAmbientTracks, type AmbientTrack } from '@/lib/ambientTracks';
 
 interface SlideshowPhoto {
   id: string;
@@ -17,6 +16,7 @@ interface SlideshowPhoto {
 }
 
 type SlideshowTransition = 'fade' | 'slide';
+type AmbientVolume = 'low' | 'medium' | 'high';
 
 const COLUMN_COUNT = 3;
 const DEFAULT_DURATION_SECONDS = 7;
@@ -24,6 +24,11 @@ const DURATION_OPTIONS = [3, 5, 7, 10, 15];
 const TRANSITION_OPTIONS: { label: string; value: SlideshowTransition }[] = [
   { label: 'Fade', value: 'fade' },
   { label: 'Slide', value: 'slide' },
+];
+const VOLUME_OPTIONS: { label: string; value: AmbientVolume }[] = [
+  { label: 'Low', value: 'low' },
+  { label: 'Medium', value: 'medium' },
+  { label: 'High', value: 'high' },
 ];
 
 export default function SlideshowPhotosScreen() {
@@ -37,12 +42,14 @@ export default function SlideshowPhotosScreen() {
   const [showSettings, setShowSettings] = useState(false);
   const [durationSeconds, setDurationSeconds] = useState(DEFAULT_DURATION_SECONDS);
   const [transition, setTransition] = useState<SlideshowTransition>('fade');
-  // Only kept here to resolve the currently selected track's display name
-  // for the summary row below — the actual picker (mood/length filters,
-  // track chips, volume) lives on its own screen now; see
-  // app/slideshow-ambient-music.tsx for why.
-  const [tracks, setTracks] = useState<AmbientTrack[]>([]);
-  const [ambientTrackId, setAmbientTrackId] = useState<string | null>(null);
+  const [ambientVolume, setAmbientVolume] = useState<AmbientVolume>('medium');
+  // The soundtrack currently assigned to this slideshow, if any — the
+  // soundtrack itself (its name, tracks) is edited on its own screen,
+  // reached via the picker at app/soundtracks.tsx; this screen only
+  // needs to know which one (if any) is assigned, to show its name and
+  // gate the Volume section below.
+  const [soundtrackId, setSoundtrackId] = useState<string | null>(null);
+  const [soundtrackName, setSoundtrackName] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     if (!collectionId) return;
@@ -54,7 +61,7 @@ export default function SlideshowPhotosScreen() {
       return;
     }
 
-    const [{ data, error }, { data: collectionRow }, tracksResult] = await Promise.all([
+    const [{ data, error }, { data: collectionRow }] = await Promise.all([
       supabase
         .from('slideshow_photos')
         .select('id, asset_id, sort_order')
@@ -63,19 +70,27 @@ export default function SlideshowPhotosScreen() {
         .order('sort_order', { ascending: true }),
       supabase
         .from('slideshow_collections')
-        .select('name, slideshow_duration_seconds, slideshow_transition, ambient_track_id')
+        .select('name, slideshow_duration_seconds, slideshow_transition, ambient_volume, soundtrack_id')
         .eq('id', collectionId)
         .single(),
-      listAmbientTracks().catch(() => [] as AmbientTrack[]),
     ]);
-
-    setTracks(tracksResult);
 
     if (collectionRow) {
       setCollectionName(collectionRow.name);
       setDurationSeconds(collectionRow.slideshow_duration_seconds ?? DEFAULT_DURATION_SECONDS);
       setTransition(collectionRow.slideshow_transition === 'slide' ? 'slide' : 'fade');
-      setAmbientTrackId(collectionRow.ambient_track_id ?? null);
+      setAmbientVolume(collectionRow.ambient_volume === 'low' || collectionRow.ambient_volume === 'high' ? collectionRow.ambient_volume : 'medium');
+      setSoundtrackId(collectionRow.soundtrack_id ?? null);
+      if (collectionRow.soundtrack_id) {
+        const { data: soundtrackRow } = await supabase
+          .from('soundtracks')
+          .select('name')
+          .eq('id', collectionRow.soundtrack_id)
+          .single();
+        setSoundtrackName(soundtrackRow?.name ?? null);
+      } else {
+        setSoundtrackName(null);
+      }
     }
 
     if (error || !data) {
@@ -206,7 +221,11 @@ export default function SlideshowPhotosScreen() {
     await supabase.from('slideshow_collections').update({ slideshow_transition: value }).eq('id', collectionId);
   };
 
-  const selectedTrackName = ambientTrackId ? tracks.find((t) => t.id === ambientTrackId)?.name ?? 'None' : 'None';
+  const chooseAmbientVolume = async (value: AmbientVolume) => {
+    if (!collectionId) return;
+    setAmbientVolume(value);
+    await supabase.from('slideshow_collections').update({ ambient_volume: value }).eq('id', collectionId);
+  };
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
@@ -276,16 +295,38 @@ export default function SlideshowPhotosScreen() {
             })}
           </View>
 
-          <Text style={styles.settingsLabel}>Ambient Music</Text>
+          <Text style={styles.settingsLabel}>Soundtrack</Text>
           <TouchableOpacity
             style={styles.ambientMusicRow}
-            onPress={() => router.push({ pathname: '/slideshow-ambient-music', params: { collectionId } })}
+            onPress={() => router.push({ pathname: '/soundtracks', params: { pickForCollectionId: collectionId } })}
             accessibilityRole="button"
-            accessibilityLabel={`Ambient music, currently ${selectedTrackName}`}
+            accessibilityLabel={`Soundtrack, currently ${soundtrackName ?? 'None'}`}
           >
-            <Text style={styles.ambientMusicValue}>{selectedTrackName}</Text>
+            <Text style={styles.ambientMusicValue}>{soundtrackName ?? 'None'}</Text>
             <IconSymbol name="chevron.right" size={14} color="#8a7e6e" />
           </TouchableOpacity>
+
+          {soundtrackId !== null && (
+            <>
+              <Text style={styles.settingsLabel}>Volume</Text>
+              <View style={styles.chipRow}>
+                {VOLUME_OPTIONS.map((option) => {
+                  const selected = ambientVolume === option.value;
+                  return (
+                    <TouchableOpacity
+                      key={option.value}
+                      onPress={() => chooseAmbientVolume(option.value)}
+                      accessibilityRole="radio"
+                      accessibilityState={{ selected }}
+                      style={[styles.chip, selected && styles.chipSelected]}
+                    >
+                      <Text style={[styles.chipText, selected && styles.chipTextSelected]}>{option.label}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </>
+          )}
         </View>
       )}
 

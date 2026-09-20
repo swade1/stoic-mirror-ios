@@ -165,8 +165,10 @@ export default function SlideshowCollectionsScreen() {
           style: 'destructive',
           onPress: async () => {
             setCollections((prev) => prev.filter((c) => c.id !== collection.id));
-            // slideshow_photos.collection_id cascades, so its photo rows
-            // are removed automatically — nothing else to clean up here.
+            // A collection's assigned soundtrack is a standalone object
+            // that may be reused by other slideshows, so deleting a
+            // collection must never touch it — only slideshow_photos
+            // cascades from this delete.
             const { error } = await supabase.from('slideshow_collections').delete().eq('id', collection.id);
             if (error) {
               await load();
@@ -191,13 +193,24 @@ export default function SlideshowCollectionsScreen() {
           <IconSymbol name="chevron.left" size={16} color="#c9b97a" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Slideshows</Text>
-        <TouchableOpacity
-          onPress={openNewCollectionPanel}
-          accessibilityRole="button"
-          accessibilityLabel="New collection"
-        >
-          <IconSymbol name="plus" size={20} color="#c9b97a" />
-        </TouchableOpacity>
+        <View style={styles.headerActions}>
+          <TouchableOpacity
+            onPress={() => router.push('/soundtracks')}
+            accessibilityRole="button"
+            accessibilityLabel="Manage soundtracks"
+            hitSlop={8}
+          >
+            <IconSymbol name="music.note.list" size={20} color="#c9b97a" />
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={openNewCollectionPanel}
+            accessibilityRole="button"
+            accessibilityLabel="New collection"
+            hitSlop={8}
+          >
+            <IconSymbol name="plus" size={20} color="#c9b97a" />
+          </TouchableOpacity>
+        </View>
       </View>
 
       {loading ? (
@@ -323,6 +336,11 @@ const styles = StyleSheet.create({
     fontSize: 17,
     fontWeight: '600',
     color: '#f0ead6',
+  },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
   },
   loading: {
     marginTop: 60,

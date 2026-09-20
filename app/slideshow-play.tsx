@@ -19,6 +19,8 @@ import { useAudioPlayer } from 'expo-audio';
 import { supabase } from '@/lib/supabase';
 import { IconSymbol } from '@/components/ui/IconSymbol';
 import { listAmbientTracks, type AmbientTrack } from '@/lib/ambientTracks';
+import { resolvePersonalAmbientTrackUri } from '@/lib/personalAmbientTrack';
+import { listPlaylistItems, type PlaylistItem } from '@/lib/ambientPlaylist';
 
 type SlideshowTransition = 'fade' | 'slide';
 type AmbientVolume = 'low' | 'medium' | 'high';
@@ -58,7 +60,13 @@ export default function SlideshowPlayScreen() {
   const [paused, setPaused] = useState(false);
   const [durationSeconds, setDurationSeconds] = useState(DEFAULT_DURATION_SECONDS);
   const [transition, setTransition] = useState<SlideshowTransition>('fade');
-  const [ambientTrackUrl, setAmbientTrackUrl] = useState<string | null>(null);
+  // The resolved, playable queue for this collection's ambient playlist,
+  // and which item within it is currently playing. Replaces a single
+  // track + player.loop=true — looping the whole queue (see the
+  // didJustFinish listener below) subsumes looping a single file for
+  // free, since a one-item queue just re-selects its own only index.
+  const [ambientQueue, setAmbientQueue] = useState<string[]>([]);
+  const [ambientQueueIndex, setAmbientQueueIndex] = useState(0);
   const [ambientVolume, setAmbientVolume] = useState<AmbientVolume>('medium');
   // Session-only — never persisted, always starts back at Off. "How long
   // do I want to watch right now" is a fresh choice each sitting, not a
@@ -112,10 +120,14 @@ export default function SlideshowPlayScreen() {
   useFocusEffect(
     useCallback(() => {
       let cancelled = false;
+      // TEMP DEBUG — remove once the stuck-pause bug is diagnosed.
+      console.log(`[SLIDESHOW] focus effect mounted/refocused, collectionId=${collectionId}`);
 
       const load = async () => {
         if (!collectionId) { setLoading(false); return; }
         setLoading(true);
+        // TEMP DEBUG
+        console.log('[SLIDESHOW] load() starting');
         const { data: { session } } = await supabase.auth.getSession();
         if (!session || cancelled) { setLoading(false); return; }
 
@@ -128,7 +140,7 @@ export default function SlideshowPlayScreen() {
             .order('sort_order', { ascending: true }),
           supabase
             .from('slideshow_collections')
-            .select('slideshow_duration_seconds, slideshow_transition, ambient_track_id, ambient_volume')
+            .select('slideshow_duration_seconds, slideshow_transition, ambient_volume, soundtrack_id')
             .eq('id', collectionId)
             .single(),
           listAmbientTracks().catch(() => [] as AmbientTrack[]),
@@ -136,15 +148,28 @@ export default function SlideshowPlayScreen() {
 
         if (error || !photoRows || cancelled) { setLoading(false); return; }
 
+        // Only a slideshow with a soundtrack assigned has anything to
+        // queue — see app/soundtracks.tsx for how that assignment is made.
+        const playlistItems = collectionRow?.soundtrack_id
+          ? await listPlaylistItems(collectionRow.soundtrack_id).catch(() => [] as PlaylistItem[])
+          : [];
+
         const resolvedDuration = collectionRow?.slideshow_duration_seconds ?? DEFAULT_DURATION_SECONDS;
         const resolvedTransition: SlideshowTransition = collectionRow?.slideshow_transition === 'slide' ? 'slide' : 'fade';
-        // If the selected track was since removed from the bucket, this
-        // just quietly resolves to null — a stale content-catalog
-        // reference isn't user data, so it's left alone rather than
-        // auto-clearing the collection's setting or erroring.
-        const resolvedTrackUrl = collectionRow?.ambient_track_id
-          ? ambientTracks.find((t) => t.id === collectionRow.ambient_track_id)?.url ?? null
-          : null;
+        // Each item resolves independently and a failure just drops it —
+        // a stale curated reference (removed from the bucket) or a
+        // missing personal file (local storage cleared) isn't user data
+        // worth erroring over, the same tolerant treatment a deleted
+        // Photos asset already gets elsewhere in this app. The queue
+        // itself, not any single file, is what loops — see the ambient
+        // playback effect below.
+        const resolvedQueue = playlistItems
+          .map((item) =>
+            item.sourceType === 'curated'
+              ? ambientTracks.find((t) => t.id === item.curatedTrackId)?.url ?? null
+              : resolvePersonalAmbientTrackUri(item.id, item.personalFileName ?? '')
+          )
+          .filter((url): url is string => !!url);
         const resolvedVolume: AmbientVolume =
           collectionRow?.ambient_volume === 'low' || collectionRow?.ambient_volume === 'high'
             ? collectionRow.ambient_volume
@@ -168,10 +193,13 @@ export default function SlideshowPlayScreen() {
           })
         );
 
+        // TEMP DEBUG
+        console.log(`[SLIDESHOW] load() reached commit point, cancelled=${cancelled}`);
         if (!cancelled) {
           setDurationSeconds(resolvedDuration);
           setTransition(resolvedTransition);
-          setAmbientTrackUrl(resolvedTrackUrl);
+          setAmbientQueue(resolvedQueue);
+          setAmbientQueueIndex(0);
           setAmbientVolume(resolvedVolume);
           setSleepMinutes(null);
           const validUris = resolved.filter((u): u is string => !!u);
@@ -180,6 +208,8 @@ export default function SlideshowPlayScreen() {
           setSlotUris([validUris[0] ?? null, null]);
           setActiveSlot(0);
           setPaused(false);
+          // TEMP DEBUG
+          console.log('[SLIDESHOW] load() committed, setPaused(false) called');
           transitioningRef.current = false;
           opacity.value = 1;
           slotTranslateX0.value = 0;
@@ -191,7 +221,11 @@ export default function SlideshowPlayScreen() {
       };
 
       load();
-      return () => { cancelled = true; };
+      return () => {
+        cancelled = true;
+        // TEMP DEBUG
+        console.log('[SLIDESHOW] focus effect cleanup — losing focus/unmounting');
+      };
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [collectionId])
   );
@@ -286,7 +320,11 @@ export default function SlideshowPlayScreen() {
     goTo((currentIndex + direction + uris.length) % uris.length, direction);
   }, [currentIndex, uris.length, goTo]);
 
-  const togglePaused = useCallback(() => setPaused((p) => !p), []);
+  const togglePaused = useCallback(() => setPaused((p) => {
+    // TEMP DEBUG — remove once the stuck-pause bug is diagnosed.
+    console.log(`[SLIDESHOW] togglePaused: ${p} -> ${!p}`);
+    return !p;
+  }), []);
 
   const idleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -356,6 +394,8 @@ export default function SlideshowPlayScreen() {
   // already reset moments earlier, corrupting it back toward zero — the
   // bug that made every other slide flash by almost instantly.
   useEffect(() => {
+    // TEMP DEBUG — remove once the stuck-pause bug is diagnosed.
+    console.log(`[SLIDESHOW] auto-advance effect fired: currentIndex=${currentIndex} paused=${paused} uris.length=${uris.length}`);
     if (paused || uris.length <= 1) return;
     startedAtRef.current = Date.now();
     const remaining = remainingMsRef.current;
@@ -380,20 +420,43 @@ export default function SlideshowPlayScreen() {
 
   // Ambient music is independent of individual slide pause/resume —
   // pausing to read one slide longer shouldn't cut the music, it's
-  // ambient, not tied to the visual timer. Starts looping once on load
-  // (or whenever a different track was selected) and otherwise plays
-  // continuously until the screen is left.
+  // ambient, not tied to the visual timer. Plays whichever queue item is
+  // current and otherwise continues until the screen is left; the queue
+  // as a whole is what loops, not this one file (player.loop stays
+  // false — see the didJustFinish listener below).
   useEffect(() => {
-    if (!ambientTrackUrl) {
+    if (ambientQueue.length === 0) {
       player.pause();
       return;
     }
-    player.loop = true;
+    player.loop = false;
     player.volume = VOLUME_GAIN[ambientVolume];
-    player.replace(ambientTrackUrl);
+    // ambientQueueIndex counts monotonically upward rather than wrapping
+    // (see the didJustFinish listener below) specifically so this effect
+    // always sees a changed dependency and re-fires — a wrapped index
+    // that lands back on the same value (e.g. a one-track queue going
+    // 0 -> 0) is a no-op React state update, which would silently skip
+    // this replace()/play() and leave a single-track soundtrack playing
+    // once and then falling silent.
+    player.replace(ambientQueue[ambientQueueIndex % ambientQueue.length]);
     player.play();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ambientTrackUrl]);
+  }, [ambientQueue, ambientQueueIndex]);
+
+  // Advances to the next queue item when one finishes — always a genuine
+  // increment, never wrapped here, so the effect above always re-fires
+  // and can never observe an unchanged index (see its comment for why
+  // that matters). The wrap into a valid array position happens only
+  // when reading the queue, via % ambientQueue.length above.
+  useEffect(() => {
+    if (ambientQueue.length === 0) return;
+    const subscription = player.addListener('playbackStatusUpdate', (status) => {
+      if (status.didJustFinish) {
+        setAmbientQueueIndex((i) => i + 1);
+      }
+    });
+    return () => subscription.remove();
+  }, [player, ambientQueue]);
 
   // Guards fadeOutAudio's interval so a second call (e.g. a double-tap on
   // Close before the first fade finishes) can't leave two intervals
@@ -423,7 +486,7 @@ export default function SlideshowPlayScreen() {
     }
     let startVolume: number;
     try {
-      if (!ambientTrackUrl || !player.playing) {
+      if (ambientQueue.length === 0 || !player.playing) {
         onDone();
         return;
       }
@@ -451,7 +514,7 @@ export default function SlideshowPlayScreen() {
         onDone();
       }
     }, stepMs);
-  }, [ambientTrackUrl, player]);
+  }, [ambientQueue, player]);
 
   // Belt-and-suspenders: if the screen unmounts by some path other than
   // fadeOutAudio's own onDone (e.g. a hardware/gesture back nav racing a
@@ -470,7 +533,12 @@ export default function SlideshowPlayScreen() {
   // button and by the sleep timer's expiry, so both get the same
   // fade-then-exit behavior instead of an abrupt cut.
   const handleClose = useCallback(() => {
-    fadeOutAudio(() => router.back());
+    // TEMP DEBUG — remove once the stuck-pause bug is diagnosed.
+    console.log('[SLIDESHOW] handleClose called');
+    fadeOutAudio(() => {
+      console.log('[SLIDESHOW] fadeOutAudio onDone -> router.back()');
+      router.back();
+    });
   }, [fadeOutAudio, router]);
 
   // Session-only real-wall-clock countdown — deliberately not tied to
