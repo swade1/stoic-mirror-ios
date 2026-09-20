@@ -3,7 +3,7 @@ import { LayoutChangeEvent, StyleSheet, Text, TextInput, type TextStyle } from '
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, { runOnJS, useAnimatedStyle, useSharedValue } from 'react-native-reanimated';
 import { DEFAULT_TEXT_POSITION, fractionToPixels, pixelsToFraction } from '@/lib/textPosition';
-import type { TextAlignValue } from '@/lib/textStyleOptions';
+import { isLightTextColor, type TextAlignValue } from '@/lib/textStyleOptions';
 
 export interface TextBox {
   id: string;
@@ -151,7 +151,23 @@ export function DraggableTextBox({
     setSize({ width, height });
   };
 
-  const textStyle = { color: textColor, fontSize, lineHeight, textAlign: box.align, fontFamily, fontStyle, fontWeight };
+  // A soft legibility shadow, always on rather than a user-facing toggle —
+  // it's the cheapest available help against a busy or low-contrast patch
+  // of background photo, and falls on whichever side actually adds
+  // contrast for the chosen text color (see isLightTextColor).
+  const shadowColor = isLightTextColor(textColor) ? 'rgba(0,0,0,0.75)' : 'rgba(255,255,255,0.75)';
+  const textStyle = {
+    color: textColor,
+    fontSize,
+    lineHeight,
+    textAlign: box.align,
+    fontFamily,
+    fontStyle,
+    fontWeight,
+    textShadowColor: shadowColor,
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 3,
+  };
 
   // While editing, the TextInput is deliberately NOT wrapped in a
   // GestureDetector at all — not even a disabled one. Even a disabled

@@ -17,6 +17,19 @@ export const TEXT_COLOR_OPTIONS = [
 
 export const DEFAULT_TEXT_COLOR: string = TEXT_COLOR_OPTIONS[0].value;
 
+// Perceived-brightness (YIQ) check on a #rrggbb color — used to pick which
+// side a legibility shadow should fall on: a dark shadow behind light text
+// (Cream, White, Gold, Sand...), a light shadow behind dark text (Black,
+// Charcoal, Wine, Forest, Slate...). A single fixed shadow color can't
+// serve both halves of the palette, since a dark shadow behind already-dark
+// text does nothing to separate it from a light patch of background.
+export function isLightTextColor(hex: string): boolean {
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  return (r * 299 + g * 587 + b * 114) / 1000 > 128;
+}
+
 export const TEXT_SIZE_STEPS = [
   { label: 'Small', value: 0.8 },
   { label: 'Medium', value: 1.0 },
