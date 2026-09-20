@@ -1,8 +1,13 @@
 #!/usr/bin/env bash
-# Normalizes loudness and bakes a fade-in/out into an ambient audio clip so
-# it loops cleanly, and sits at a consistent volume next to every other
-# track, once uploaded to the ambient-tracks Supabase bucket. Run this
-# before uploading any new track:
+# Normalizes loudness and bakes a self-crossfade loop point into an ambient
+# audio clip so it sits at a consistent volume next to every other track,
+# and — since every curated track plays as a standalone loop or as one item
+# in a queue that eventually wraps back to itself — so its own tail
+# dissolves into its own head instead of both dropping toward silence and
+# back up (a plain fade-out/fade-in leaves an audible dip at the seam; a
+# crossfade blends the two into each other, the same technique used to
+# blend between the two different clips concatenated into "Bright Medley").
+# Run this before uploading any new track:
 #
 #   scripts/prep-ambient-track.sh "raw/Upbeat-Breathing Waves.mp3" "ready/Upbeat-Breathing Waves.mp3"
 #
@@ -28,10 +33,11 @@ fi
 
 dur=$(ffprobe -v error -show_entries format=duration -of csv=p=0 "$in")
 
-# Fade length: 10% of the clip, capped at 2s, so a 5-minute track gets a
-# short tasteful fade while a 4-second clip doesn't fade for most of its length.
-fade=$(awk -v d="$dur" 'BEGIN { f = d * 0.1; if (f > 2) f = 2; if (f < 0.15) f = 0.15; print f }')
-fade_start=$(awk -v d="$dur" -v f="$fade" 'BEGIN { print d - f }')
+# Crossfade length: 10% of the clip, capped at 2s, so a 5-minute track gets
+# a short tasteful blend while a 4-second clip doesn't spend most of its
+# length crossfading into itself.
+xfade=$(awk -v d="$dur" 'BEGIN { f = d * 0.1; if (f > 2) f = 2; if (f < 0.15) f = 0.15; print f }')
+body_end=$(awk -v d="$dur" -v f="$xfade" 'BEGIN { print d - f }')
 
 # Loudness target: -18 LUFS integrated, -1.5 dBTP true-peak ceiling — quiet
 # enough to sit under quote text as a background bed, but a fixed target so
@@ -65,8 +71,26 @@ ffmpeg -y -loglevel error -i "$in" \
   -af "loudnorm=I=${target_i}:TP=${target_tp}:LRA=${target_lra}:measured_I=${measured_i}:measured_TP=${measured_tp}:measured_LRA=${measured_lra}:measured_thresh=${measured_thresh}:offset=${measured_offset}:linear=true" \
   "$normalized"
 
-ffmpeg -y -loglevel error -i "$normalized" \
-  -af "afade=t=in:st=0:d=${fade},afade=t=out:st=${fade_start}:d=${fade}" \
-  "$out"
+# Builds the final loop as [everything except the last xfade seconds] +
+# [the last xfade seconds crossfaded with the first xfade seconds] — the
+# output stays the same total length as the input (the crossfaded segment
+# replaces the plain tail, it doesn't add the head's seconds on top), but
+# its last xfade seconds now dissolve into the track's own opening instead
+# of fading to silence. Looping it (player.loop, or the queue wrapping back
+# to index 0) then plays what sounds like a continuous blend through the
+# seam rather than a hard cut — the same principle used to blend between
+# the two different clips concatenated into "Bright Medley," applied here
+# to a track's own boundary instead. qsin (quarter-sine) curves on both
+# sides approximate an equal-power crossfade, avoiding the slight loudness
+# dip a straight linear (tri) crossfade would leave in the middle of the
+# blend.
+ffmpeg -y -loglevel error -i "$normalized" -filter_complex "
+[0:a]asplit=3[a1][a2][a3];
+[a1]atrim=0:${body_end},asetpts=PTS-STARTPTS[body];
+[a2]atrim=${body_end}:${dur},asetpts=PTS-STARTPTS[tail];
+[a3]atrim=0:${xfade},asetpts=PTS-STARTPTS[head];
+[tail][head]acrossfade=d=${xfade}:c1=qsin:c2=qsin[blend];
+[body][blend]concat=n=2:v=0:a=1[out]
+" -map "[out]" "$out"
 
-echo "Wrote $out (normalized ${measured_i} LUFS -> ${target_i} LUFS, fade ${fade}s in/out, source duration ${dur}s)"
+echo "Wrote $out (normalized ${measured_i} LUFS -> ${target_i} LUFS, ${xfade}s self-crossfade loop, source duration ${dur}s)"
