@@ -99,7 +99,17 @@ export default function HistoryScreen() {
           onPress: async () => {
             await supabase.from('saved_quotes').delete().eq('id', id);
             setSavedQuotes((prev) => prev.filter((q) => q.id !== id));
-            setCurrentIndex((prev) => Math.max(0, prev - 1));
+            // Deleting the item at currentIndex shifts every later item up
+            // one slot, so currentIndex should normally stay put — it now
+            // points at whichever item slid into this spot. Unconditionally
+            // decrementing (the old behavior) instead skipped back to the
+            // *previous* item every time, which silently pointed
+            // currentQuote — and therefore the id handed to "turn this
+            // quote into a photo card" — at the wrong entry after any
+            // delete. Only pull back when the deleted item was the last
+            // one in the filtered list, so the index doesn't run past the
+            // new end.
+            setCurrentIndex((prev) => Math.min(prev, Math.max(0, filteredQuotes.length - 2)));
           },
         },
       ]
