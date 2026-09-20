@@ -17,6 +17,11 @@ export const TEXT_COLOR_OPTIONS = [
 
 export const DEFAULT_TEXT_COLOR: string = TEXT_COLOR_OPTIONS[0].value;
 
+// On by default — Susan confirmed she likes the backdrop after seeing it
+// live; a user who doesn't can turn it off per card from the text style
+// panel.
+export const DEFAULT_SCRIM_ENABLED = true;
+
 // Perceived-brightness (YIQ) check on a #rrggbb color — used to pick which
 // side a legibility shadow should fall on: a dark shadow behind light text
 // (Cream, White, Gold, Sand...), a light shadow behind dark text (Black,

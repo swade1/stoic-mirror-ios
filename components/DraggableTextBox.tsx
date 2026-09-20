@@ -14,6 +14,11 @@ export interface TextBox {
   // default position.
   offsetX: number | null;
   offsetY: number | null;
+  // Per-box overrides of the card's text color / backdrop — null means
+  // "use the card's default," the same nullable-override convention the
+  // card-level fields already use against a hardcoded default.
+  color: string | null;
+  scrimEnabled: boolean | null;
 }
 
 interface Props {
@@ -23,7 +28,10 @@ interface Props {
   maxWidth: number;
   defaultOffsetY: number;
   isEditing: boolean;
-  textColor: string;
+  // Card-level defaults — used as-is when this box has no override of its
+  // own (box.color / box.scrimEnabled are null).
+  cardTextColor: string;
+  cardScrimEnabled: boolean;
   fontSize: number;
   lineHeight: number;
   fontFamily: string | undefined;
@@ -51,7 +59,8 @@ export function DraggableTextBox({
   maxWidth,
   defaultOffsetY,
   isEditing,
-  textColor,
+  cardTextColor,
+  cardScrimEnabled,
   fontSize,
   lineHeight,
   fontFamily,
@@ -151,11 +160,18 @@ export function DraggableTextBox({
     setSize({ width, height });
   };
 
+  // This box's own color/backdrop choice if it has one, otherwise the
+  // card's default — lets one box go black-on-white while another stays
+  // white-on-black, split independently per box.
+  const textColor = box.color ?? cardTextColor;
+  const scrimEnabled = box.scrimEnabled ?? cardScrimEnabled;
+
   // A soft legibility shadow, always on rather than a user-facing toggle —
   // it's the cheapest available help against a busy or low-contrast patch
   // of background photo, and falls on whichever side actually adds
   // contrast for the chosen text color (see isLightTextColor).
-  const shadowColor = isLightTextColor(textColor) ? 'rgba(0,0,0,0.75)' : 'rgba(255,255,255,0.75)';
+  const isLight = isLightTextColor(textColor);
+  const shadowColor = isLight ? 'rgba(0,0,0,0.75)' : 'rgba(255,255,255,0.75)';
   const textStyle = {
     color: textColor,
     fontSize,
@@ -169,6 +185,18 @@ export function DraggableTextBox({
     textShadowRadius: 3,
   };
 
+  // An optional scrim panel behind the text, same light/dark-flip logic as
+  // the shadow above (dark panel behind light text, light panel behind
+  // dark text) — a per-box or per-card user choice (see textColor above),
+  // since it's a more noticeable visual change than a soft shadow.
+  const scrimStyle = scrimEnabled
+    ? {
+        backgroundColor: isLight ? 'rgba(0,0,0,0.35)' : 'rgba(255,255,255,0.35)',
+        borderRadius: 8,
+        padding: 8,
+      }
+    : undefined;
+
   // While editing, the TextInput is deliberately NOT wrapped in a
   // GestureDetector at all — not even a disabled one. Even a disabled
   // gesture's underlying native recognizer can still intercept the
@@ -179,7 +207,7 @@ export function DraggableTextBox({
   // gesture wrapper for the read-only state.
   if (isEditing) {
     return (
-      <Animated.View style={[styles.box, { maxWidth }, animatedStyle]} onLayout={handleLayout}>
+      <Animated.View style={[styles.box, { maxWidth }, animatedStyle, scrimStyle]} onLayout={handleLayout}>
         <TextInput
           style={[styles.text, textStyle]}
           value={box.text}
@@ -195,7 +223,7 @@ export function DraggableTextBox({
 
   return (
     <GestureDetector gesture={gesture}>
-      <Animated.View style={[styles.box, { maxWidth }, animatedStyle]} onLayout={handleLayout}>
+      <Animated.View style={[styles.box, { maxWidth }, animatedStyle, scrimStyle]} onLayout={handleLayout}>
         <Text style={[styles.text, textStyle]}>{box.text}</Text>
       </Animated.View>
     </GestureDetector>

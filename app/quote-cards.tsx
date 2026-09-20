@@ -39,6 +39,7 @@ import {
   DEFAULT_TEXT_ALIGN,
   TEXT_FONT_OPTIONS,
   DEFAULT_TEXT_FONT,
+  DEFAULT_SCRIM_ENABLED,
   resolveTextFontOption,
   type TextAlignValue,
 } from '@/lib/textStyleOptions';
@@ -52,6 +53,10 @@ interface SavedQuote {
   text_color: string | null;
   text_font: string | null;
   text_size_scale: number | null;
+  // Whether the semi-transparent backdrop panel behind the text is shown
+  // — null means "use the default" (see DEFAULT_SCRIM_ENABLED), same
+  // nullable-override convention as text_color/text_size_scale/text_font.
+  scrim_enabled: boolean | null;
   // Free-form text pieces composed onto the card — each independently
   // positioned/draggable and freely typed, like a sticker in Instagram
   // Stories or Canva. Untouched (never edited/dragged/added to), this
@@ -75,6 +80,8 @@ function deriveDefaultBoxes(quote: SavedQuote): TextBox[] {
       align: DEFAULT_TEXT_ALIGN,
       offsetX: null,
       offsetY: null,
+      color: null,
+      scrimEnabled: null,
     },
   ];
 }
@@ -98,6 +105,8 @@ function mergeBoxesForNewPhoto(boxes: TextBox[] | null): TextBox[] | null {
       align: DEFAULT_TEXT_ALIGN,
       offsetX: null,
       offsetY: null,
+      color: null,
+      scrimEnabled: null,
     },
   ];
 }
@@ -131,6 +140,10 @@ export default function QuoteCardsScreen() {
   const [sharing, setSharing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [showTextStylePanel, setShowTextStylePanel] = useState(false);
+  // Which box the style panel's Color/Backdrop rows apply to — null means
+  // "the card's default," set when reached via a box's own "Style this
+  // text" action so the panel edits that box's override instead.
+  const [stylingBoxId, setStylingBoxId] = useState<string | null>(null);
   const [cardSize, setCardSize] = useState({ width: 0, height: 0 });
 
   const cardRef = useRef<View>(null);
@@ -146,6 +159,7 @@ export default function QuoteCardsScreen() {
   const textColor = quote?.text_color ?? DEFAULT_TEXT_COLOR;
   const sizeScale = quote?.text_size_scale ?? DEFAULT_TEXT_SIZE_SCALE;
   const fontOption = resolveTextFontOption(quote?.text_font ?? DEFAULT_TEXT_FONT);
+  const scrimEnabled = quote?.scrim_enabled ?? DEFAULT_SCRIM_ENABLED;
   // Alignment is per-box now (see TextBox.align) — each DraggableTextBox
   // derives its own position-anchor edge from its own alignment.
   const boxMaxWidth = Math.max(0, cardSize.width - TEXT_BOX_MARGIN * 2);
@@ -204,7 +218,7 @@ export default function QuoteCardsScreen() {
         const [{ data: quoteRow, error }, backgroundList] = await Promise.all([
           supabase
             .from('saved_quotes')
-            .select('id, quote, author, source, background_photo_id, text_color, text_size_scale, text_font, card_text_boxes')
+            .select('id, quote, author, source, background_photo_id, text_color, text_size_scale, text_font, scrim_enabled, card_text_boxes')
             .eq('id', quoteId)
             .eq('user_id', session.user.id)
             .single(),
@@ -216,7 +230,16 @@ export default function QuoteCardsScreen() {
           if (error || !quoteRow) {
             setNotFound(true);
           } else {
-            setQuote(quoteRow);
+            // card_text_boxes is discarded on every fresh load, even when
+            // the row has previously-saved boxes — Susan decided a card is
+            // a single quick sitting, not something worth resuming days
+            // later, so any typed-over wording (or split/position/color
+            // customization) should never resurface as a surprise the next
+            // time this quote is opened from History; it just starts over
+            // from the quote text, same as an untouched card always has.
+            // If nothing gets edited this time, saving will persist this
+            // null and clear out whatever was there before.
+            setQuote({ ...quoteRow, card_text_boxes: null });
             // Always open on the picker, even if this quote already has a
             // chosen background — the user wants to see the quote +
             // gallery first every time, not silently resume straight to a
@@ -229,6 +252,8 @@ export default function QuoteCardsScreen() {
             photoTranslateY.value = 0;
             photoScale.value = 1;
             setEditingBoxId(null);
+            setStylingBoxId(null);
+            setShowTextStylePanel(false);
             setSelectedCategory(null);
             backgroundScrollX.current = 0;
           }
@@ -358,6 +383,7 @@ export default function QuoteCardsScreen() {
         text_color: null,
         text_size_scale: null,
         text_font: null,
+        scrim_enabled: null,
       } : {}),
     });
     setShowPicker(false);
@@ -409,6 +435,7 @@ export default function QuoteCardsScreen() {
       text_color: null,
       text_size_scale: null,
       text_font: null,
+      scrim_enabled: null,
     });
     setShowPicker(false);
     setImageLoaded(false);
@@ -422,6 +449,11 @@ export default function QuoteCardsScreen() {
   const chooseTextSize = (scale: number) => {
     if (!quote) return;
     setQuote({ ...quote, text_size_scale: scale });
+  };
+
+  const chooseScrimEnabled = (enabled: boolean) => {
+    if (!quote) return;
+    setQuote({ ...quote, scrim_enabled: enabled });
   };
 
   const chooseTextFont = (font: string | null) => {
@@ -451,11 +483,40 @@ export default function QuoteCardsScreen() {
     });
   };
 
+  const changeBoxColor = (id: string, color: string) => {
+    setQuote((prev) => {
+      if (!prev) return prev;
+      const boxes = prev.card_text_boxes ?? deriveDefaultBoxes(prev);
+      return { ...prev, card_text_boxes: boxes.map((b) => (b.id === id ? { ...b, color } : b)) };
+    });
+  };
+
+  const changeBoxScrim = (id: string, scrimEnabled: boolean) => {
+    setQuote((prev) => {
+      if (!prev) return prev;
+      const boxes = prev.card_text_boxes ?? deriveDefaultBoxes(prev);
+      return { ...prev, card_text_boxes: boxes.map((b) => (b.id === id ? { ...b, scrimEnabled } : b)) };
+    });
+  };
+
+  // Reached from the main "Aa" action button — always edits the card's
+  // defaults, not any one box, so any leftover per-box targeting from a
+  // previous "Style this text" visit is cleared.
   const toggleTextStylePanel = () => {
     if (!showTextStylePanel && editingBoxId) {
       finishEditingBox(editingBoxId);
     }
+    setStylingBoxId(null);
     setShowTextStylePanel((v) => !v);
+  };
+
+  // Reached from one box's own floating toolbar — exits that box's text
+  // editing and opens the same style panel, but targeted at this box's
+  // own Color/Backdrop override instead of the card's defaults.
+  const openBoxStyling = (id: string) => {
+    finishEditingBox(id);
+    setStylingBoxId(id);
+    setShowTextStylePanel(true);
   };
 
   // Materializes the derived default box(es) into real state the first
@@ -465,6 +526,7 @@ export default function QuoteCardsScreen() {
     if (!quote) return;
     setQuote((prev) => (prev && !prev.card_text_boxes ? { ...prev, card_text_boxes: deriveDefaultBoxes(prev) } : prev));
     setShowTextStylePanel(false);
+    setStylingBoxId(null);
     setEditingBoxId(id);
   };
 
@@ -491,6 +553,7 @@ export default function QuoteCardsScreen() {
       return { ...prev, card_text_boxes: boxes.filter((b) => b.id !== id) };
     });
     setEditingBoxId((current) => (current === id ? null : current));
+    setStylingBoxId((current) => (current === id ? null : current));
   };
 
   // A box left empty when editing ends is just discarded rather than
@@ -517,7 +580,7 @@ export default function QuoteCardsScreen() {
     // happened when the button was tapped.
     setQuote({
       ...quote,
-      card_text_boxes: [...boxes, { id, text: '', align: DEFAULT_TEXT_ALIGN, offsetX: null, offsetY: 0.5 }],
+      card_text_boxes: [...boxes, { id, text: '', align: DEFAULT_TEXT_ALIGN, offsetX: null, offsetY: 0.5, color: null, scrimEnabled: null }],
     });
     setShowTextStylePanel(false);
     setEditingBoxId(id);
@@ -533,6 +596,7 @@ export default function QuoteCardsScreen() {
       text_color: quote.text_color,
       text_size_scale: quote.text_size_scale,
       text_font: quote.text_font,
+      scrim_enabled: quote.scrim_enabled,
       card_text_boxes: quote.card_text_boxes,
     }).eq('id', quote.id);
   };
@@ -617,6 +681,13 @@ export default function QuoteCardsScreen() {
     : backgrounds;
   const boxes = quote.card_text_boxes ?? deriveDefaultBoxes(quote);
   const editingBox = editingBoxId ? boxes.find((b) => b.id === editingBoxId) ?? null : null;
+  // The box the style panel's Color/Backdrop rows target, when reached via
+  // that box's own "Style this text" action rather than the main "Aa"
+  // button — its own override if set, else falls back to the card default,
+  // the same resolution DraggableTextBox itself applies when rendering.
+  const stylingBox = stylingBoxId ? boxes.find((b) => b.id === stylingBoxId) ?? null : null;
+  const activeTextColor = stylingBox ? stylingBox.color ?? textColor : textColor;
+  const activeScrimEnabled = stylingBox ? stylingBox.scrimEnabled ?? scrimEnabled : scrimEnabled;
 
   return (
     <View style={styles.container}>
@@ -802,7 +873,8 @@ export default function QuoteCardsScreen() {
                 maxWidth={boxMaxWidth}
                 defaultOffsetY={DEFAULT_TEXT_POSITION.y}
                 isEditing={editingBoxId === box.id}
-                textColor={textColor}
+                cardTextColor={textColor}
+                cardScrimEnabled={scrimEnabled}
                 fontSize={22 * sizeScale}
                 lineHeight={30 * sizeScale}
                 fontFamily={fontOption.fontFamily}
@@ -875,6 +947,14 @@ export default function QuoteCardsScreen() {
                   );
                 })}
                 <TouchableOpacity
+                  onPress={() => openBoxStyling(editingBoxId)}
+                  hitSlop={8}
+                  accessibilityRole="button"
+                  accessibilityLabel="Color and backdrop for this text"
+                >
+                  <IconSymbol name="paintpalette" size={16} color="#a89f88" />
+                </TouchableOpacity>
+                <TouchableOpacity
                   onPress={() => deleteBox(editingBoxId)}
                   hitSlop={8}
                   accessibilityRole="button"
@@ -923,14 +1003,14 @@ export default function QuoteCardsScreen() {
                 })}
               </View>
 
-              <Text style={styles.textStylePanelLabel}>Color</Text>
+              <Text style={styles.textStylePanelLabel}>{stylingBox ? 'Color (this text)' : 'Color'}</Text>
               <View style={styles.swatchRow}>
                 {TEXT_COLOR_OPTIONS.map((option) => {
-                  const selected = textColor === option.value;
+                  const selected = activeTextColor === option.value;
                   return (
                     <TouchableOpacity
                       key={option.value}
-                      onPress={() => chooseTextColor(option.value)}
+                      onPress={() => (stylingBox ? changeBoxColor(stylingBox.id, option.value) : chooseTextColor(option.value))}
                       accessibilityRole="radio"
                       accessibilityState={{ selected }}
                       accessibilityLabel={`Text color ${option.label}`}
@@ -958,6 +1038,27 @@ export default function QuoteCardsScreen() {
                     >
                       <Text style={[styles.sizeOptionText, selected && styles.sizeOptionTextSelected]}>
                         {step.label}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+
+              <Text style={styles.textStylePanelLabel}>{stylingBox ? 'Backdrop (this text)' : 'Backdrop'}</Text>
+              <View style={styles.sizeRow}>
+                {[{ label: 'On', value: true }, { label: 'Off', value: false }].map((option) => {
+                  const selected = activeScrimEnabled === option.value;
+                  return (
+                    <TouchableOpacity
+                      key={option.label}
+                      onPress={() => (stylingBox ? changeBoxScrim(stylingBox.id, option.value) : chooseScrimEnabled(option.value))}
+                      accessibilityRole="radio"
+                      accessibilityState={{ selected }}
+                      accessibilityLabel={`Backdrop ${option.label}`}
+                      style={[styles.sizeOption, selected && styles.sizeOptionSelected]}
+                    >
+                      <Text style={[styles.sizeOptionText, selected && styles.sizeOptionTextSelected]}>
+                        {option.label}
                       </Text>
                     </TouchableOpacity>
                   );
@@ -1187,8 +1288,10 @@ const styles = StyleSheet.create({
   },
   actionRow: {
     position: 'absolute',
+    left: 16,
     right: 16,
     flexDirection: 'row',
+    justifyContent: 'center',
     gap: 12,
   },
   actionButton: {
