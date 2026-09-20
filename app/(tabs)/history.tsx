@@ -1,4 +1,4 @@
-import React, { useState, useEffect , useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useFocusEffect, useRouter } from 'expo-router';
 import {
   View,
@@ -41,6 +41,21 @@ export default function HistoryScreen() {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [showAllCategories, setShowAllCategories] = useState(false);
   const [expandedConcern, setExpandedConcern] = useState(false);
+  // A delete is held here for a few seconds before actually hitting the
+  // database, so an accidental "Remove" has a window to be undone — the
+  // row is already gone from savedQuotes (optimistic, same as before),
+  // this is just tracking what to restore if Undo is tapped, and the
+  // timer that commits the real delete if it isn't.
+  const [pendingDelete, setPendingDelete] = useState<{ quote: SavedQuote; timer: ReturnType<typeof setTimeout> } | null>(null);
+  // Mirrors pendingDelete for use inside the loadSavedQuotes focus effect
+  // below, whose own callback has an empty dependency array (so it never
+  // sees fresh state directly) — needed so navigating away mid-undo-window
+  // commits the delete immediately rather than leaving it to fire later
+  // while this screen might already be showing freshly refetched data.
+  const pendingDeleteRef = useRef<typeof pendingDelete>(null);
+  useEffect(() => {
+    pendingDeleteRef.current = pendingDelete;
+  }, [pendingDelete]);
   const scrollRef = React.useRef<ScrollView>(null);
   const [searchVisible, setSearchVisible] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -83,11 +98,44 @@ export default function HistoryScreen() {
       };
 
       loadSavedQuotes();
-      return () => { cancelled = true; };
+      return () => {
+        cancelled = true;
+        // Leaving the screen mid-undo-window commits the delete right
+        // away rather than letting its timer fire later in the
+        // background — otherwise coming back before that timer elapses
+        // would show a freshly refetched list with the "deleted" row
+        // still in it, since the database delete hadn't actually
+        // happened yet.
+        const pending = pendingDeleteRef.current;
+        if (pending) {
+          clearTimeout(pending.timer);
+          supabase.from('saved_quotes').delete().eq('id', pending.quote.id);
+          setPendingDelete(null);
+        }
+      };
     }, [])
   );
 
-  const deleteQuote = async (id: string) => {
+  // How long an accidental "Remove" stays undoable before it actually
+  // hits the database.
+  const UNDO_WINDOW_MS = 5000;
+
+  const commitDelete = async (id: string) => {
+    await supabase.from('saved_quotes').delete().eq('id', id);
+    setPendingDelete((current) => (current?.quote.id === id ? null : current));
+  };
+
+  const undoDelete = () => {
+    if (!pendingDelete) return;
+    clearTimeout(pendingDelete.timer);
+    // Newest-first, matching loadSavedQuotes' own ordering — re-sorting
+    // the restored row back in rather than just appending it, so it lands
+    // in the same spot it would have if it had never been removed.
+    setSavedQuotes((prev) => [...prev, pendingDelete.quote].sort((a, b) => b.saved_at.localeCompare(a.saved_at)));
+    setPendingDelete(null);
+  };
+
+  const deleteQuote = (id: string) => {
     Alert.alert(
       'Remove from History',
       'Are you sure you want to remove this quote?',
@@ -96,8 +144,9 @@ export default function HistoryScreen() {
         {
           text: 'Remove',
           style: 'destructive',
-          onPress: async () => {
-            await supabase.from('saved_quotes').delete().eq('id', id);
+          onPress: () => {
+            const removed = savedQuotes.find((q) => q.id === id);
+            if (!removed) return;
             setSavedQuotes((prev) => prev.filter((q) => q.id !== id));
             // Deleting the item at currentIndex shifts every later item up
             // one slot, so currentIndex should normally stay put — it now
@@ -110,6 +159,9 @@ export default function HistoryScreen() {
             // one in the filtered list, so the index doesn't run past the
             // new end.
             setCurrentIndex((prev) => Math.min(prev, Math.max(0, filteredQuotes.length - 2)));
+            // The row isn't actually deleted yet — see pendingDelete above.
+            const timer = setTimeout(() => commitDelete(id), UNDO_WINDOW_MS);
+            setPendingDelete({ quote: removed, timer });
           },
         },
       ]
@@ -456,6 +508,15 @@ export default function HistoryScreen() {
         onClose={() => setFontMenuVisible(false)}
         anchorTop={insets.top + 100}
       />
+
+      {pendingDelete && (
+        <View style={[styles.undoBanner, { bottom: insets.bottom + 16 }]}>
+          <Text style={styles.undoBannerText}>Quote removed</Text>
+          <TouchableOpacity onPress={undoDelete} accessibilityRole="button" accessibilityLabel="Undo remove">
+            <Text style={styles.undoBannerAction}>Undo</Text>
+          </TouchableOpacity>
+        </View>
+      )}
     </View>
   );
 }
@@ -464,6 +525,29 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#0f0e0c',
+  },
+  undoBanner: {
+    position: 'absolute',
+    left: 16,
+    right: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: 'rgba(15,14,12,0.95)',
+    borderWidth: 1,
+    borderColor: '#4a4540',
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+  },
+  undoBannerText: {
+    fontSize: 14,
+    color: '#f0ead6',
+  },
+  undoBannerAction: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#c9b97a',
   },
   header: {
     flexDirection: 'row',
