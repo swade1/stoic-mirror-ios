@@ -1,12 +1,20 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
-import { View, Text, StyleSheet, TouchableOpacity, FlatList, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Alert, ActivityIndicator, type LayoutChangeEvent } from 'react-native';
+// react-native-gesture-handler's ScrollView, not the plain react-native one
+// — it's gesture-aware, letting a child tile's Gesture.Pan() properly win
+// the touch once its activateAfterLongPress threshold fires. The plain
+// ScrollView doesn't negotiate with RNGH gestures at all: during the
+// long-press wait, its own native scroll could win the touch instead,
+// which is what "dragging the first tile drags everything" actually was.
+import { ScrollView } from 'react-native-gesture-handler';
+import Animated, { LinearTransition } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
 import * as MediaLibrary from 'expo-media-library';
 import { supabase } from '@/lib/supabase';
 import { IconSymbol } from '@/components/ui/IconSymbol';
+import { DraggableGridTile } from '@/components/DraggableGridTile';
 
 interface SlideshowPhoto {
   id: string;
@@ -50,6 +58,29 @@ export default function SlideshowPhotosScreen() {
   // gate the Volume section below.
   const [soundtrackId, setSoundtrackId] = useState<string | null>(null);
   const [soundtrackName, setSoundtrackName] = useState<string | null>(null);
+  // Which photo (by id) is currently being dragged, if any — disables
+  // every other tile's own drag gesture for the duration, the same
+  // .enabled(!isEditing) technique DraggableTextBox uses.
+  const [activeId, setActiveId] = useState<string | null>(null);
+  const [gridWidth, setGridWidth] = useState(0);
+  // A count, not a boolean, so overlapping touch sequences (e.g. a quick
+  // second tap landing before the first one's onFinalize fires) can't
+  // leave scrolling stuck disabled — the grid only scrolls again once
+  // every outstanding tile touch has actually ended.
+  const [touchCount, setTouchCount] = useState(0);
+  // A photo removal is held for a few seconds before actually hitting the
+  // database, the same undo-window pattern as History's quote delete
+  // (app/(tabs)/history.tsx) — the photo is already gone from `photos`
+  // (optimistic), this just tracks what to restore if Undo is tapped and
+  // the timer that commits the real delete if it isn't.
+  const [pendingRemove, setPendingRemove] = useState<{ photo: SlideshowPhoto; timer: ReturnType<typeof setTimeout> } | null>(null);
+  // Mirrors pendingRemove for use inside the load-on-focus effect below,
+  // whose cleanup needs the latest value without being recreated on every
+  // pendingRemove change — same reason history.tsx uses this pattern.
+  const pendingRemoveRef = useRef<typeof pendingRemove>(null);
+  useEffect(() => {
+    pendingRemoveRef.current = pendingRemove;
+  }, [pendingRemove]);
 
   const load = useCallback(async () => {
     if (!collectionId) return;
@@ -123,7 +154,22 @@ export default function SlideshowPhotosScreen() {
     setLoading(false);
   }, [collectionId]);
 
-  useFocusEffect(useCallback(() => { load(); }, [load]));
+  useFocusEffect(useCallback(() => {
+    load();
+    // Leaving the screen mid-undo-window commits the removal right away
+    // rather than letting its timer fire later in the background —
+    // otherwise coming back before that timer elapses would re-fetch and
+    // show the "removed" photo still in the collection, since the
+    // database delete hadn't actually happened yet.
+    return () => {
+      const pending = pendingRemoveRef.current;
+      if (pending) {
+        clearTimeout(pending.timer);
+        supabase.from('slideshow_photos').delete().eq('id', pending.photo.id);
+        setPendingRemove(null);
+      }
+    };
+  }, [load]));
 
   const addPhotos = async () => {
     if (!collectionId) return;
@@ -188,19 +234,74 @@ export default function SlideshowPhotosScreen() {
     }
   };
 
-  const removePhoto = async (id: string) => {
-    // Optimistic, but not fire-and-forget: the previous version never
-    // awaited or checked this delete, so a failed request (network blip,
-    // anything) left the row in Supabase while the UI already showed it
-    // gone — Play does its own fresh fetch and would still include it.
-    // Reverting the optimistic removal on failure keeps what's on screen
-    // truthful to what's actually in the database.
-    setPhotos((prev) => prev.filter((p) => p.id !== id));
+  // How long an accidental removal stays undoable before it actually hits
+  // the database — same window as History's quote delete.
+  const UNDO_WINDOW_MS = 5000;
+
+  const commitRemovePhoto = async (id: string) => {
     const { error } = await supabase.from('slideshow_photos').delete().eq('id', id);
     if (error) {
       await load();
       Alert.alert('Remove Failed', error.message);
     }
+    setPendingRemove((current) => (current?.photo.id === id ? null : current));
+  };
+
+  const undoRemovePhoto = () => {
+    if (!pendingRemove) return;
+    clearTimeout(pendingRemove.timer);
+    const restored = pendingRemove.photo;
+    setPhotos((prev) => {
+      // Reinsert ahead of the first photo with a higher sortOrder than the
+      // restored one, so it lands back in its original spot rather than
+      // just tacking onto the end.
+      const next = [...prev];
+      const insertAt = next.findIndex((p) => p.sortOrder > restored.sortOrder);
+      next.splice(insertAt === -1 ? next.length : insertAt, 0, restored);
+      return next;
+    });
+    setPendingRemove(null);
+  };
+
+  const removePhoto = (id: string) => {
+    const removed = photos.find((p) => p.id === id);
+    if (!removed) return;
+    // Optimistic, but not committed yet — see pendingRemove above.
+    setPhotos((prev) => prev.filter((p) => p.id !== id));
+    const timer = setTimeout(() => commitRemovePhoto(id), UNDO_WINDOW_MS);
+    setPendingRemove({ photo: removed, timer });
+  };
+
+  // Rewrites every photo's sort_order from its position in the given
+  // (already reordered) array — the same bulk-rewrite-on-drop shape
+  // lib/ambientPlaylist.ts's reorderItems already uses for the ambient
+  // playlist. Called after DraggableFlatList hands back a drop's final
+  // order; local state is updated optimistically by the caller.
+  const reorderPhotos = async (reordered: SlideshowPhoto[]) => {
+    await Promise.all(
+      reordered.map((photo, index) =>
+        supabase.from('slideshow_photos').update({ sort_order: index }).eq('id', photo.id)
+      )
+    );
+  };
+
+  // Called by a DraggableGridTile on release with its origin and computed
+  // target index — splices the photo into its new spot, updates local
+  // state optimistically (the same pattern removePhoto already uses), and
+  // persists via reorderPhotos above.
+  const handleDrop = (fromIndex: number, toIndex: number) => {
+    if (fromIndex === toIndex) return;
+    setPhotos((prev) => {
+      const next = [...prev];
+      const [moved] = next.splice(fromIndex, 1);
+      next.splice(toIndex, 0, moved);
+      reorderPhotos(next);
+      return next;
+    });
+  };
+
+  const handleGridLayout = (e: LayoutChangeEvent) => {
+    setGridWidth(e.nativeEvent.layout.width);
   };
 
   // Both write straight through — unlike the quote-card editor's
@@ -330,38 +431,45 @@ export default function SlideshowPhotosScreen() {
         </View>
       )}
 
+      {!loading && photos.length > 1 && (
+        <Text style={styles.reorderHint}>Press and drag a photo to reorder</Text>
+      )}
+
       {loading ? (
         <ActivityIndicator style={styles.loading} color="#c9b97a" />
+      ) : photos.length === 0 ? (
+        <View style={styles.emptyState}>
+          <IconSymbol name="photo.on.rectangle" size={40} color="#6a6050" accessibilityElementsHidden importantForAccessibility="no" />
+          <Text style={styles.emptyTitle}>No photos yet</Text>
+          <Text style={styles.emptySubtitle}>
+            Add the quote cards you&apos;ve saved to Photos — curated or personal photo — to build a slideshow.
+          </Text>
+        </View>
       ) : (
-        <FlatList
-          data={photos}
-          keyExtractor={(item) => item.id}
-          numColumns={COLUMN_COUNT}
-          contentContainerStyle={styles.grid}
-          ListEmptyComponent={
-            <View style={styles.emptyState}>
-              <IconSymbol name="photo.on.rectangle" size={40} color="#6a6050" accessibilityElementsHidden importantForAccessibility="no" />
-              <Text style={styles.emptyTitle}>No photos yet</Text>
-              <Text style={styles.emptySubtitle}>
-                Add the quote cards you&apos;ve saved to Photos — curated or personal photo — to build a slideshow.
-              </Text>
-            </View>
-          }
-          renderItem={({ item }) => (
-            <View style={styles.tile}>
-              <Image source={{ uri: item.uri }} style={styles.tileImage} contentFit="cover" />
-              <TouchableOpacity
-                style={styles.tileRemove}
-                onPress={() => removePhoto(item.id)}
-                accessibilityRole="button"
-                accessibilityLabel="Remove from slideshow"
-                hitSlop={8}
-              >
-                <IconSymbol name="xmark.circle.fill" size={20} color="#f0ead6" />
-              </TouchableOpacity>
-            </View>
-          )}
-        />
+        <ScrollView contentContainerStyle={styles.grid} scrollEnabled={touchCount === 0}>
+          <View style={styles.gridRow} onLayout={handleGridLayout}>
+            {gridWidth > 0 &&
+              photos.map((photo, index) => (
+                <Animated.View key={photo.id} layout={LinearTransition}>
+                  <DraggableGridTile
+                    id={photo.id}
+                    uri={photo.uri}
+                    index={index}
+                    count={photos.length}
+                    columnCount={COLUMN_COUNT}
+                    cellSize={gridWidth / COLUMN_COUNT}
+                    activeId={activeId}
+                    onDragStart={setActiveId}
+                    onDragEnd={() => setActiveId(null)}
+                    onDrop={handleDrop}
+                    onRemove={removePhoto}
+                    onTouchBegin={() => setTouchCount((c) => c + 1)}
+                    onTouchEnd={() => setTouchCount((c) => Math.max(0, c - 1))}
+                  />
+                </Animated.View>
+              ))}
+          </View>
+        </ScrollView>
       )}
 
       <TouchableOpacity
@@ -380,6 +488,15 @@ export default function SlideshowPhotosScreen() {
           </>
         )}
       </TouchableOpacity>
+
+      {pendingRemove && (
+        <View style={[styles.undoBanner, { bottom: insets.bottom + 76 }]}>
+          <Text style={styles.undoBannerText}>Photo removed</Text>
+          <TouchableOpacity onPress={undoRemovePhoto} accessibilityRole="button" accessibilityLabel="Undo remove">
+            <Text style={styles.undoBannerAction}>Undo</Text>
+          </TouchableOpacity>
+        </View>
+      )}
     </View>
   );
 }
@@ -388,6 +505,29 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#0f0e0c',
+  },
+  undoBanner: {
+    position: 'absolute',
+    left: 16,
+    right: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: 'rgba(15,14,12,0.95)',
+    borderWidth: 1,
+    borderColor: '#4a4540',
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+  },
+  undoBannerText: {
+    fontSize: 14,
+    color: '#f0ead6',
+  },
+  undoBannerAction: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#c9b97a',
   },
   header: {
     flexDirection: 'row',
@@ -464,10 +604,21 @@ const styles = StyleSheet.create({
   loading: {
     marginTop: 60,
   },
+  reorderHint: {
+    fontSize: 11,
+    color: '#6a6050',
+    fontStyle: 'italic',
+    textAlign: 'center',
+    marginBottom: 8,
+  },
   grid: {
     paddingHorizontal: 12,
     paddingBottom: 100,
     flexGrow: 1,
+  },
+  gridRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
   },
   emptyState: {
     flex: 1,
@@ -487,22 +638,6 @@ const styles = StyleSheet.create({
     color: '#6a6050',
     textAlign: 'center',
     lineHeight: 20,
-  },
-  tile: {
-    flex: 1 / COLUMN_COUNT,
-    aspectRatio: 1,
-    margin: 4,
-    borderRadius: 10,
-    overflow: 'hidden',
-  },
-  tileImage: {
-    width: '100%',
-    height: '100%',
-  },
-  tileRemove: {
-    position: 'absolute',
-    top: 4,
-    right: 4,
   },
   addButton: {
     position: 'absolute',
