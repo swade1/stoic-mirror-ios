@@ -21,6 +21,11 @@ interface SlideshowPhoto {
   assetId: string;
   sortOrder: number;
   uri: string;
+  // Set only for a slide added via "From Saved Quotes" — the saved_quotes
+  // row it was rendered from, letting this one slide (and only this one)
+  // be reopened for editing. See app/quote-cards.tsx's collectionId/
+  // editSlideId params for the other half of this.
+  savedQuoteId: string | null;
 }
 
 type SlideshowTransition = 'fade' | 'slide';
@@ -95,7 +100,7 @@ export default function SlideshowPhotosScreen() {
     const [{ data, error }, { data: collectionRow }] = await Promise.all([
       supabase
         .from('slideshow_photos')
-        .select('id, asset_id, sort_order')
+        .select('id, asset_id, sort_order, saved_quote_id')
         .eq('user_id', session.user.id)
         .eq('collection_id', collectionId)
         .order('sort_order', { ascending: true }),
@@ -135,9 +140,9 @@ export default function SlideshowPhotosScreen() {
         try {
           const info = await MediaLibrary.getAssetInfoAsync(row.asset_id);
           const uri = info?.localUri ?? info?.uri ?? null;
-          return { id: row.id, assetId: row.asset_id, sortOrder: row.sort_order, uri };
+          return { id: row.id, assetId: row.asset_id, sortOrder: row.sort_order, uri, savedQuoteId: row.saved_quote_id };
         } catch {
-          return { id: row.id, assetId: row.asset_id, sortOrder: row.sort_order, uri: null as string | null };
+          return { id: row.id, assetId: row.asset_id, sortOrder: row.sort_order, uri: null as string | null, savedQuoteId: row.saved_quote_id };
         }
       })
     );
@@ -171,7 +176,22 @@ export default function SlideshowPhotosScreen() {
     };
   }, [load]));
 
-  const addPhotos = async () => {
+  // The Add Photos button's tap target — offers the existing system-photo
+  // picker plus the new "one of my saved quotes" path, as a lightweight
+  // action sheet rather than a second persistent button.
+  const chooseAddMethod = () => {
+    Alert.alert(
+      'Add to Slideshow',
+      undefined,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'From Photos', onPress: addFromPhotos },
+        { text: 'From Saved Quotes', onPress: () => router.push({ pathname: '/slideshow-add-quote', params: { collectionId } }) },
+      ]
+    );
+  };
+
+  const addFromPhotos = async () => {
     if (!collectionId) return;
     setAdding(true);
     try {
@@ -465,6 +485,14 @@ export default function SlideshowPhotosScreen() {
                     onRemove={removePhoto}
                     onTouchBegin={() => setTouchCount((c) => c + 1)}
                     onTouchEnd={() => setTouchCount((c) => Math.max(0, c - 1))}
+                    onEdit={
+                      photo.savedQuoteId
+                        ? () => router.push({
+                            pathname: '/quote-cards',
+                            params: { quoteId: photo.savedQuoteId!, collectionId, editSlideId: photo.id },
+                          })
+                        : undefined
+                    }
                   />
                 </Animated.View>
               ))}
@@ -474,7 +502,7 @@ export default function SlideshowPhotosScreen() {
 
       <TouchableOpacity
         style={[styles.addButton, { bottom: insets.bottom + 16 }]}
-        onPress={addPhotos}
+        onPress={chooseAddMethod}
         disabled={adding}
         accessibilityRole="button"
         accessibilityLabel="Add photos"

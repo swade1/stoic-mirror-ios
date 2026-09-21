@@ -23,6 +23,10 @@ interface Props {
   // parent needs these to lock the surrounding ScrollView.
   onTouchBegin: () => void;
   onTouchEnd: () => void;
+  // Present only when this slide was added via "From Saved Quotes" (has a
+  // linked saved_quotes row) — shows a second icon that opens it for
+  // editing. Absent for a plain photo, since there's nothing to edit.
+  onEdit?: () => void;
 }
 
 // One square tile in the slideshow's photo grid, draggable to reorder —
@@ -49,6 +53,7 @@ export function DraggableGridTile({
   onRemove,
   onTouchBegin,
   onTouchEnd,
+  onEdit,
 }: Props) {
   const translateX = useSharedValue(0);
   const translateY = useSharedValue(0);
@@ -131,6 +136,17 @@ export function DraggableGridTile({
           >
             <IconSymbol name="xmark.circle.fill" size={20} color="#f0ead6" />
           </TouchableOpacity>
+          {onEdit && (
+            <TouchableOpacity
+              style={styles.tileEdit}
+              onPress={onEdit}
+              accessibilityRole="button"
+              accessibilityLabel="Edit this quote card"
+              hitSlop={8}
+            >
+              <IconSymbol name="square.and.pencil" size={18} color="#f0ead6" />
+            </TouchableOpacity>
+          )}
         </Animated.View>
       </Animated.View>
     </GestureDetector>
@@ -153,6 +169,11 @@ const styles = StyleSheet.create({
   tileRemove: {
     position: 'absolute',
     top: 4,
+    right: 4,
+  },
+  tileEdit: {
+    position: 'absolute',
+    bottom: 4,
     right: 4,
   },
 });

@@ -425,9 +425,19 @@ export default function HistoryScreen() {
 
             {/* Counsel */}
             <View style={styles.counselBox}>
-              <View style={styles.sectionLabelRow}>
-                <IconSymbol name="lightbulb.fill" size={12} color="#c4b99e" />
-                <Text style={styles.counselLabel}>Counsel</Text>
+              <View style={styles.quoteLabelRow}>
+                <View style={[styles.sectionLabelRow, styles.noMarginBottom]}>
+                  <IconSymbol name="lightbulb.fill" size={12} color="#c4b99e" />
+                  <Text style={styles.counselLabel}>Counsel</Text>
+                </View>
+                <TouchableOpacity
+                  onPress={() => router.push({ pathname: '/quote-cards', params: { quoteId: currentQuote?.id, textSource: 'counsel' } })}
+                  accessibilityRole="button"
+                  accessibilityLabel="Turn this counsel into a photo card"
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                >
+                  <IconSymbol name="photo.on.rectangle" size={18} color="#c9b97a" />
+                </TouchableOpacity>
               </View>
               <ScaledText style={styles.counselText}>{currentQuote.interpretation}</ScaledText>
             </View>
@@ -440,7 +450,7 @@ export default function HistoryScreen() {
                   <Text style={styles.quoteLabel}>The Philosophers</Text>
                 </View>
                 <TouchableOpacity
-                  onPress={() => router.push({ pathname: '/quote-cards', params: { quoteId: currentQuote?.id } })}
+                  onPress={() => router.push({ pathname: '/quote-cards', params: { quoteId: currentQuote?.id, textSource: 'quote' } })}
                   accessibilityRole="button"
                   accessibilityLabel="Turn this quote into a photo card"
                   hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}

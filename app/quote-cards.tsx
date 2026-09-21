@@ -9,6 +9,8 @@ import {
   ScrollView,
   Alert,
   LayoutChangeEvent,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
@@ -49,6 +51,7 @@ interface SavedQuote {
   quote: string;
   author: string;
   source: string;
+  interpretation: string;
   background_photo_id: string | null;
   text_color: string | null;
   text_font: string | null;
@@ -71,20 +74,6 @@ interface SavedQuote {
 const TEXT_BOX_MARGIN = 24;
 
 const newBoxId = () => `box-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-
-function deriveDefaultBoxes(quote: SavedQuote): TextBox[] {
-  return [
-    {
-      id: 'default',
-      text: `${quote.quote}\n\n— ${quote.author}, ${quote.source}`,
-      align: DEFAULT_TEXT_ALIGN,
-      offsetX: null,
-      offsetY: null,
-      color: null,
-      scrimEnabled: null,
-    },
-  ];
-}
 
 // A new photo invalidates position, alignment, line breaks, and how many
 // pieces the card is split into — all of that was tailored to the old
@@ -114,7 +103,44 @@ function mergeBoxesForNewPhoto(boxes: TextBox[] | null): TextBox[] | null {
 export default function QuoteCardsScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { quoteId } = useLocalSearchParams<{ quoteId?: string }>();
+  // textSource picks which of the saved quote's two texts seeds a fresh
+  // card's default box — the philosopher's quote (the long-standing
+  // default, and the fallback if this param is ever missing) or the
+  // personalized counsel written for it. Set by which photo icon was
+  // tapped in History (app/(tabs)/history.tsx) — one next to the Quote
+  // section, one next to Counsel.
+  // collectionId: present when reached via a slideshow's "From Saved
+  // Quotes" picker (app/slideshow-add-quote.tsx) — Save then adds (or, with
+  // editSlideId, updates) a slideshow_photos row linked to this quote,
+  // instead of just saving a plain photo the way History's flow always has.
+  // editSlideId: present when reached via an existing linked slide's own
+  // Edit icon (app/slideshow-photos.tsx) — that specific slideshow_photos
+  // row to update in place on Save, and the signal to skip the
+  // reset-to-fresh load behavior below (see its comment).
+  const { quoteId, textSource, collectionId, editSlideId } = useLocalSearchParams<{
+    quoteId?: string;
+    textSource?: string;
+    collectionId?: string;
+    editSlideId?: string;
+  }>();
+
+  // Defined inside the component (not module-level, as it used to be) so
+  // it can close over textSource above — every call site already lives in
+  // this component, so nothing else needed to change.
+  const deriveDefaultBoxes = useCallback((quote: SavedQuote): TextBox[] => {
+    const text = textSource === 'counsel' ? quote.interpretation : `${quote.quote}\n\n— ${quote.author}, ${quote.source}`;
+    return [
+      {
+        id: 'default',
+        text,
+        align: DEFAULT_TEXT_ALIGN,
+        offsetX: null,
+        offsetY: null,
+        color: null,
+        scrimEnabled: null,
+      },
+    ];
+  }, [textSource]);
 
   const [quote, setQuote] = useState<SavedQuote | null>(null);
   const [notFound, setNotFound] = useState(false);
@@ -218,7 +244,7 @@ export default function QuoteCardsScreen() {
         const [{ data: quoteRow, error }, backgroundList] = await Promise.all([
           supabase
             .from('saved_quotes')
-            .select('id, quote, author, source, background_photo_id, text_color, text_size_scale, text_font, scrim_enabled, card_text_boxes')
+            .select('id, quote, author, source, interpretation, background_photo_id, text_color, text_size_scale, text_font, scrim_enabled, card_text_boxes')
             .eq('id', quoteId)
             .eq('user_id', session.user.id)
             .single(),
@@ -239,12 +265,22 @@ export default function QuoteCardsScreen() {
             // from the quote text, same as an untouched card always has.
             // If nothing gets edited this time, saving will persist this
             // null and clear out whatever was there before.
-            setQuote({ ...quoteRow, card_text_boxes: null });
+            //
+            // editSlideId is the one exception: reaching this screen via an
+            // existing slide's own Edit icon means seeing what's actually
+            // on that slide, the opposite intent from History's "quick
+            // one-sitting" default — so its card_text_boxes are kept as-is.
+            setQuote(editSlideId ? quoteRow : { ...quoteRow, card_text_boxes: null });
             // Always open on the picker, even if this quote already has a
             // chosen background — the user wants to see the quote +
             // gallery first every time, not silently resume straight to a
-            // previously composed card.
-            setShowPicker(true);
+            // previously composed card. editSlideId skips this too, for
+            // the same reason it skips the card_text_boxes reset above —
+            // if the slide's background was a personal photo rather than
+            // a curated one, this naturally falls back to the picker
+            // anyway, since a personal photo's URI is deliberately never
+            // persisted anywhere to restore it from.
+            setShowPicker(!editSlideId);
             setImageLoaded(false);
             setPersonalPhotoUri(null);
             setPersonalPhotoSize(null);
@@ -621,28 +657,75 @@ export default function QuoteCardsScreen() {
   };
 
   const handleSaveToPhotos = async () => {
-    if (!cardRef.current || saving || editingBoxId) return;
+    if (!cardRef.current || saving || editingBoxId || !quote) return;
     setSaving(true);
     try {
-      // writeOnly: true — only ever need to add a photo, never read the
-      // user's existing library, so this triggers iOS's lighter "Add
-      // Photos Only" permission prompt instead of full library access.
-      const { status } = await MediaLibrary.requestPermissionsAsync(true);
-      if (status !== 'granted') {
-        Alert.alert(
-          'Permission Needed',
-          'Allow The Stoic Mirror to save photos in your device Settings to save quote cards.'
-        );
-        return;
-      }
       const uri = await captureRef(cardRef, { format: 'png', quality: 1 });
-      await MediaLibrary.saveToLibraryAsync(uri);
-      // Committing only after the photo is actually saved — a denied
-      // permission or a failed capture returns/throws above and never
-      // reaches here, so an in-progress draft can never get written to
-      // Supabase just because the user tapped the button.
-      await commitFormatting();
-      Alert.alert('Saved', 'This quote card was saved to your photos.');
+
+      if (collectionId) {
+        // Linking a slide back to this saved_quotes row needs the new
+        // asset's id, which saveToLibraryAsync deliberately never returns
+        // (see app/quote-cards.tsx's plan notes) — createAssetAsync is the
+        // only API that hands it back, at the cost of the broader
+        // permission below instead of the plain flow's lighter one.
+        const { status } = await MediaLibrary.requestPermissionsAsync(false);
+        if (status !== 'granted') {
+          Alert.alert(
+            'Permission Needed',
+            'Allow The Stoic Mirror to access photos in your device Settings to add this to your slideshow.'
+          );
+          return;
+        }
+        const asset = await MediaLibrary.createAssetAsync(uri);
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) return;
+
+        if (editSlideId) {
+          const { error } = await supabase
+            .from('slideshow_photos')
+            .update({ asset_id: asset.id })
+            .eq('id', editSlideId);
+          if (error) throw error;
+        } else {
+          const { data: existing } = await supabase
+            .from('slideshow_photos')
+            .select('sort_order')
+            .eq('collection_id', collectionId)
+            .order('sort_order', { ascending: false })
+            .limit(1);
+          const nextOrder = existing && existing.length > 0 ? existing[0].sort_order + 1 : 0;
+          const { error } = await supabase.from('slideshow_photos').insert({
+            user_id: session.user.id,
+            collection_id: collectionId,
+            asset_id: asset.id,
+            saved_quote_id: quote.id,
+            sort_order: nextOrder,
+          });
+          if (error) throw error;
+        }
+        await commitFormatting();
+        Alert.alert('Saved', editSlideId ? 'This slide was updated.' : 'Added to your slideshow.');
+      } else {
+        // Unchanged plain save — writeOnly: true only ever needs to add a
+        // photo, never read the user's existing library, so this triggers
+        // iOS's lighter "Add Photos Only" permission prompt instead of
+        // full library access.
+        const { status } = await MediaLibrary.requestPermissionsAsync(true);
+        if (status !== 'granted') {
+          Alert.alert(
+            'Permission Needed',
+            'Allow The Stoic Mirror to save photos in your device Settings to save quote cards.'
+          );
+          return;
+        }
+        await MediaLibrary.saveToLibraryAsync(uri);
+        // Committing only after the photo is actually saved — a denied
+        // permission or a failed capture returns/throws above and never
+        // reaches here, so an in-progress draft can never get written to
+        // Supabase just because the user tapped the button.
+        await commitFormatting();
+        Alert.alert('Saved', 'This quote card was saved to your photos.');
+      }
     } catch (err) {
       Alert.alert('Save Failed', err instanceof Error ? err.message : 'Something went wrong.');
     } finally {
@@ -703,8 +786,14 @@ export default function QuoteCardsScreen() {
             <Text style={styles.backButtonText}>Select a new quote</Text>
           </TouchableOpacity>
 
-          <Text style={styles.pickerQuote}>&ldquo;{quote.quote}&rdquo;</Text>
-          <Text style={styles.pickerAttribution}>— {quote.author}, {quote.source}</Text>
+          {textSource === 'counsel' ? (
+            <Text style={styles.pickerQuote}>{quote.interpretation}</Text>
+          ) : (
+            <>
+              <Text style={styles.pickerQuote}>&ldquo;{quote.quote}&rdquo;</Text>
+              <Text style={styles.pickerAttribution}>— {quote.author}, {quote.source}</Text>
+            </>
+          )}
 
           <Text style={styles.pickerLabel}>Choose a background</Text>
           {backgroundCategories.length > 0 && (
@@ -925,53 +1014,65 @@ export default function QuoteCardsScreen() {
           )}
 
           {editingBoxId && editingBox && (
-            <View style={[styles.textBoxEditBar, { bottom: insets.bottom - 8 }]}>
-              <View style={styles.textBoxEditActions}>
-                {TEXT_ALIGN_OPTIONS.map((option) => {
-                  const selected = editingBox.align === option.value;
-                  const iconName =
-                    option.value === 'left' ? 'text.alignleft' :
-                    option.value === 'right' ? 'text.alignright' :
-                    'text.aligncenter';
-                  return (
-                    <TouchableOpacity
-                      key={option.value}
-                      onPress={() => changeBoxAlign(editingBoxId, option.value)}
-                      hitSlop={8}
-                      accessibilityRole="radio"
-                      accessibilityState={{ selected }}
-                      accessibilityLabel={`Align this text ${option.label}`}
-                    >
-                      <IconSymbol name={iconName} size={16} color={selected ? '#f0ead6' : '#a89f88'} />
-                    </TouchableOpacity>
-                  );
-                })}
-                <TouchableOpacity
-                  onPress={() => openBoxStyling(editingBoxId)}
-                  hitSlop={8}
-                  accessibilityRole="button"
-                  accessibilityLabel="Color and backdrop for this text"
-                >
-                  <IconSymbol name="paintpalette" size={16} color="#a89f88" />
-                </TouchableOpacity>
-                <TouchableOpacity
-                  onPress={() => deleteBox(editingBoxId)}
-                  hitSlop={8}
-                  accessibilityRole="button"
-                  accessibilityLabel="Delete this text"
-                >
-                  <IconSymbol name="xmark.circle.fill" size={18} color="#c9b97a" />
-                </TouchableOpacity>
-                <TouchableOpacity
-                  onPress={() => finishEditingBox(editingBoxId)}
-                  hitSlop={8}
-                  accessibilityRole="button"
-                  accessibilityLabel="Done editing text"
-                >
-                  <Text style={styles.resetText}>Done</Text>
-                </TouchableOpacity>
+            // Wrapped in a KeyboardAvoidingView — the box being edited
+            // autofocuses a TextInput (the keyboard comes up immediately,
+            // especially for a brand-new box from "+"), and this toolbar's
+            // bottom-anchored position would otherwise sit hidden behind
+            // that keyboard, with no way to reach its palette/align/delete/
+            // Done icons until the keyboard was dismissed some other way.
+            <KeyboardAvoidingView
+              behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+              style={styles.textBoxEditBarWrapper}
+              pointerEvents="box-none"
+            >
+              <View style={[styles.textBoxEditBar, { marginBottom: insets.bottom - 8 }]}>
+                <View style={styles.textBoxEditActions}>
+                  {TEXT_ALIGN_OPTIONS.map((option) => {
+                    const selected = editingBox.align === option.value;
+                    const iconName =
+                      option.value === 'left' ? 'text.alignleft' :
+                      option.value === 'right' ? 'text.alignright' :
+                      'text.aligncenter';
+                    return (
+                      <TouchableOpacity
+                        key={option.value}
+                        onPress={() => changeBoxAlign(editingBoxId, option.value)}
+                        hitSlop={8}
+                        accessibilityRole="radio"
+                        accessibilityState={{ selected }}
+                        accessibilityLabel={`Align this text ${option.label}`}
+                      >
+                        <IconSymbol name={iconName} size={16} color={selected ? '#f0ead6' : '#a89f88'} />
+                      </TouchableOpacity>
+                    );
+                  })}
+                  <TouchableOpacity
+                    onPress={() => openBoxStyling(editingBoxId)}
+                    hitSlop={8}
+                    accessibilityRole="button"
+                    accessibilityLabel="Color and backdrop for this text"
+                  >
+                    <IconSymbol name="paintpalette" size={16} color="#a89f88" />
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={() => deleteBox(editingBoxId)}
+                    hitSlop={8}
+                    accessibilityRole="button"
+                    accessibilityLabel="Delete this text"
+                  >
+                    <IconSymbol name="xmark.circle.fill" size={18} color="#c9b97a" />
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={() => finishEditingBox(editingBoxId)}
+                    hitSlop={8}
+                    accessibilityRole="button"
+                    accessibilityLabel="Done editing text"
+                  >
+                    <Text style={styles.resetText}>Done</Text>
+                  </TouchableOpacity>
+                </View>
               </View>
-            </View>
+            </KeyboardAvoidingView>
           )}
 
           {showTextStylePanel && (
@@ -1373,10 +1474,16 @@ const styles = StyleSheet.create({
     color: '#f0ead6',
     fontWeight: '600',
   },
-  textBoxEditBar: {
+  textBoxEditBarWrapper: {
     position: 'absolute',
-    left: 16,
-    right: 16,
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    justifyContent: 'flex-end',
+  },
+  textBoxEditBar: {
+    marginHorizontal: 16,
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
