@@ -4,13 +4,23 @@ import { Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'rea
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { IconSymbol } from '@/components/ui/IconSymbol';
 
+// Keys must match lib/concerns.ts's CONCERN_OPTIONS exactly — see that
+// file's comment for the full list of places this vocabulary is shared.
 const PLAN_DESCRIPTIONS: Record<string, string> = {
-  'Anxiety & worry': 'The Stoics were masters of anxiety. Your practice will focus on separating what you can control from what you cannot — the foundation of Stoic calm.',
-  'Relationships & conflict': 'The Stoics taught that we cannot control others, only our response to them. Your practice will help you find clarity and equanimity in difficult relationships.',
-  'Work & career stress': 'Marcus Aurelius ran an empire under constant pressure. Your practice will draw on his strategies for maintaining focus and purpose under stress.',
-  'Loss & grief': 'Seneca wrote more about loss than any other Stoic. Your practice will help you find meaning and acceptance through his most compassionate counsel.',
-  'Finding direction': 'Epictetus taught that clarity comes from knowing what is truly yours to decide. Your practice will help you find your path through Stoic self-examination.',
-  'General peace of mind': 'The Stoics had one goal: equanimity. A quiet, unshakeable calm that no circumstance can touch. Your practice begins here.',
+  'Self-Doubt': "Epictetus was born a slave and became one of Rome's most respected teachers. Your practice will draw on his teaching that your worth was never determined by others' opinions of you.",
+  'Anger': "Seneca wrote an entire treatise, On Anger, calling it the most destructive of all passions. Your practice will draw on his methods for catching anger before it catches you.",
+  'Grief & Loss': 'Seneca wrote more about loss than any other Stoic. Your practice will help you find meaning and acceptance through his most compassionate counsel.',
+  'Fear & Anxiety': 'The Stoics were masters of anxiety. Your practice will focus on separating what you can control from what you cannot — the foundation of Stoic calm.',
+  'Motivation & Discipline': 'Marcus Aurelius wrote his private reflections each morning to talk himself into doing the work of that day. Your practice will use that same discipline — showing up for yourself, one day at a time.',
+  'Relationships': 'The Stoics taught that we cannot control others, only our response to them. Your practice will help you find clarity and equanimity in difficult relationships.',
+  'Purpose & Meaning': 'Epictetus taught that clarity comes from knowing what is truly yours to decide. Your practice will help you find your path through Stoic self-examination.',
+  'Mortality': 'The Stoics practiced memento mori — remembering death — not to despair, but to live with more urgency and gratitude. Your practice will help you meet mortality the way Marcus Aurelius did: clear-eyed and unafraid.',
+  'Resilience': 'Epictetus lost the use of his leg and his freedom, yet taught that no external event could break him. Your practice will build that same resilience — the kind nothing outside you can take away.',
+  'Envy & Comparison': "Seneca warned that comparing our life to others' is a guaranteed path to misery. Your practice will help you return to what's actually yours to improve.",
+  'Control & Acceptance': "The dichotomy of control — knowing what's yours to command and what isn't — is the single idea Epictetus built his entire philosophy around. Your practice starts there.",
+  'Pride & Ego': 'Marcus Aurelius, the most powerful man in the world, wrote reminders to himself not to be "Caesarified" — swallowed by his own importance. Your practice will draw on his discipline of staying grounded.',
+  'General': 'The Stoics had one goal: equanimity. A quiet, unshakeable calm that no circumstance can touch. Your practice begins here.',
+  'Work & Career Stress': 'Marcus Aurelius ran an empire under constant pressure. Your practice will draw on his strategies for maintaining focus and purpose under stress.',
 };
 
 const DEFAULT_DESCRIPTION = 'The Stoics had one goal: equanimity. A quiet, unshakeable calm that no circumstance can touch. Your practice begins here.';

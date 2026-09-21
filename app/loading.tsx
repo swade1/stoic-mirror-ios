@@ -9,6 +9,7 @@ import {
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { supabase } from '@/lib/supabase';
 import { isNetworkError } from '@/lib/networkError';
+import { CONCERN_OPTIONS } from '@/lib/concerns';
 
 const ANTHROPIC_API_KEY = process.env.EXPO_PUBLIC_ANTHROPIC_API_KEY;
 console.log('API KEY:', ANTHROPIC_API_KEY ? 'found' : 'missing');
@@ -16,12 +17,10 @@ const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL;
 const SUPABASE_ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
 const VOYAGE_API_KEY = process.env.EXPO_PUBLIC_VOYAGE_API_KEY;
 
-const CATEGORIES = [
-  'Self-Doubt', 'Anger', 'Grief & Loss', 'Fear & Anxiety',
-  'Motivation & Discipline', 'Relationships', 'Purpose & Meaning',
-  'Mortality', 'Resilience', 'Envy & Comparison',
-  'Control & Acceptance', 'Pride & Ego', 'General',
-];
+// The session-classification prompt below shares this vocabulary with the
+// onboarding/Settings concern picker and stoic_passages.concern_tags —
+// see lib/concerns.ts for why these must stay in lockstep.
+const CATEGORIES = CONCERN_OPTIONS;
 
 // A cost/abuse safety net, not a product limit — no real person doing
 // genuine daily reflection would ever approach this. Checked before any
