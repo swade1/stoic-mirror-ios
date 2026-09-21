@@ -1,8 +1,9 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator, Alert, TextInput } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as DocumentPicker from 'expo-document-picker';
+import { useAudioPlayer } from 'expo-audio';
 import { supabase } from '@/lib/supabase';
 import { IconSymbol } from '@/components/ui/IconSymbol';
 import { listAmbientTracks, getTrackMoods, type AmbientTrack } from '@/lib/ambientTracks';
@@ -30,6 +31,12 @@ export default function SoundtrackEditScreen() {
   const [tracks, setTracks] = useState<AmbientTrack[]>([]);
   const [selectedMood, setSelectedMood] = useState<string | null>(null);
   const [playlist, setPlaylist] = useState<PlaylistItem[]>([]);
+  // Which curated track (if any) is currently sounding — a quick audition
+  // before committing it to the playlist, distinct from playlist
+  // membership itself. One shared player, so starting a new preview
+  // always replaces whatever was previewing rather than layering two.
+  const [previewingTrackId, setPreviewingTrackId] = useState<string | null>(null);
+  const previewPlayer = useAudioPlayer(null);
 
   const load = useCallback(async () => {
     if (!soundtrackId) { setLoading(false); return; }
@@ -48,7 +55,53 @@ export default function SoundtrackEditScreen() {
     setLoading(false);
   }, [soundtrackId]);
 
-  useFocusEffect(useCallback(() => { load(); }, [load]));
+  useFocusEffect(useCallback(() => {
+    load();
+    // Leaving the screen stops any active preview rather than letting it
+    // keep playing in the background — the same "clean up on blur" shape
+    // already used this session for pending deletes/removals. Wrapped in
+    // try/catch like every other native previewPlayer call here: navigating
+    // away can release the native player before this cleanup runs, and
+    // calling pause() on the dead object throws a FunctionCallException
+    // that would otherwise crash the app over what's just a background
+    // audio stop (same issue app/slideshow-play.tsx's fadeOutAudio guards
+    // against).
+    return () => {
+      try {
+        previewPlayer.pause();
+      } catch {
+        // Native player already released — nothing left to pause.
+      }
+      setPreviewingTrackId(null);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [load]));
+
+  // Clears the pause icon once a preview finishes on its own — the same
+  // didJustFinish event app/slideshow-play.tsx keys its queue-advance off.
+  useEffect(() => {
+    const subscription = previewPlayer.addListener('playbackStatusUpdate', (status) => {
+      if (status.didJustFinish) setPreviewingTrackId(null);
+    });
+    return () => subscription.remove();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [previewPlayer]);
+
+  const togglePreview = (track: AmbientTrack) => {
+    try {
+      if (previewingTrackId === track.id) {
+        previewPlayer.pause();
+        setPreviewingTrackId(null);
+      } else {
+        previewPlayer.replace(track.url);
+        previewPlayer.play();
+        setPreviewingTrackId(track.id);
+      }
+    } catch {
+      // Native player already released — nothing to preview against.
+      setPreviewingTrackId(null);
+    }
+  };
 
   // Lighter than re-running the whole load() — used after a mutation,
   // where the curated track list and name haven't changed, only the
@@ -200,21 +253,41 @@ export default function SoundtrackEditScreen() {
 
           <View style={styles.sectionLabelRow}>
             <Text style={[styles.sectionLabel, styles.sectionLabelInRow]}>Tracks</Text>
-            <Text style={styles.sectionHint}>Tap a track to add it to your playlist</Text>
+            <Text style={styles.sectionHint}>Tap to preview · tap + to add</Text>
           </View>
           <View style={styles.chipRow}>
             {filteredTracks.map((track) => {
               const inPlaylist = playlist.some((item) => item.sourceType === 'curated' && item.curatedTrackId === track.id);
+              const isPreviewing = previewingTrackId === track.id;
               return (
-                <TouchableOpacity
-                  key={track.id}
-                  onPress={() => toggleCuratedTrack(track.id)}
-                  accessibilityRole="checkbox"
-                  accessibilityState={{ checked: inPlaylist }}
-                  style={[styles.chip, inPlaylist && styles.chipSelected]}
-                >
-                  <Text style={[styles.chipText, inPlaylist && styles.chipTextSelected]}>{track.name}</Text>
-                </TouchableOpacity>
+                <View key={track.id} style={[styles.chip, styles.trackChip, inPlaylist && styles.chipSelected]}>
+                  <TouchableOpacity
+                    onPress={() => togglePreview(track)}
+                    accessibilityRole="button"
+                    accessibilityLabel={`${isPreviewing ? 'Pause' : 'Preview'} ${track.name}`}
+                    style={styles.trackChipPreview}
+                  >
+                    <IconSymbol
+                      name={isPreviewing ? 'pause.circle' : 'play.circle'}
+                      size={16}
+                      color={inPlaylist ? '#f0ead6' : '#a89f88'}
+                    />
+                    <Text style={[styles.chipText, inPlaylist && styles.chipTextSelected]}>{track.name}</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={() => toggleCuratedTrack(track.id)}
+                    accessibilityRole="checkbox"
+                    accessibilityState={{ checked: inPlaylist }}
+                    accessibilityLabel={`${inPlaylist ? 'Remove' : 'Add'} ${track.name} ${inPlaylist ? 'from' : 'to'} your playlist`}
+                    hitSlop={8}
+                  >
+                    <IconSymbol
+                      name={inPlaylist ? 'checkmark.circle.fill' : 'plus.circle'}
+                      size={18}
+                      color={inPlaylist ? '#c9b97a' : '#a89f88'}
+                    />
+                  </TouchableOpacity>
+                </View>
               );
             })}
           </View>
@@ -342,6 +415,16 @@ const styles = StyleSheet.create({
   chipSelected: {
     borderColor: '#c9b97a',
     backgroundColor: 'rgba(201,185,122,0.15)',
+  },
+  trackChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  trackChipPreview: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
   },
   chipText: {
     fontSize: 13,
