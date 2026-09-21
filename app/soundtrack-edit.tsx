@@ -219,7 +219,14 @@ export default function SoundtrackEditScreen() {
           returnKeyType="done"
           onSubmitEditing={commitName}
         />
-        <View style={{ width: 16 }} />
+        <TouchableOpacity
+          onPress={() => router.dismissTo('/(tabs)/history')}
+          accessibilityRole="button"
+          accessibilityLabel="Back to History"
+          hitSlop={8}
+        >
+          <IconSymbol name="books.vertical.fill" size={18} color="#c9b97a" />
+        </TouchableOpacity>
       </View>
 
       {loading ? (

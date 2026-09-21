@@ -704,7 +704,18 @@ export default function QuoteCardsScreen() {
           if (error) throw error;
         }
         await commitFormatting();
-        Alert.alert('Saved', editSlideId ? 'This slide was updated.' : 'Added to your slideshow.');
+        // Reached via the slideshow chain (History -> collections -> photos
+        // -> From Saved Quotes -> here), so saving is a natural stopping
+        // point — offer a one-tap way back to History alongside staying put,
+        // rather than only the "Select a new quote" one-step-back button.
+        Alert.alert(
+          'Saved',
+          editSlideId ? 'This slide was updated.' : 'Added to your slideshow.',
+          [
+            { text: 'Keep Editing', style: 'cancel' },
+            { text: 'Done', onPress: () => router.dismissTo('/(tabs)/history') },
+          ]
+        );
       } else {
         // Unchanged plain save — writeOnly: true only ever needs to add a
         // photo, never read the user's existing library, so this triggers

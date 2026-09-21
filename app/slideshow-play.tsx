@@ -536,8 +536,11 @@ export default function SlideshowPlayScreen() {
     // TEMP DEBUG — remove once the stuck-pause bug is diagnosed.
     console.log('[SLIDESHOW] handleClose called');
     fadeOutAudio(() => {
-      console.log('[SLIDESHOW] fadeOutAudio onDone -> router.back()');
-      router.back();
+      // dismissTo (not back) so closing lands on History regardless of how
+      // deep this screen was reached — it's always the last stop in the
+      // slideshow flow launched from History's header icon.
+      console.log('[SLIDESHOW] fadeOutAudio onDone -> router.dismissTo(history)');
+      router.dismissTo('/(tabs)/history');
     });
   }, [fadeOutAudio, router]);
 
