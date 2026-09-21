@@ -90,8 +90,14 @@ export default function HistoryScreen() {
               concern: q.concern ? await decryptConcern(q.concern, session.user.id) : '',
             })));
             setSavedQuotes(withCategory);
-            const unique = [...new Set(withCategory.map((q: SavedQuote) => q.category))].sort() as string[];
-            setCategories(unique);
+            // Most-used concerns first (ties broken alphabetically), so the
+            // filter bar's always-visible chips — and the "N more" cutoff
+            // below — surface what this user actually saves the most of,
+            // not just whatever sorts first alphabetically.
+            const counts = new Map<string, number>();
+            withCategory.forEach((q: SavedQuote) => counts.set(q.category, (counts.get(q.category) ?? 0) + 1));
+            const sorted = [...counts.keys()].sort((a, b) => (counts.get(b)! - counts.get(a)!) || a.localeCompare(b));
+            setCategories(sorted);
           }
           setLoading(false);
         }
