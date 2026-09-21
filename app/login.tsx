@@ -14,6 +14,7 @@ import {
   ScrollView,
 } from 'react-native';
 import { IconSymbol } from '@/components/ui/IconSymbol';
+import { IconButton } from '@/components/ui/IconButton';
 
 export default function Login() {
   const router = useRouter();
@@ -96,7 +97,7 @@ export default function Login() {
             onChangeText={setPassword}
             accessibilityLabel="Password"
           />
-          <TouchableOpacity
+          <IconButton
             style={styles.eyeButton}
             onPress={() => setShowPassword((v) => !v)}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
@@ -104,7 +105,7 @@ export default function Login() {
             accessibilityLabel={showPassword ? 'Hide password' : 'Show password'}
           >
             <IconSymbol name={showPassword ? 'eye.slash' : 'eye'} size={18} color="#8a7e6e" />
-          </TouchableOpacity>
+          </IconButton>
         </View>
 
         <TouchableOpacity

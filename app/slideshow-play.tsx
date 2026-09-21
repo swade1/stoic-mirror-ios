@@ -18,6 +18,7 @@ import Animated, {
 import { useAudioPlayer } from 'expo-audio';
 import { supabase } from '@/lib/supabase';
 import { IconSymbol } from '@/components/ui/IconSymbol';
+import { IconButton } from '@/components/ui/IconButton';
 import { listAmbientTracks, type AmbientTrack } from '@/lib/ambientTracks';
 import { resolvePersonalAmbientTrackUri } from '@/lib/personalAmbientTrack';
 import { listPlaylistItems, type PlaylistItem } from '@/lib/ambientPlaylist';
@@ -678,23 +679,23 @@ export default function SlideshowPlayScreen() {
             ))}
           </View>
 
-          <TouchableOpacity
+          <IconButton
             style={[styles.shareButton, { top: insets.top + 24 }]}
             onPress={handleShare}
             accessibilityRole="button"
             accessibilityLabel="Share this photo"
           >
             <IconSymbol name="paperplane.fill" size={16} color="#f0ead6" />
-          </TouchableOpacity>
+          </IconButton>
 
-          <TouchableOpacity
+          <IconButton
             style={[styles.timerButton, { top: insets.top + 24 }]}
             onPress={() => setShowSleepPanel((v) => !v)}
             accessibilityRole="button"
             accessibilityLabel="Sleep timer"
           >
             <IconSymbol name="timer" size={16} color={sleepMinutes !== null ? '#c9b97a' : '#f0ead6'} />
-          </TouchableOpacity>
+          </IconButton>
 
           {sleepRemainingLabel && (
             <View style={[styles.sleepBadge, { top: insets.top + 31 }]} pointerEvents="none">
@@ -702,7 +703,7 @@ export default function SlideshowPlayScreen() {
             </View>
           )}
 
-          <TouchableOpacity
+          <IconButton
             style={[styles.closeButton, { top: insets.top + 24 }]}
             onPress={handleClose}
             accessibilityRole="button"
@@ -710,7 +711,7 @@ export default function SlideshowPlayScreen() {
             hitSlop={8}
           >
             <IconSymbol name="xmark" size={18} color="#f0ead6" />
-          </TouchableOpacity>
+          </IconButton>
         </Animated.View>
 
         {showSleepPanel && (

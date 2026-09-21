@@ -4,6 +4,7 @@ import { Alert, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View 
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { supabase } from '@/lib/supabase';
 import { IconSymbol } from '@/components/ui/IconSymbol';
+import { IconButton } from '@/components/ui/IconButton';
 
 export default function ChangePasswordScreen() {
   const router = useRouter();
@@ -95,7 +96,7 @@ export default function ChangePasswordScreen() {
             onChangeText={setCurrentPassword}
             accessibilityLabel="Current password"
           />
-          <TouchableOpacity
+          <IconButton
             style={styles.eyeButton}
             onPress={() => setShowCurrent((v) => !v)}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
@@ -103,7 +104,7 @@ export default function ChangePasswordScreen() {
             accessibilityLabel={showCurrent ? 'Hide password' : 'Show password'}
           >
             <IconSymbol name={showCurrent ? 'eye.slash' : 'eye'} size={18} color="#8a7e6e" />
-          </TouchableOpacity>
+          </IconButton>
         </View>
 
         <Text style={styles.label}>New Password</Text>
@@ -119,7 +120,7 @@ export default function ChangePasswordScreen() {
             onChangeText={setNewPassword}
             accessibilityLabel="New password"
           />
-          <TouchableOpacity
+          <IconButton
             style={styles.eyeButton}
             onPress={() => setShowNew((v) => !v)}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
@@ -127,7 +128,7 @@ export default function ChangePasswordScreen() {
             accessibilityLabel={showNew ? 'Hide password' : 'Show password'}
           >
             <IconSymbol name={showNew ? 'eye.slash' : 'eye'} size={18} color="#8a7e6e" />
-          </TouchableOpacity>
+          </IconButton>
         </View>
 
         <Text style={styles.label}>Confirm New Password</Text>
@@ -143,7 +144,7 @@ export default function ChangePasswordScreen() {
             onChangeText={setConfirmPassword}
             accessibilityLabel="Confirm new password"
           />
-          <TouchableOpacity
+          <IconButton
             style={styles.eyeButton}
             onPress={() => setShowConfirm((v) => !v)}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
@@ -151,7 +152,7 @@ export default function ChangePasswordScreen() {
             accessibilityLabel={showConfirm ? 'Hide password' : 'Show password'}
           >
             <IconSymbol name={showConfirm ? 'eye.slash' : 'eye'} size={18} color="#8a7e6e" />
-          </TouchableOpacity>
+          </IconButton>
         </View>
 
         <TouchableOpacity

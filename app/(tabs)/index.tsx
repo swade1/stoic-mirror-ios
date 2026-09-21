@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { ExpoSpeechRecognitionModule, useSpeechRecognitionEvent } from 'expo-speech-recognition';
 import { IconSymbol } from '@/components/ui/IconSymbol';
+import { IconButton } from '@/components/ui/IconButton';
 import {
   View,
   Text,
@@ -195,7 +196,7 @@ export default function CounselScreen() {
 
 
       <View style={styles.micButtonWrapper}>
-        <TouchableOpacity
+        <IconButton
           style={[styles.largeMicButton, listening && styles.micButtonActive]}
           onPress={handleMic}
           accessibilityRole="button"
@@ -207,7 +208,7 @@ export default function CounselScreen() {
             size={40}
             color={listening ? '#0f0e0c' : '#c9b97a'}
           />
-        </TouchableOpacity>
+        </IconButton>
       </View>
 
       <TextInput

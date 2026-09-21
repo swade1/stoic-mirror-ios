@@ -15,6 +15,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { supabase } from '@/lib/supabase';
 import { IconSymbol } from '@/components/ui/IconSymbol';
+import { IconButton } from '@/components/ui/IconButton';
 import { listSoundtracksWithCounts, createSoundtrack, renameSoundtrack, deleteSoundtrack, type Soundtrack } from '@/lib/soundtracks';
 
 // Doubles as two screens in one, distinguished by whether pickForCollectionId
@@ -150,17 +151,17 @@ export default function SoundtracksScreen() {
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <View style={styles.header}>
-        <TouchableOpacity
+        <IconButton
           onPress={() => (router.canGoBack() ? router.back() : router.replace('/slideshow-collections'))}
           accessibilityRole="button"
           accessibilityLabel="Back"
         >
           <IconSymbol name="chevron.left" size={16} color="#c9b97a" />
-        </TouchableOpacity>
+        </IconButton>
         <Text style={styles.headerTitle}>{pickForCollectionId ? 'Choose Soundtrack' : 'Soundtracks'}</Text>
-        <TouchableOpacity onPress={openNewSoundtrackPanel} accessibilityRole="button" accessibilityLabel="New soundtrack">
+        <IconButton onPress={openNewSoundtrackPanel} accessibilityRole="button" accessibilityLabel="New soundtrack">
           <IconSymbol name="plus" size={20} color="#c9b97a" />
-        </TouchableOpacity>
+        </IconButton>
       </View>
 
       {loading ? (
@@ -209,7 +210,7 @@ export default function SoundtracksScreen() {
                 </Text>
               </View>
               {pickForCollectionId && (
-                <TouchableOpacity
+                <IconButton
                   onPress={() => router.push({ pathname: '/soundtrack-edit', params: { soundtrackId: item.id } })}
                   accessibilityRole="button"
                   accessibilityLabel={`Edit ${item.name}'s tracks`}
@@ -217,9 +218,9 @@ export default function SoundtracksScreen() {
                   style={styles.rowAction}
                 >
                   <IconSymbol name="gearshape" size={16} color="#a89f88" />
-                </TouchableOpacity>
+                </IconButton>
               )}
-              <TouchableOpacity
+              <IconButton
                 onPress={() => openRenamePanel(item)}
                 accessibilityRole="button"
                 accessibilityLabel={`Rename ${item.name}`}
@@ -227,8 +228,8 @@ export default function SoundtracksScreen() {
                 style={styles.rowAction}
               >
                 <IconSymbol name="square.and.pencil" size={16} color="#a89f88" />
-              </TouchableOpacity>
-              <TouchableOpacity
+              </IconButton>
+              <IconButton
                 onPress={() => confirmDelete(item)}
                 accessibilityRole="button"
                 accessibilityLabel={`Delete ${item.name}`}
@@ -236,7 +237,7 @@ export default function SoundtracksScreen() {
                 style={styles.rowAction}
               >
                 <IconSymbol name="xmark.circle.fill" size={16} color="#a89f88" />
-              </TouchableOpacity>
+              </IconButton>
             </TouchableOpacity>
           )}
         />

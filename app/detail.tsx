@@ -11,6 +11,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { supabase } from '@/lib/supabase';
 import { IconSymbol } from '@/components/ui/IconSymbol';
+import { IconButton } from '@/components/ui/IconButton';
 import { maybeRequestReview } from '@/lib/reviewPrompt';
 import { getFramingLine } from '@/lib/framing';
 import { ScaledText } from '@/components/ScaledText';
@@ -249,14 +250,14 @@ export default function ResultsScreen() {
             <Text style={styles.headerTitle}>Received Wisdom</Text>
             <Text style={styles.headerSubtitle}>{entry.category}</Text>
           </View>
-          <TouchableOpacity
+          <IconButton
             onPress={() => setFontMenuVisible(true)}
             accessibilityRole="button"
             accessibilityLabel="Text size"
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           >
             <IconSymbol name="textformat.size" size={20} color="#c9b97a" />
-          </TouchableOpacity>
+          </IconButton>
         </View>
         {sessionSaved && (
           <View style={styles.savedIndicator}>

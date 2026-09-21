@@ -15,6 +15,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { supabase } from '@/lib/supabase';
 import { IconSymbol } from '@/components/ui/IconSymbol';
+import { IconButton } from '@/components/ui/IconButton';
 import { getFramingLine } from '@/lib/framing';
 import { ScaledText } from '@/components/ScaledText';
 import { FontSizeMenu } from '@/components/FontSizeMenu';
@@ -231,23 +232,23 @@ export default function HistoryScreen() {
           <Text style={styles.headerSubtitle}>Quotes you&apos;ve chosen to keep</Text>
         </View>
         <View style={styles.headerActions}>
-          <TouchableOpacity
+          <IconButton
             onPress={() => setFontMenuVisible(true)}
             accessibilityRole="button"
             accessibilityLabel="Text size"
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           >
             <IconSymbol name="textformat.size" size={20} color="#c9b97a" />
-          </TouchableOpacity>
-          <TouchableOpacity
+          </IconButton>
+          <IconButton
             onPress={() => router.push('/slideshow-collections')}
             accessibilityRole="button"
             accessibilityLabel="Slideshow"
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           >
             <IconSymbol name="play.rectangle" size={20} color="#c9b97a" />
-          </TouchableOpacity>
-          <TouchableOpacity
+          </IconButton>
+          <IconButton
             onPress={() => {
               setSearchVisible(!searchVisible);
               setSearchQuery('');
@@ -261,7 +262,7 @@ export default function HistoryScreen() {
               size={20}
               color="#c9b97a"
             />
-          </TouchableOpacity>
+          </IconButton>
         </View>
       </View>
 
@@ -281,13 +282,13 @@ export default function HistoryScreen() {
             accessibilityLabel="Search concerns, quotes, authors"
           />
           {searchQuery.length > 0 && (
-            <TouchableOpacity
+            <IconButton
               onPress={() => setSearchQuery('')}
               accessibilityRole="button"
               accessibilityLabel="Clear search"
             >
               <IconSymbol name="xmark.circle.fill" size={16} color="#8a7e6e" />
-            </TouchableOpacity>
+            </IconButton>
           )}
         </View>
       )}
@@ -397,14 +398,14 @@ export default function HistoryScreen() {
               </View>
               <View style={styles.pageHeaderRight}>
                 <Text style={styles.date}>{formatDate(currentQuote.saved_at)}</Text>
-                <TouchableOpacity
+                <IconButton
                   onPress={() => deleteQuote(currentQuote.id)}
                   hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                   accessibilityRole="button"
                   accessibilityLabel="Delete saved quote"
                 >
                   <IconSymbol name="trash" size={16} color="#c9b97a" />
-                </TouchableOpacity>
+                </IconButton>
               </View>
             </View>
 
@@ -436,14 +437,14 @@ export default function HistoryScreen() {
                   <IconSymbol name="lightbulb.fill" size={12} color="#c4b99e" />
                   <Text style={styles.counselLabel}>Counsel</Text>
                 </View>
-                <TouchableOpacity
+                <IconButton
                   onPress={() => router.push({ pathname: '/quote-cards', params: { quoteId: currentQuote?.id, textSource: 'counsel' } })}
                   accessibilityRole="button"
                   accessibilityLabel="Turn this counsel into a photo card"
                   hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                 >
                   <IconSymbol name="photo.on.rectangle" size={18} color="#c9b97a" />
-                </TouchableOpacity>
+                </IconButton>
               </View>
               <ScaledText style={styles.counselText}>{currentQuote.interpretation}</ScaledText>
             </View>
@@ -455,14 +456,14 @@ export default function HistoryScreen() {
                   <IconSymbol name="text.quote" size={12} color="#c9b97a" />
                   <Text style={styles.quoteLabel}>The Philosophers</Text>
                 </View>
-                <TouchableOpacity
+                <IconButton
                   onPress={() => router.push({ pathname: '/quote-cards', params: { quoteId: currentQuote?.id, textSource: 'quote' } })}
                   accessibilityRole="button"
                   accessibilityLabel="Turn this quote into a photo card"
                   hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                 >
                   <IconSymbol name="photo.on.rectangle" size={18} color="#c9b97a" />
-                </TouchableOpacity>
+                </IconButton>
               </View>
               {getFramingLine(currentQuote.matched_concern) && (
                 <Text style={styles.framingLine}>{getFramingLine(currentQuote.matched_concern)}</Text>
@@ -493,7 +494,7 @@ export default function HistoryScreen() {
           </ScrollView>
 
           {/* Fixed left arrow */}
-          <TouchableOpacity
+          <IconButton
             style={[styles.fixedNavLeft, currentIndex === 0 && styles.navButtonDisabled]}
             onPress={goPrev}
             disabled={currentIndex === 0}
@@ -502,10 +503,10 @@ export default function HistoryScreen() {
             accessibilityState={{ disabled: currentIndex === 0 }}
           >
             <IconSymbol name="chevron.left" size={16} color={currentIndex === 0 ? '#6a6050' : '#c9b97a'} />
-          </TouchableOpacity>
+          </IconButton>
 
           {/* Fixed right arrow */}
-          <TouchableOpacity
+          <IconButton
             style={[styles.fixedNavRight, currentIndex === total - 1 && styles.navButtonDisabled]}
             onPress={goNext}
             disabled={currentIndex === total - 1}
@@ -514,7 +515,7 @@ export default function HistoryScreen() {
             accessibilityState={{ disabled: currentIndex === total - 1 }}
           >
             <IconSymbol name="chevron.right" size={16} color={currentIndex === total - 1 ? '#6a6050' : '#c9b97a'} />
-          </TouchableOpacity>
+          </IconButton>
 
         </View>
       )}

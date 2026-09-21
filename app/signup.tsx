@@ -15,6 +15,7 @@ import {
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { IconSymbol } from '@/components/ui/IconSymbol';
+import { IconButton } from '@/components/ui/IconButton';
 
 export default function SignUp() {
   const router = useRouter();
@@ -155,7 +156,7 @@ export default function SignUp() {
             onChangeText={setPassword}
             accessibilityLabel="Password"
           />
-          <TouchableOpacity
+          <IconButton
             style={styles.eyeButton}
             onPress={() => setShowPassword((v) => !v)}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
@@ -163,7 +164,7 @@ export default function SignUp() {
             accessibilityLabel={showPassword ? 'Hide password' : 'Show password'}
           >
             <IconSymbol name={showPassword ? 'eye.slash' : 'eye'} size={18} color="#8a7e6e" />
-          </TouchableOpacity>
+          </IconButton>
         </View>
 
         <Text style={styles.label}>Confirm Password</Text>
@@ -179,7 +180,7 @@ export default function SignUp() {
             onChangeText={setConfirm}
             accessibilityLabel="Confirm password"
           />
-          <TouchableOpacity
+          <IconButton
             style={styles.eyeButton}
             onPress={() => setShowConfirm((v) => !v)}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
@@ -187,7 +188,7 @@ export default function SignUp() {
             accessibilityLabel={showConfirm ? 'Hide password' : 'Show password'}
           >
             <IconSymbol name={showConfirm ? 'eye.slash' : 'eye'} size={18} color="#8a7e6e" />
-          </TouchableOpacity>
+          </IconButton>
         </View>
 
         <TouchableOpacity

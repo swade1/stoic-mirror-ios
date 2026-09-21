@@ -4,6 +4,7 @@ import { View, Text, StyleSheet, TouchableOpacity, FlatList, ActivityIndicator }
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { supabase } from '@/lib/supabase';
 import { IconSymbol } from '@/components/ui/IconSymbol';
+import { IconButton } from '@/components/ui/IconButton';
 
 interface SavedQuoteRow {
   id: string;
@@ -50,9 +51,9 @@ export default function SlideshowAddQuoteScreen() {
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} accessibilityRole="button" accessibilityLabel="Back">
+        <IconButton onPress={() => router.back()} accessibilityRole="button" accessibilityLabel="Back">
           <IconSymbol name="chevron.left" size={16} color="#c9b97a" />
-        </TouchableOpacity>
+        </IconButton>
         <Text style={styles.headerTitle}>Choose a Quote</Text>
         <View style={{ width: 16 }} />
       </View>

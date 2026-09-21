@@ -14,6 +14,7 @@ import * as ImagePicker from 'expo-image-picker';
 import * as MediaLibrary from 'expo-media-library';
 import { supabase } from '@/lib/supabase';
 import { IconSymbol } from '@/components/ui/IconSymbol';
+import { IconButton } from '@/components/ui/IconButton';
 import { DraggableGridTile } from '@/components/DraggableGridTile';
 
 interface SlideshowPhoto {
@@ -351,30 +352,30 @@ export default function SlideshowPhotosScreen() {
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <View style={styles.header}>
-        <TouchableOpacity
+        <IconButton
           onPress={() => router.back()}
           accessibilityRole="button"
           accessibilityLabel="Back to Slideshows"
         >
           <IconSymbol name="chevron.left" size={16} color="#c9b97a" />
-        </TouchableOpacity>
+        </IconButton>
         <Text style={styles.headerTitle} numberOfLines={1}>{collectionName}</Text>
         <View style={styles.headerActions}>
-          <TouchableOpacity
+          <IconButton
             onPress={() => setShowSettings((v) => !v)}
             accessibilityRole="button"
             accessibilityLabel="Slideshow playback settings"
           >
             <IconSymbol name="gearshape" size={20} color={showSettings ? '#f0ead6' : '#c9b97a'} />
-          </TouchableOpacity>
-          <TouchableOpacity
+          </IconButton>
+          <IconButton
             onPress={() => router.push({ pathname: '/slideshow-play', params: { collectionId } })}
             disabled={photos.length === 0}
             accessibilityRole="button"
             accessibilityLabel="Play slideshow"
           >
             <IconSymbol name="play.rectangle" size={20} color={photos.length === 0 ? '#4a4540' : '#c9b97a'} />
-          </TouchableOpacity>
+          </IconButton>
         </View>
       </View>
 

@@ -17,6 +17,7 @@ import { Image } from 'expo-image';
 import * as MediaLibrary from 'expo-media-library';
 import { supabase } from '@/lib/supabase';
 import { IconSymbol } from '@/components/ui/IconSymbol';
+import { IconButton } from '@/components/ui/IconButton';
 
 interface SlideshowCollection {
   id: string;
@@ -185,31 +186,31 @@ export default function SlideshowCollectionsScreen() {
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <View style={styles.header}>
-        <TouchableOpacity
+        <IconButton
           onPress={() => router.back()}
           accessibilityRole="button"
           accessibilityLabel="Back to History"
         >
           <IconSymbol name="chevron.left" size={16} color="#c9b97a" />
-        </TouchableOpacity>
+        </IconButton>
         <Text style={styles.headerTitle}>Slideshows</Text>
         <View style={styles.headerActions}>
-          <TouchableOpacity
+          <IconButton
             onPress={() => router.push('/soundtracks')}
             accessibilityRole="button"
             accessibilityLabel="Manage soundtracks"
             hitSlop={8}
           >
             <IconSymbol name="music.note.list" size={20} color="#c9b97a" />
-          </TouchableOpacity>
-          <TouchableOpacity
+          </IconButton>
+          <IconButton
             onPress={openNewCollectionPanel}
             accessibilityRole="button"
             accessibilityLabel="New collection"
             hitSlop={8}
           >
             <IconSymbol name="plus" size={20} color="#c9b97a" />
-          </TouchableOpacity>
+          </IconButton>
         </View>
       </View>
 
@@ -247,7 +248,7 @@ export default function SlideshowCollectionsScreen() {
                 <Text style={styles.rowTitle}>{item.name}</Text>
                 <Text style={styles.rowSubtitle}>{item.photoCount} photo{item.photoCount === 1 ? '' : 's'}</Text>
               </View>
-              <TouchableOpacity
+              <IconButton
                 onPress={() => openRenamePanel(item)}
                 accessibilityRole="button"
                 accessibilityLabel={`Rename ${item.name}`}
@@ -255,8 +256,8 @@ export default function SlideshowCollectionsScreen() {
                 style={styles.rowAction}
               >
                 <IconSymbol name="square.and.pencil" size={16} color="#a89f88" />
-              </TouchableOpacity>
-              <TouchableOpacity
+              </IconButton>
+              <IconButton
                 onPress={() =>
                   router.push({ pathname: '/slideshow-play', params: { collectionId: item.id } })
                 }
@@ -267,8 +268,8 @@ export default function SlideshowCollectionsScreen() {
                 style={styles.rowAction}
               >
                 <IconSymbol name="play.rectangle" size={18} color={item.photoCount === 0 ? '#4a4540' : '#c9b97a'} />
-              </TouchableOpacity>
-              <TouchableOpacity
+              </IconButton>
+              <IconButton
                 onPress={() => deleteCollection(item)}
                 accessibilityRole="button"
                 accessibilityLabel={`Delete ${item.name}`}
@@ -276,7 +277,7 @@ export default function SlideshowCollectionsScreen() {
                 style={styles.rowAction}
               >
                 <IconSymbol name="xmark.circle.fill" size={16} color="#a89f88" />
-              </TouchableOpacity>
+              </IconButton>
             </TouchableOpacity>
           )}
         />

@@ -4,6 +4,7 @@ import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, { runOnJS, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import { Image } from 'expo-image';
 import { IconSymbol } from '@/components/ui/IconSymbol';
+import { IconButton } from '@/components/ui/IconButton';
 
 interface Props {
   id: string;
@@ -127,7 +128,7 @@ export function DraggableGridTile({
       <Animated.View style={[styles.slot, { width: cellSize, height: cellSize }, animatedStyle]}>
         <Animated.View style={styles.tile}>
           <Image source={{ uri }} style={styles.tileImage} contentFit="cover" />
-          <TouchableOpacity
+          <IconButton
             style={styles.tileRemove}
             onPress={() => onRemove(id)}
             accessibilityRole="button"
@@ -135,9 +136,9 @@ export function DraggableGridTile({
             hitSlop={8}
           >
             <IconSymbol name="xmark.circle.fill" size={20} color="#f0ead6" />
-          </TouchableOpacity>
+          </IconButton>
           {onEdit && (
-            <TouchableOpacity
+            <IconButton
               style={styles.tileEdit}
               onPress={onEdit}
               accessibilityRole="button"
@@ -145,7 +146,7 @@ export function DraggableGridTile({
               hitSlop={8}
             >
               <IconSymbol name="square.and.pencil" size={18} color="#f0ead6" />
-            </TouchableOpacity>
+            </IconButton>
           )}
         </Animated.View>
       </Animated.View>

@@ -23,6 +23,7 @@ import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, { useSharedValue, useAnimatedStyle } from 'react-native-reanimated';
 import { supabase } from '@/lib/supabase';
 import { IconSymbol } from '@/components/ui/IconSymbol';
+import { IconButton } from '@/components/ui/IconButton';
 import { DraggableTextBox, type TextBox } from '@/components/DraggableTextBox';
 import {
   listQuoteBackgrounds,
@@ -989,22 +990,22 @@ export default function QuoteCardsScreen() {
 
           {!personalPhotoUri && filteredBackgrounds.length > 1 && (
             <>
-              <TouchableOpacity
+              <IconButton
                 style={styles.backgroundNavButton}
                 onPress={() => advanceBackground(-1)}
                 accessibilityRole="button"
                 accessibilityLabel="Previous background photo"
               >
                 <IconSymbol name="chevron.left" size={20} color="#c9b97a" />
-              </TouchableOpacity>
-              <TouchableOpacity
+              </IconButton>
+              <IconButton
                 style={[styles.backgroundNavButton, styles.backgroundNavButtonRight]}
                 onPress={() => advanceBackground(1)}
                 accessibilityRole="button"
                 accessibilityLabel="Next background photo"
               >
                 <IconSymbol name="chevron.right" size={20} color="#c9b97a" />
-              </TouchableOpacity>
+              </IconButton>
             </>
           )}
 
@@ -1045,7 +1046,7 @@ export default function QuoteCardsScreen() {
                       option.value === 'right' ? 'text.alignright' :
                       'text.aligncenter';
                     return (
-                      <TouchableOpacity
+                      <IconButton
                         key={option.value}
                         onPress={() => changeBoxAlign(editingBoxId, option.value)}
                         hitSlop={8}
@@ -1054,25 +1055,25 @@ export default function QuoteCardsScreen() {
                         accessibilityLabel={`Align this text ${option.label}`}
                       >
                         <IconSymbol name={iconName} size={16} color={selected ? '#f0ead6' : '#a89f88'} />
-                      </TouchableOpacity>
+                      </IconButton>
                     );
                   })}
-                  <TouchableOpacity
+                  <IconButton
                     onPress={() => openBoxStyling(editingBoxId)}
                     hitSlop={8}
                     accessibilityRole="button"
                     accessibilityLabel="Color and backdrop for this text"
                   >
                     <IconSymbol name="paintpalette" size={16} color="#a89f88" />
-                  </TouchableOpacity>
-                  <TouchableOpacity
+                  </IconButton>
+                  <IconButton
                     onPress={() => deleteBox(editingBoxId)}
                     hitSlop={8}
                     accessibilityRole="button"
                     accessibilityLabel="Delete this text"
                   >
                     <IconSymbol name="xmark.circle.fill" size={18} color="#c9b97a" />
-                  </TouchableOpacity>
+                  </IconButton>
                   <TouchableOpacity
                     onPress={() => finishEditingBox(editingBoxId)}
                     hitSlop={8}
@@ -1180,31 +1181,31 @@ export default function QuoteCardsScreen() {
           )}
 
           <View style={[styles.actionRow, { bottom: insets.bottom + 52 }]}>
-            <TouchableOpacity
+            <IconButton
               style={styles.actionButton}
               onPress={() => setShowPicker(true)}
               accessibilityRole="button"
               accessibilityLabel="Change background photo"
             >
               <IconSymbol name="photo.on.rectangle" size={18} color="#c9b97a" />
-            </TouchableOpacity>
-            <TouchableOpacity
+            </IconButton>
+            <IconButton
               style={[styles.actionButton, showTextStylePanel && styles.actionButtonActive]}
               onPress={toggleTextStylePanel}
               accessibilityRole="button"
               accessibilityLabel="Text color and size"
             >
               <IconSymbol name="textformat" size={18} color="#c9b97a" />
-            </TouchableOpacity>
-            <TouchableOpacity
+            </IconButton>
+            <IconButton
               style={styles.actionButton}
               onPress={addTextBox}
               accessibilityRole="button"
               accessibilityLabel="Add text"
             >
               <IconSymbol name="plus" size={18} color="#c9b97a" />
-            </TouchableOpacity>
-            <TouchableOpacity
+            </IconButton>
+            <IconButton
               style={[styles.actionButton, (!imageLoaded || saving || !!editingBoxId) && styles.actionButtonDisabled]}
               onPress={handleSaveToPhotos}
               disabled={!imageLoaded || saving || !!editingBoxId}
@@ -1212,8 +1213,8 @@ export default function QuoteCardsScreen() {
               accessibilityLabel="Save this quote card to Photos"
             >
               <IconSymbol name="square.and.arrow.down" size={18} color={imageLoaded ? '#c9b97a' : '#6a6050'} />
-            </TouchableOpacity>
-            <TouchableOpacity
+            </IconButton>
+            <IconButton
               style={[styles.actionButton, (!imageLoaded || sharing || !!editingBoxId) && styles.actionButtonDisabled]}
               onPress={handleShare}
               disabled={!imageLoaded || sharing || !!editingBoxId}
@@ -1221,7 +1222,7 @@ export default function QuoteCardsScreen() {
               accessibilityLabel="Share this quote card"
             >
               <IconSymbol name="paperplane.fill" size={18} color={imageLoaded ? '#c9b97a' : '#6a6050'} />
-            </TouchableOpacity>
+            </IconButton>
           </View>
         </>
       )}

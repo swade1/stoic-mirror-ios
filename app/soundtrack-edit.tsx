@@ -6,6 +6,7 @@ import * as DocumentPicker from 'expo-document-picker';
 import { useAudioPlayer } from 'expo-audio';
 import { supabase } from '@/lib/supabase';
 import { IconSymbol } from '@/components/ui/IconSymbol';
+import { IconButton } from '@/components/ui/IconButton';
 import { listAmbientTracks, getTrackMoods, type AmbientTrack } from '@/lib/ambientTracks';
 import { listPlaylistItems, addCuratedItem, addPersonalItem, removeItem, reorderItems, type PlaylistItem } from '@/lib/ambientPlaylist';
 import { renameSoundtrack } from '@/lib/soundtracks';
@@ -202,13 +203,13 @@ export default function SoundtrackEditScreen() {
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <View style={styles.header}>
-        <TouchableOpacity
+        <IconButton
           onPress={() => (router.canGoBack() ? router.back() : router.replace('/soundtracks'))}
           accessibilityRole="button"
           accessibilityLabel="Back to soundtracks"
         >
           <IconSymbol name="chevron.left" size={16} color="#c9b97a" />
-        </TouchableOpacity>
+        </IconButton>
         <TextInput
           style={styles.headerTitleInput}
           value={name}
@@ -219,14 +220,14 @@ export default function SoundtrackEditScreen() {
           returnKeyType="done"
           onSubmitEditing={commitName}
         />
-        <TouchableOpacity
+        <IconButton
           onPress={() => router.dismissTo('/(tabs)/history')}
           accessibilityRole="button"
           accessibilityLabel="Back to History"
           hitSlop={8}
         >
           <IconSymbol name="books.vertical.fill" size={18} color="#c9b97a" />
-        </TouchableOpacity>
+        </IconButton>
       </View>
 
       {loading ? (
@@ -281,7 +282,7 @@ export default function SoundtrackEditScreen() {
                     />
                     <Text style={[styles.chipText, inPlaylist && styles.chipTextSelected]}>{track.name}</Text>
                   </TouchableOpacity>
-                  <TouchableOpacity
+                  <IconButton
                     onPress={() => toggleCuratedTrack(track.id)}
                     accessibilityRole="checkbox"
                     accessibilityState={{ checked: inPlaylist }}
@@ -293,7 +294,7 @@ export default function SoundtrackEditScreen() {
                       size={18}
                       color={inPlaylist ? '#c9b97a' : '#a89f88'}
                     />
-                  </TouchableOpacity>
+                  </IconButton>
                 </View>
               );
             })}
@@ -317,7 +318,7 @@ export default function SoundtrackEditScreen() {
                 <View key={item.id} style={styles.playlistRow}>
                   <Text style={styles.playlistRowName} numberOfLines={1}>{itemLabel(item)}</Text>
                   <View style={styles.playlistRowActions}>
-                    <TouchableOpacity
+                    <IconButton
                       onPress={() => moveItem(index, -1)}
                       disabled={index === 0}
                       accessibilityRole="button"
@@ -325,8 +326,8 @@ export default function SoundtrackEditScreen() {
                       hitSlop={8}
                     >
                       <IconSymbol name="chevron.up" size={20} color={index === 0 ? '#4a4540' : '#c9b97a'} />
-                    </TouchableOpacity>
-                    <TouchableOpacity
+                    </IconButton>
+                    <IconButton
                       onPress={() => moveItem(index, 1)}
                       disabled={index === playlist.length - 1}
                       accessibilityRole="button"
@@ -334,15 +335,15 @@ export default function SoundtrackEditScreen() {
                       hitSlop={8}
                     >
                       <IconSymbol name="chevron.down" size={20} color={index === playlist.length - 1 ? '#4a4540' : '#c9b97a'} />
-                    </TouchableOpacity>
-                    <TouchableOpacity
+                    </IconButton>
+                    <IconButton
                       onPress={() => handleRemoveItem(item)}
                       accessibilityRole="button"
                       accessibilityLabel={`Remove ${itemLabel(item)}`}
                       hitSlop={8}
                     >
                       <IconSymbol name="xmark" size={14} color="#8a7e6e" />
-                    </TouchableOpacity>
+                    </IconButton>
                   </View>
                 </View>
               ))}
