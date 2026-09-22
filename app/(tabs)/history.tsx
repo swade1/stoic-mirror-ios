@@ -442,13 +442,22 @@ export default function HistoryScreen() {
                 {expandedConcern
                   ? currentQuote.concern
                   : getFirstSentence(currentQuote.concern)}
-                {!expandedConcern && currentQuote.concern.length > getFirstSentence(currentQuote.concern).length && (
-                  <Text
-                    style={styles.showMore}
-                    onPress={() => setExpandedConcern(true)}
-                    accessibilityRole="button"
-                    accessibilityLabel="Show full concern"
-                  > ...Show more</Text>
+                {currentQuote.concern.length > getFirstSentence(currentQuote.concern).length && (
+                  expandedConcern ? (
+                    <Text
+                      style={styles.showMore}
+                      onPress={() => setExpandedConcern(false)}
+                      accessibilityRole="button"
+                      accessibilityLabel="Show less concern"
+                    > ...Show less</Text>
+                  ) : (
+                    <Text
+                      style={styles.showMore}
+                      onPress={() => setExpandedConcern(true)}
+                      accessibilityRole="button"
+                      accessibilityLabel="Show full concern"
+                    > ...Show more</Text>
+                  )
                 )}
               </ScaledText>
             </View>
@@ -476,13 +485,22 @@ export default function HistoryScreen() {
                 {expandedCounsel
                   ? currentQuote.interpretation
                   : getFirstSentence(currentQuote.interpretation)}
-                {!expandedCounsel && currentQuote.interpretation.length > getFirstSentence(currentQuote.interpretation).length && (
-                  <Text
-                    style={styles.showMore}
-                    onPress={() => setExpandedCounsel(true)}
-                    accessibilityRole="button"
-                    accessibilityLabel="Show full counsel"
-                  > ...Show more</Text>
+                {currentQuote.interpretation.length > getFirstSentence(currentQuote.interpretation).length && (
+                  expandedCounsel ? (
+                    <Text
+                      style={styles.showMore}
+                      onPress={() => setExpandedCounsel(false)}
+                      accessibilityRole="button"
+                      accessibilityLabel="Show less counsel"
+                    > ...Show less</Text>
+                  ) : (
+                    <Text
+                      style={styles.showMore}
+                      onPress={() => setExpandedCounsel(true)}
+                      accessibilityRole="button"
+                      accessibilityLabel="Show full counsel"
+                    > ...Show more</Text>
+                  )
                 )}
               </ScaledText>
             </View>
@@ -511,13 +529,22 @@ export default function HistoryScreen() {
               )}
               <ScaledText style={styles.quoteText}>
                 &ldquo;{expandedQuote ? currentQuote.quote : getFirstSentence(currentQuote.quote)}&rdquo;
-                {!expandedQuote && currentQuote.quote.length > getFirstSentence(currentQuote.quote).length && (
-                  <Text
-                    style={styles.showMore}
-                    onPress={() => setExpandedQuote(true)}
-                    accessibilityRole="button"
-                    accessibilityLabel="Show full quote"
-                  > ...Show more</Text>
+                {currentQuote.quote.length > getFirstSentence(currentQuote.quote).length && (
+                  expandedQuote ? (
+                    <Text
+                      style={styles.showMore}
+                      onPress={() => setExpandedQuote(false)}
+                      accessibilityRole="button"
+                      accessibilityLabel="Show less quote"
+                    > ...Show less</Text>
+                  ) : (
+                    <Text
+                      style={styles.showMore}
+                      onPress={() => setExpandedQuote(true)}
+                      accessibilityRole="button"
+                      accessibilityLabel="Show full quote"
+                    > ...Show more</Text>
+                  )
                 )}
               </ScaledText>
               <Text style={styles.author}>— {currentQuote.author}</Text>
