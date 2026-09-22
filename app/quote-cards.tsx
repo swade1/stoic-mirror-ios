@@ -253,6 +253,14 @@ export default function QuoteCardsScreen() {
     ? { id: 'personal', url: personalPhotoUri }
     : quote ? resolveQuoteBackground(backgrounds, quote.background_photo_id) : null;
   const showEditor = !showPicker && !!background;
+  // True specifically when resuming/editing landed on the picker only
+  // because the background couldn't resolve — i.e. this card's background
+  // was a personal photo, whose URI was never persisted (see the load
+  // effect's comment). A brand-new card also has a falsy background at
+  // this point, but resume/editSlideId being unset there means this stays
+  // false for it, so the explanatory note below only ever shows for the
+  // actual fallback case, not the normal fresh-picker flow.
+  const isPersonalPhotoFallback = !!(resume || editSlideId) && !background;
 
   useFocusEffect(
     useCallback(() => {
@@ -870,6 +878,12 @@ export default function QuoteCardsScreen() {
             </>
           )}
 
+          {isPersonalPhotoFallback && (
+            <Text style={styles.personalPhotoFallbackNotice}>
+              This card used a photo from your library, which isn&apos;t saved in the app — choose a new background, or tap &ldquo;Your Photo&rdquo; below to pick it again.
+            </Text>
+          )}
+
           <Text style={styles.pickerLabel}>Choose a background</Text>
           {backgroundCategories.length > 0 && (
             <View style={styles.categoryChipContent}>
@@ -1339,6 +1353,13 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#c9b97a',
     marginBottom: 40,
+  },
+  personalPhotoFallbackNotice: {
+    fontSize: 13,
+    lineHeight: 19,
+    color: '#c9b97a',
+    fontStyle: 'italic',
+    marginBottom: 20,
   },
   pickerLabel: {
     fontSize: 11,
