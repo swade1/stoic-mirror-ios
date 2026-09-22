@@ -19,6 +19,7 @@ import { IconButton } from '@/components/ui/IconButton';
 import { getFramingLine } from '@/lib/framing';
 import { ScaledText } from '@/components/ScaledText';
 import { FontSizeMenu } from '@/components/FontSizeMenu';
+import type { TextBox } from '@/components/DraggableTextBox';
 
 interface SavedQuote {
   id: string;
@@ -30,6 +31,15 @@ interface SavedQuote {
   saved_at: string;
   category: string;
   matched_concern: string | null;
+  // Already returned by the existing select('*', ...) below — just wasn't
+  // typed here yet. Two independent card slots (see app/quote-cards.tsx's
+  // SavedQuote) — card_text_boxes is the quote-sourced card, the
+  // counsel_ prefixed field is the counsel-sourced one. Non-null/non-empty
+  // means that slot already has a customized card, which is what each
+  // photo-card icon below keys off of to resume its own card instead of
+  // resetting it.
+  card_text_boxes: TextBox[] | null;
+  counsel_card_text_boxes: TextBox[] | null;
 }
 
 export default function HistoryScreen() {
@@ -203,6 +213,11 @@ export default function HistoryScreen() {
 
   const currentQuote = filteredQuotes[currentIndex];
   const total = filteredQuotes.length;
+  // Each photo-card icon below resumes its own card independently — two
+  // separate slots (see app/quote-cards.tsx's SavedQuote), so making a
+  // counsel card doesn't affect what the quote icon shows, and vice versa.
+  const hasQuoteCard = !!currentQuote?.card_text_boxes && currentQuote.card_text_boxes.length > 0;
+  const hasCounselCard = !!currentQuote?.counsel_card_text_boxes && currentQuote.counsel_card_text_boxes.length > 0;
 
   const goNext = () => {
     setCurrentIndex((prev) => Math.min(prev + 1, total - 1));
@@ -438,9 +453,12 @@ export default function HistoryScreen() {
                   <Text style={styles.counselLabel}>Counsel</Text>
                 </View>
                 <IconButton
-                  onPress={() => router.push({ pathname: '/quote-cards', params: { quoteId: currentQuote?.id, textSource: 'counsel' } })}
+                  onPress={() => router.push({
+                    pathname: '/quote-cards',
+                    params: { quoteId: currentQuote?.id, textSource: 'counsel', ...(hasCounselCard ? { resume: '1' } : {}) },
+                  })}
                   accessibilityRole="button"
-                  accessibilityLabel="Turn this counsel into a photo card"
+                  accessibilityLabel={hasCounselCard ? 'Edit this photo card' : 'Turn this counsel into a photo card'}
                   hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                 >
                   <IconSymbol name="photo.on.rectangle" size={18} color="#c9b97a" />
@@ -457,9 +475,12 @@ export default function HistoryScreen() {
                   <Text style={styles.quoteLabel}>The Philosophers</Text>
                 </View>
                 <IconButton
-                  onPress={() => router.push({ pathname: '/quote-cards', params: { quoteId: currentQuote?.id, textSource: 'quote' } })}
+                  onPress={() => router.push({
+                    pathname: '/quote-cards',
+                    params: { quoteId: currentQuote?.id, textSource: 'quote', ...(hasQuoteCard ? { resume: '1' } : {}) },
+                  })}
                   accessibilityRole="button"
-                  accessibilityLabel="Turn this quote into a photo card"
+                  accessibilityLabel={hasQuoteCard ? 'Edit this photo card' : 'Turn this quote into a photo card'}
                   hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                 >
                   <IconSymbol name="photo.on.rectangle" size={18} color="#c9b97a" />

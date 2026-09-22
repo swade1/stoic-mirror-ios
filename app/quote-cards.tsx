@@ -68,6 +68,20 @@ interface SavedQuote {
   // with the quote + attribution, at the default position — the same
   // "materialize on first change" laziness the old position fields had.
   card_text_boxes: TextBox[] | null;
+  // The six fields above are the "quote" card slot. These mirror them
+  // exactly as the independent "counsel" card slot — a saved quote can
+  // have two separate cards, one seeded from its quote text and one from
+  // its counsel, each with its own background/style/text. useCounsel
+  // below picks which slot this screen instance is actually working with;
+  // everything past the load effect only ever touches the six unprefixed
+  // fields, translated from whichever slot applies (see the load effect
+  // and commitFormatting).
+  counsel_background_photo_id: string | null;
+  counsel_text_color: string | null;
+  counsel_text_font: string | null;
+  counsel_text_size_scale: number | null;
+  counsel_scrim_enabled: boolean | null;
+  counsel_card_text_boxes: TextBox[] | null;
 }
 
 // Margin from the card's edge a box's width is capped against, so a box
@@ -118,12 +132,25 @@ export default function QuoteCardsScreen() {
   // Edit icon (app/slideshow-photos.tsx) — that specific slideshow_photos
   // row to update in place on Save, and the signal to skip the
   // reset-to-fresh load behavior below (see its comment).
-  const { quoteId, textSource, collectionId, editSlideId } = useLocalSearchParams<{
+  // resume: present when reached via History's photo-card icon on a quote
+  // that already has a customized card (app/(tabs)/history.tsx) — skips
+  // that same reset-to-fresh behavior for the same reason editSlideId
+  // does, just triggered by "this card already exists" rather than "this
+  // slide already exists."
+  const { quoteId, textSource, collectionId, editSlideId, resume } = useLocalSearchParams<{
     quoteId?: string;
     textSource?: string;
     collectionId?: string;
     editSlideId?: string;
+    resume?: string;
   }>();
+
+  // Which of the two independent card slots (see SavedQuote above) this
+  // screen instance is working with. Slideshow-linked slides never pass
+  // textSource (slideshow-add-quote.tsx doesn't set it), so editSlideId
+  // always resolves to the quote slot — unchanged from before this slot
+  // split existed.
+  const useCounsel = textSource === 'counsel';
 
   // Defined inside the component (not module-level, as it used to be) so
   // it can close over textSource above — every call site already lives in
@@ -245,7 +272,7 @@ export default function QuoteCardsScreen() {
         const [{ data: quoteRow, error }, backgroundList] = await Promise.all([
           supabase
             .from('saved_quotes')
-            .select('id, quote, author, source, interpretation, background_photo_id, text_color, text_size_scale, text_font, scrim_enabled, card_text_boxes')
+            .select('id, quote, author, source, interpretation, background_photo_id, text_color, text_size_scale, text_font, scrim_enabled, card_text_boxes, counsel_background_photo_id, counsel_text_color, counsel_text_size_scale, counsel_text_font, counsel_scrim_enabled, counsel_card_text_boxes')
             .eq('id', quoteId)
             .eq('user_id', session.user.id)
             .single(),
@@ -257,31 +284,54 @@ export default function QuoteCardsScreen() {
           if (error || !quoteRow) {
             setNotFound(true);
           } else {
-            // card_text_boxes is discarded on every fresh load, even when
-            // the row has previously-saved boxes — Susan decided a card is
-            // a single quick sitting, not something worth resuming days
-            // later, so any typed-over wording (or split/position/color
-            // customization) should never resurface as a surprise the next
-            // time this quote is opened from History; it just starts over
-            // from the quote text, same as an untouched card always has.
-            // If nothing gets edited this time, saving will persist this
-            // null and clear out whatever was there before.
+            // Pick the working six fields from whichever card slot this
+            // screen instance means (see SavedQuote's comment above) —
+            // everything past this point only ever reads/writes these six
+            // unprefixed field names, unaware there were two slots to
+            // choose from.
+            const slotFields = useCounsel
+              ? {
+                  background_photo_id: quoteRow.counsel_background_photo_id,
+                  text_color: quoteRow.counsel_text_color,
+                  text_size_scale: quoteRow.counsel_text_size_scale,
+                  text_font: quoteRow.counsel_text_font,
+                  scrim_enabled: quoteRow.counsel_scrim_enabled,
+                  card_text_boxes: quoteRow.counsel_card_text_boxes,
+                }
+              : {
+                  background_photo_id: quoteRow.background_photo_id,
+                  text_color: quoteRow.text_color,
+                  text_size_scale: quoteRow.text_size_scale,
+                  text_font: quoteRow.text_font,
+                  scrim_enabled: quoteRow.scrim_enabled,
+                  card_text_boxes: quoteRow.card_text_boxes,
+                };
+            // card_text_boxes is discarded on every fresh load by default,
+            // even when the slot has previously-saved boxes — a brand-new
+            // "turn this into a card" tap starts clean from the quote text
+            // rather than silently resurfacing whatever was typed last time.
             //
-            // editSlideId is the one exception: reaching this screen via an
-            // existing slide's own Edit icon means seeing what's actually
-            // on that slide, the opposite intent from History's "quick
-            // one-sitting" default — so its card_text_boxes are kept as-is.
-            setQuote(editSlideId ? quoteRow : { ...quoteRow, card_text_boxes: null });
-            // Always open on the picker, even if this quote already has a
-            // chosen background — the user wants to see the quote +
-            // gallery first every time, not silently resume straight to a
-            // previously composed card. editSlideId skips this too, for
-            // the same reason it skips the card_text_boxes reset above —
-            // if the slide's background was a personal photo rather than
-            // a curated one, this naturally falls back to the picker
-            // anyway, since a personal photo's URI is deliberately never
-            // persisted anywhere to restore it from.
-            setShowPicker(!editSlideId);
+            // editSlideId and resume are both exceptions, for the same
+            // underlying reason: the user is deliberately returning to a
+            // card that already exists (via a linked slideshow slide's own
+            // Edit icon, or via History's icon on a quote/counsel that
+            // already has its own card — see app/(tabs)/history.tsx's
+            // hasQuoteCard/hasCounselCard) rather than starting a new one,
+            // so its card_text_boxes are kept as-is.
+            setQuote({
+              ...quoteRow,
+              ...slotFields,
+              card_text_boxes: editSlideId || resume ? slotFields.card_text_boxes : null,
+            });
+            // Same pair of exceptions for the picker: a brand-new card
+            // always opens on the picker (quote + background gallery)
+            // rather than silently resuming straight into a previous
+            // composition, but editSlideId/resume skip straight to the
+            // editor — if the existing card's background was a personal
+            // photo rather than a curated one, this naturally falls back
+            // to the picker anyway, since a personal photo's URI is
+            // deliberately never persisted anywhere to restore it from.
+            setShowPicker(!editSlideId && !resume);
             setImageLoaded(false);
             setPersonalPhotoUri(null);
             setPersonalPhotoSize(null);
@@ -628,14 +678,27 @@ export default function QuoteCardsScreen() {
   // other formatting handler above only touches local state.
   const commitFormatting = async () => {
     if (!quote) return;
-    await supabase.from('saved_quotes').update({
-      background_photo_id: quote.background_photo_id,
-      text_color: quote.text_color,
-      text_size_scale: quote.text_size_scale,
-      text_font: quote.text_font,
-      scrim_enabled: quote.scrim_enabled,
-      card_text_boxes: quote.card_text_boxes,
-    }).eq('id', quote.id);
+    // Writes back to whichever slot useCounsel means — same six fields
+    // either way, just the counsel_-prefixed columns instead of the plain
+    // ones, so the other slot's card is never touched by saving this one.
+    const payload = useCounsel
+      ? {
+          counsel_background_photo_id: quote.background_photo_id,
+          counsel_text_color: quote.text_color,
+          counsel_text_size_scale: quote.text_size_scale,
+          counsel_text_font: quote.text_font,
+          counsel_scrim_enabled: quote.scrim_enabled,
+          counsel_card_text_boxes: quote.card_text_boxes,
+        }
+      : {
+          background_photo_id: quote.background_photo_id,
+          text_color: quote.text_color,
+          text_size_scale: quote.text_size_scale,
+          text_font: quote.text_font,
+          scrim_enabled: quote.scrim_enabled,
+          card_text_boxes: quote.card_text_boxes,
+        };
+    await supabase.from('saved_quotes').update(payload).eq('id', quote.id);
   };
 
   const handleShare = async () => {
