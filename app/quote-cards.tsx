@@ -880,7 +880,7 @@ export default function QuoteCardsScreen() {
 
           {isPersonalPhotoFallback && (
             <Text style={styles.personalPhotoFallbackNotice}>
-              This card used a photo from your library, which isn&apos;t saved in the app — choose a new background, or tap &ldquo;Your Photo&rdquo; below to pick it again.
+              This card used a personal photo, which isn&apos;t saved in the app — choose a new background, or tap &ldquo;Your Photo&rdquo; below to pick it again.
             </Text>
           )}
 
