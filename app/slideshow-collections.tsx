@@ -290,13 +290,13 @@ export default function SlideshowCollectionsScreen() {
           pointerEvents="box-none"
         >
           <View style={[styles.panel, { marginBottom: insets.bottom + 24 }]}>
-            <Text style={styles.panelLabel}>{isCreating ? 'New Collection' : 'Rename Collection'}</Text>
+            <Text style={styles.panelLabel}>{isCreating ? 'New Slideshow' : 'Rename Slideshow'}</Text>
             <TextInput
               style={styles.panelInput}
               value={nameDraft}
               onChangeText={setNameDraft}
               autoFocus
-              placeholder="Collection name"
+              placeholder="Slideshow name"
               placeholderTextColor="#6a6050"
             />
             <View style={styles.panelActions}>
@@ -434,6 +434,8 @@ const styles = StyleSheet.create({
   },
   panelInput: {
     fontSize: 16,
+    lineHeight: 22,
+    paddingVertical: 4,
     color: '#f0ead6',
   },
   panelActions: {
