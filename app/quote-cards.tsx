@@ -137,13 +137,19 @@ export default function QuoteCardsScreen() {
   // that same reset-to-fresh behavior for the same reason editSlideId
   // does, just triggered by "this card already exists" rather than "this
   // slide already exists."
-  const { quoteId, textSource, collectionId, editSlideId, resume } = useLocalSearchParams<{
+  const { quoteId, textSource, collectionId, editSlideId, resume, fromGallery } = useLocalSearchParams<{
     quoteId?: string;
     textSource?: string;
     collectionId?: string;
     editSlideId?: string;
     resume?: string;
+    fromGallery?: string;
   }>();
+
+  // Reached from the My Cards gallery specifically — "Select a new quote"
+  // doesn't make sense there, since going back doesn't land on a
+  // quote-picking screen, it lands back in the gallery itself.
+  const backLabel = fromGallery ? 'Return to gallery' : 'Select a new quote';
 
   // Which of the two independent card slots (see SavedQuote above) this
   // screen instance is working with. Slideshow-linked slides never pass
@@ -863,10 +869,10 @@ export default function QuoteCardsScreen() {
             style={styles.backButtonInline}
             onPress={() => router.back()}
             accessibilityRole="button"
-            accessibilityLabel="Select a new quote"
+            accessibilityLabel={backLabel}
           >
             <IconSymbol name="chevron.left" size={16} color="#c9b97a" />
-            <Text style={styles.backButtonText}>Select a new quote</Text>
+            <Text style={styles.backButtonText}>{backLabel}</Text>
           </TouchableOpacity>
 
           {textSource === 'counsel' ? (
@@ -1090,10 +1096,10 @@ export default function QuoteCardsScreen() {
             style={[styles.backButtonFloating, { top: insets.top + 12 }]}
             onPress={() => router.back()}
             accessibilityRole="button"
-            accessibilityLabel="Select a new quote"
+            accessibilityLabel={backLabel}
           >
             <IconSymbol name="chevron.left" size={16} color="#c9b97a" />
-            <Text style={styles.backButtonText}>Select a new quote</Text>
+            <Text style={styles.backButtonText}>{backLabel}</Text>
           </TouchableOpacity>
 
           {personalPhotoUri && (
