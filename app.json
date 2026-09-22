@@ -16,6 +16,9 @@
         "NSMicrophoneUsageDescription": "Allow The Stoic Mirror to use the microphone.",
         "LSApplicationQueriesSchemes": [
           "itms-apps"
+        ],
+        "UIBackgroundModes": [
+          "audio"
         ]
       }
     },

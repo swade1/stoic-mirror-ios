@@ -1,5 +1,5 @@
 import React from 'react';
-import { StyleSheet, TouchableOpacity } from 'react-native';
+import { StyleSheet, TouchableOpacity, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, { runOnJS, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import { Image } from 'expo-image';
@@ -8,7 +8,10 @@ import { IconButton } from '@/components/ui/IconButton';
 
 interface Props {
   id: string;
-  uri: string;
+  // null when the asset this slide points to no longer resolves (deleted
+  // from Photos since being added) — renders a placeholder with a Replace
+  // action instead of the photo.
+  uri: string | null;
   index: number;
   count: number;
   columnCount: number;
@@ -28,6 +31,9 @@ interface Props {
   // linked saved_quotes row) — shows a second icon that opens it for
   // editing. Absent for a plain photo, since there's nothing to edit.
   onEdit?: () => void;
+  // Present only when uri is null — opens a picker to swap in a new photo
+  // for this same slide, preserving its position.
+  onReplace?: () => void;
 }
 
 // One square tile in the slideshow's photo grid, draggable to reorder —
@@ -55,6 +61,7 @@ export function DraggableGridTile({
   onTouchBegin,
   onTouchEnd,
   onEdit,
+  onReplace,
 }: Props) {
   const translateX = useSharedValue(0);
   const translateY = useSharedValue(0);
@@ -127,7 +134,13 @@ export function DraggableGridTile({
           way the old FlatList's margin: 4 per tile did. */}
       <Animated.View style={[styles.slot, { width: cellSize, height: cellSize }, animatedStyle]}>
         <Animated.View style={styles.tile}>
-          <Image source={{ uri }} style={styles.tileImage} contentFit="cover" />
+          {uri ? (
+            <Image source={{ uri }} style={styles.tileImage} contentFit="cover" />
+          ) : (
+            <View style={styles.tileMissing}>
+              <IconSymbol name="photo.on.rectangle" size={22} color="#6a6050" accessibilityElementsHidden importantForAccessibility="no" />
+            </View>
+          )}
           <IconButton
             style={styles.tileRemove}
             onPress={() => onRemove(id)}
@@ -146,6 +159,17 @@ export function DraggableGridTile({
               hitSlop={8}
             >
               <IconSymbol name="square.and.pencil" size={18} color="#f0ead6" />
+            </IconButton>
+          )}
+          {onReplace && (
+            <IconButton
+              style={styles.tileReplace}
+              onPress={onReplace}
+              accessibilityRole="button"
+              accessibilityLabel="Replace this missing photo"
+              hitSlop={8}
+            >
+              <IconSymbol name="arrow.triangle.2.circlepath" size={18} color="#f0ead6" />
             </IconButton>
           )}
         </Animated.View>
@@ -167,6 +191,13 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
   },
+  tileMissing: {
+    width: '100%',
+    height: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#1e1c18',
+  },
   tileRemove: {
     position: 'absolute',
     top: 4,
@@ -176,5 +207,10 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: 4,
     right: 4,
+  },
+  tileReplace: {
+    position: 'absolute',
+    bottom: 4,
+    left: 4,
   },
 });

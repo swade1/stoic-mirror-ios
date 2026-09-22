@@ -11,17 +11,21 @@ import { ScrollView } from 'react-native-gesture-handler';
 import Animated, { LinearTransition } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
-import * as MediaLibrary from 'expo-media-library';
 import { supabase } from '@/lib/supabase';
 import { IconSymbol } from '@/components/ui/IconSymbol';
 import { IconButton } from '@/components/ui/IconButton';
 import { DraggableGridTile } from '@/components/DraggableGridTile';
+import { resolveSlideshowAssetUri } from '@/lib/slideshowAssets';
 
 interface SlideshowPhoto {
   id: string;
   assetId: string;
   sortOrder: number;
-  uri: string;
+  // null means the asset this row points to no longer resolves — deleted
+  // from the device's Photos library, or otherwise unreachable. Kept in
+  // state rather than filtered out so the missing slide is visible and
+  // actionable (Remove/Replace) instead of just silently disappearing.
+  uri: string | null;
   // Set only for a slide added via "From Saved Quotes" — the saved_quotes
   // row it was rendered from, letting this one slide (and only this one)
   // be reopened for editing. See app/quote-cards.tsx's collectionId/
@@ -137,26 +141,20 @@ export default function SlideshowPhotosScreen() {
     }
 
     const resolved = await Promise.all(
-      data.map(async (row) => {
-        try {
-          const info = await MediaLibrary.getAssetInfoAsync(row.asset_id);
-          const uri = info?.localUri ?? info?.uri ?? null;
-          return { id: row.id, assetId: row.asset_id, sortOrder: row.sort_order, uri, savedQuoteId: row.saved_quote_id };
-        } catch {
-          return { id: row.id, assetId: row.asset_id, sortOrder: row.sort_order, uri: null as string | null, savedQuoteId: row.saved_quote_id };
-        }
-      })
+      data.map(async (row) => ({
+        id: row.id,
+        assetId: row.asset_id,
+        sortOrder: row.sort_order,
+        uri: await resolveSlideshowAssetUri(row.asset_id),
+        savedQuoteId: row.saved_quote_id,
+      }))
     );
 
     // An asset that no longer resolves (deleted from Photos since being
-    // added) is dropped from the list and cleaned up server-side, rather
-    // than silently accumulating dead rows.
-    const stale = resolved.filter((p) => !p.uri);
-    if (stale.length > 0) {
-      await supabase.from('slideshow_photos').delete().in('id', stale.map((p) => p.id));
-    }
-
-    setPhotos(resolved.filter((p): p is SlideshowPhoto => !!p.uri));
+    // added) stays in the list with uri: null, rather than being silently
+    // dropped and cleaned up server-side — the user gets a chance to see
+    // and act on it (Remove or Replace) before the row actually goes away.
+    setPhotos(resolved);
     setLoading(false);
   }, [collectionId]);
 
@@ -293,6 +291,33 @@ export default function SlideshowPhotosScreen() {
     setPendingRemove({ photo: removed, timer });
   };
 
+  // Swaps a missing slide's asset_id in place — update, not delete+insert —
+  // so its sort_order and any saved_quote_id linkage survive the swap.
+  const replacePhoto = async (id: string) => {
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 1 });
+      if (result.canceled) return;
+      const assetId = result.assets[0].assetId;
+      if (!assetId) {
+        Alert.alert('Replace Failed', "Couldn't read that photo — try again or pick a different one.");
+        return;
+      }
+      const { error } = await supabase.from('slideshow_photos').update({ asset_id: assetId }).eq('id', id);
+      if (error) {
+        // Unique (user_id, collection_id, asset_id) violation — this photo
+        // is already elsewhere in the same collection.
+        if (error.code === '23505') {
+          Alert.alert('Already Added', 'That photo is already in this slideshow.');
+          return;
+        }
+        throw error;
+      }
+      await load();
+    } catch (err) {
+      Alert.alert('Replace Failed', err instanceof Error ? err.message : 'Something went wrong.');
+    }
+  };
+
   // Rewrites every photo's sort_order from its position in the given
   // (already reordered) array — the same bulk-rewrite-on-drop shape
   // lib/ambientPlaylist.ts's reorderItems already uses for the ambient
@@ -349,6 +374,9 @@ export default function SlideshowPhotosScreen() {
     await supabase.from('slideshow_collections').update({ ambient_volume: value }).eq('id', collectionId);
   };
 
+  const missingCount = photos.filter((p) => !p.uri).length;
+  const resolvedCount = photos.length - missingCount;
+
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <View style={styles.header}>
@@ -370,11 +398,11 @@ export default function SlideshowPhotosScreen() {
           </IconButton>
           <IconButton
             onPress={() => router.push({ pathname: '/slideshow-play', params: { collectionId } })}
-            disabled={photos.length === 0}
+            disabled={resolvedCount === 0}
             accessibilityRole="button"
             accessibilityLabel="Play slideshow"
           >
-            <IconSymbol name="play.rectangle" size={20} color={photos.length === 0 ? '#4a4540' : '#c9b97a'} />
+            <IconSymbol name="play.rectangle" size={20} color={resolvedCount === 0 ? '#4a4540' : '#c9b97a'} />
           </IconButton>
         </View>
       </View>
@@ -452,6 +480,12 @@ export default function SlideshowPhotosScreen() {
         </View>
       )}
 
+      {!loading && missingCount > 0 && (
+        <Text style={styles.missingHint}>
+          {missingCount} photo{missingCount === 1 ? '' : 's'} {missingCount === 1 ? 'is' : 'are'} no longer available — use its icons to remove or replace it.
+        </Text>
+      )}
+
       {!loading && photos.length > 1 && (
         <Text style={styles.reorderHint}>Press and drag a photo to reorder</Text>
       )}
@@ -484,6 +518,7 @@ export default function SlideshowPhotosScreen() {
                     onDragEnd={() => setActiveId(null)}
                     onDrop={handleDrop}
                     onRemove={removePhoto}
+                    onReplace={!photo.uri ? () => replacePhoto(photo.id) : undefined}
                     onTouchBegin={() => setTouchCount((c) => c + 1)}
                     onTouchEnd={() => setTouchCount((c) => Math.max(0, c - 1))}
                     onEdit={
@@ -638,6 +673,13 @@ const styles = StyleSheet.create({
     color: '#6a6050',
     fontStyle: 'italic',
     textAlign: 'center',
+    marginBottom: 8,
+  },
+  missingHint: {
+    fontSize: 12,
+    color: '#c9b97a',
+    textAlign: 'center',
+    marginHorizontal: 20,
     marginBottom: 8,
   },
   grid: {

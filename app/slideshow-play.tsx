@@ -3,7 +3,6 @@ import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { View, Text, StyleSheet, TouchableOpacity, Alert, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
-import * as MediaLibrary from 'expo-media-library';
 import * as Sharing from 'expo-sharing';
 import { useKeepAwake } from 'expo-keep-awake';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
@@ -15,13 +14,14 @@ import Animated, {
   cancelAnimation,
   Easing,
 } from 'react-native-reanimated';
-import { useAudioPlayer } from 'expo-audio';
+import { useAudioPlayer, setAudioModeAsync } from 'expo-audio';
 import { supabase } from '@/lib/supabase';
 import { IconSymbol } from '@/components/ui/IconSymbol';
 import { IconButton } from '@/components/ui/IconButton';
 import { listAmbientTracks, type AmbientTrack } from '@/lib/ambientTracks';
 import { resolvePersonalAmbientTrackUri } from '@/lib/personalAmbientTrack';
 import { listPlaylistItems, type PlaylistItem } from '@/lib/ambientPlaylist';
+import { resolveSlideshowAssetUri } from '@/lib/slideshowAssets';
 
 type SlideshowTransition = 'fade' | 'slide';
 type AmbientVolume = 'low' | 'medium' | 'high';
@@ -54,6 +54,17 @@ export default function SlideshowPlayScreen() {
   // is meant to be watched hands-off, and the phone would otherwise
   // auto-lock mid-rotation.
   useKeepAwake();
+
+  // Without this, the ambient soundtrack stops within moments of the
+  // screen locking or the app backgrounding — iOS suspends the app since
+  // nothing has told it this is a media-playback session (paired with
+  // the UIBackgroundModes "audio" entry in app.json, which is the other
+  // half of that same requirement). playsInSilentMode is set alongside
+  // it for the same reason: someone who locked the phone to just listen
+  // likely also has the hardware mute switch on.
+  useEffect(() => {
+    setAudioModeAsync({ shouldPlayInBackground: true, playsInSilentMode: true }).catch(() => {});
+  }, []);
 
   const [uris, setUris] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
@@ -176,23 +187,7 @@ export default function SlideshowPlayScreen() {
             ? collectionRow.ambient_volume
             : 'medium';
 
-        const resolved = await Promise.all(
-          photoRows.map(async (row) => {
-            try {
-              const info = await MediaLibrary.getAssetInfoAsync(row.asset_id);
-              // localUri only — info.uri (the ph:// asset-library reference
-              // some iCloud-only photos fall back to when they haven't
-              // finished downloading locally) isn't something expo-image
-              // can actually render, and a failed render just shows the
-              // screen's near-black background through, i.e. a blank slide.
-              // Skipping it here is the same treatment a thrown error
-              // already gets below.
-              return info?.localUri ?? null;
-            } catch {
-              return null;
-            }
-          })
-        );
+        const resolved = await Promise.all(photoRows.map((row) => resolveSlideshowAssetUri(row.asset_id)));
 
         // TEMP DEBUG
         console.log(`[SLIDESHOW] load() reached commit point, cancelled=${cancelled}`);

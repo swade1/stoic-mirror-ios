@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { useFocusEffect, useRouter } from 'expo-router';
 import {
   View,
@@ -14,10 +14,11 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
-import * as MediaLibrary from 'expo-media-library';
 import { supabase } from '@/lib/supabase';
 import { IconSymbol } from '@/components/ui/IconSymbol';
 import { IconButton } from '@/components/ui/IconButton';
+import { resolveSlideshowAssetUri } from '@/lib/slideshowAssets';
+import { hasSeenICloudTip, markICloudTipSeen } from '@/lib/slideshowTip';
 
 interface SlideshowCollection {
   id: string;
@@ -39,6 +40,16 @@ export default function SlideshowCollectionsScreen() {
   const [isCreating, setIsCreating] = useState(false);
   const [nameDraft, setNameDraft] = useState('');
   const [saving, setSaving] = useState(false);
+  const [showICloudTip, setShowICloudTip] = useState(false);
+
+  useEffect(() => {
+    hasSeenICloudTip().then((seen) => setShowICloudTip(!seen));
+  }, []);
+
+  const dismissICloudTip = () => {
+    setShowICloudTip(false);
+    markICloudTipSeen();
+  };
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -82,15 +93,7 @@ export default function SlideshowCollectionsScreen() {
     const resolved = await Promise.all(
       collectionRows.map(async (row) => {
         const photos = photosByCollection.get(row.id) ?? [];
-        let thumbnailUri: string | null = null;
-        if (photos.length > 0) {
-          try {
-            const info = await MediaLibrary.getAssetInfoAsync(photos[0].asset_id);
-            thumbnailUri = info?.localUri ?? info?.uri ?? null;
-          } catch {
-            thumbnailUri = null;
-          }
-        }
+        const thumbnailUri = photos.length > 0 ? await resolveSlideshowAssetUri(photos[0].asset_id) : null;
         return {
           id: row.id,
           name: row.name,
@@ -213,6 +216,23 @@ export default function SlideshowCollectionsScreen() {
           </IconButton>
         </View>
       </View>
+
+      {showICloudTip && !loading && collections.length > 0 && (
+        <View style={styles.tipBanner}>
+          <IconSymbol name="icloud" size={18} color="#c9b97a" accessibilityElementsHidden importantForAccessibility="no" />
+          <Text style={styles.tipBannerText}>
+            Tip: keep iCloud Photos on (Settings → Photos) so the photos in your slideshows stay available if you switch to a new phone.
+          </Text>
+          <IconButton
+            onPress={dismissICloudTip}
+            accessibilityRole="button"
+            accessibilityLabel="Dismiss tip"
+            hitSlop={8}
+          >
+            <IconSymbol name="xmark" size={14} color="#8a7e6e" />
+          </IconButton>
+        </View>
+      )}
 
       {loading ? (
         <ActivityIndicator style={styles.loading} color="#c9b97a" />
@@ -345,6 +365,25 @@ const styles = StyleSheet.create({
   },
   loading: {
     marginTop: 60,
+  },
+  tipBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginHorizontal: 16,
+    marginBottom: 12,
+    backgroundColor: 'rgba(201,185,122,0.08)',
+    borderWidth: 1,
+    borderColor: '#4a4540',
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+  },
+  tipBannerText: {
+    flex: 1,
+    fontSize: 12,
+    lineHeight: 17,
+    color: '#a89f88',
   },
   list: {
     paddingHorizontal: 16,
