@@ -52,6 +52,8 @@ export default function HistoryScreen() {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [showAllCategories, setShowAllCategories] = useState(false);
   const [expandedConcern, setExpandedConcern] = useState(false);
+  const [expandedCounsel, setExpandedCounsel] = useState(false);
+  const [expandedQuote, setExpandedQuote] = useState(false);
   // A delete is held here for a few seconds before actually hitting the
   // database, so an accidental "Remove" has a window to be undone — the
   // row is already gone from savedQuotes (optimistic, same as before),
@@ -75,6 +77,8 @@ export default function HistoryScreen() {
   useEffect(() => {
     setCurrentIndex(0);
     setExpandedConcern(false);
+    setExpandedCounsel(false);
+    setExpandedQuote(false);
   }, [searchQuery, filter]);
 
   useFocusEffect(
@@ -222,12 +226,16 @@ export default function HistoryScreen() {
   const goNext = () => {
     setCurrentIndex((prev) => Math.min(prev + 1, total - 1));
     setExpandedConcern(false);
+    setExpandedCounsel(false);
+    setExpandedQuote(false);
     scrollRef.current?.scrollTo({ y: 0, animated: false });
   };
 
   const goPrev = () => {
     setCurrentIndex((prev) => Math.max(prev - 1, 0));
     setExpandedConcern(false);
+    setExpandedCounsel(false);
+    setExpandedQuote(false);
     scrollRef.current?.scrollTo({ y: 0, animated: false });
   };
 
@@ -464,7 +472,19 @@ export default function HistoryScreen() {
                   <IconSymbol name="photo.on.rectangle" size={18} color="#c9b97a" />
                 </IconButton>
               </View>
-              <ScaledText style={styles.counselText}>{currentQuote.interpretation}</ScaledText>
+              <ScaledText style={styles.counselText}>
+                {expandedCounsel
+                  ? currentQuote.interpretation
+                  : getFirstSentence(currentQuote.interpretation)}
+                {!expandedCounsel && currentQuote.interpretation.length > getFirstSentence(currentQuote.interpretation).length && (
+                  <Text
+                    style={styles.showMore}
+                    onPress={() => setExpandedCounsel(true)}
+                    accessibilityRole="button"
+                    accessibilityLabel="Show full counsel"
+                  > ...Show more</Text>
+                )}
+              </ScaledText>
             </View>
 
             {/* Quote */}
@@ -489,7 +509,17 @@ export default function HistoryScreen() {
               {getFramingLine(currentQuote.matched_concern) && (
                 <Text style={styles.framingLine}>{getFramingLine(currentQuote.matched_concern)}</Text>
               )}
-              <ScaledText style={styles.quoteText}>&ldquo;{currentQuote.quote}&rdquo;</ScaledText>
+              <ScaledText style={styles.quoteText}>
+                &ldquo;{expandedQuote ? currentQuote.quote : getFirstSentence(currentQuote.quote)}&rdquo;
+                {!expandedQuote && currentQuote.quote.length > getFirstSentence(currentQuote.quote).length && (
+                  <Text
+                    style={styles.showMore}
+                    onPress={() => setExpandedQuote(true)}
+                    accessibilityRole="button"
+                    accessibilityLabel="Show full quote"
+                  > ...Show more</Text>
+                )}
+              </ScaledText>
               <Text style={styles.author}>— {currentQuote.author}</Text>
               <Text style={styles.source}>{currentQuote.source}</Text>
             </View>
@@ -772,7 +802,12 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   counselBox: {
-    flex: 1,
+    // No flex: 1 here (there used to be one) — this box sits directly in
+    // pageScroll's ScrollView content, not a bounded flex row, so flex: 1
+    // had no real height to grow against. Combined with borderRadius,
+    // that silently clipped longer counsel text mid-word instead of
+    // letting the box size to its content and the page scroll to fit —
+    // quoteBox below never had this problem, since it was never flex: 1.
     backgroundColor: '#1e1c18',
     borderRadius: 12,
     padding: 16,
