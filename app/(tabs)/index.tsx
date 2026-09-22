@@ -16,6 +16,7 @@ import {
 } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import * as Haptics from 'expo-haptics';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '@/lib/supabase';
@@ -25,6 +26,13 @@ import { ScaledText } from '@/components/ScaledText';
 export default function CounselScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  // The tab bar's own screenOptions set tabBarStyle.position: 'absolute'
+  // (app/(tabs)/_layout.tsx) — it floats over this screen rather than
+  // reserving its own space, so insets.bottom alone doesn't clear it.
+  // This is only used to pin the footer line just above it and to keep
+  // the scroll content's own bottom padding clear of it — it no longer
+  // feeds into the action card's dynamic sizing at all.
+  const tabBarHeight = useBottomTabBarHeight();
   const [input, setInput] = useState('');
   const [listening, setListening] = useState(false);
   const [keyboardVisible, setKeyboardVisible] = useState(false);
@@ -140,6 +148,18 @@ export default function CounselScreen() {
     };
   }, []);
 
+  // Names at most this many concerns directly; beyond that, "+N more" keeps
+  // the pill's width bounded regardless of how many of the 14 categories a
+  // user selected, without falling back to a generic phrase that would look
+  // identical for every user (the whole point of surfacing this line is
+  // that it's genuinely specific to them).
+  const CONCERN_PILL_LIMIT = 2;
+  const concernPillText = activeConcerns.length === 0
+    ? null
+    : activeConcerns.length <= CONCERN_PILL_LIMIT
+    ? `Matching ${activeConcerns.join(', ')}`
+    : `Matching ${activeConcerns.slice(0, CONCERN_PILL_LIMIT).join(', ')} +${activeConcerns.length - CONCERN_PILL_LIMIT} more`;
+
   const handleSeekCounsel = () => {
     if (!input.trim()) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -169,7 +189,7 @@ export default function CounselScreen() {
       {/* Main content */}
       <ScrollView
         style={styles.content}
-        contentContainerStyle={styles.contentContainer}
+        contentContainerStyle={[styles.contentContainer, { paddingBottom: tabBarHeight + 44 }]}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
@@ -184,59 +204,64 @@ export default function CounselScreen() {
             <ScaledText style={styles.dailyQuoteAuthor}>— {dailyQuote.author}</ScaledText>
           </View>
         )}
-        <Text style={styles.prompt}>What troubles you?</Text>
-        <Text style={styles.promptSub}>
-          Describe your concern openly. The philosophers will counsel you from their own words.
-        </Text>
-        {activeConcerns.length > 0 && (
-          <Text style={styles.concernNotice}>
-            We&apos;ll surface content that matches what you&apos;re working through: {activeConcerns.join(', ')}.
+        <View style={styles.introZone}>
+          <Text style={styles.prompt}>What troubles you?</Text>
+          <Text style={styles.promptSub}>
+            Describe your concern openly. The philosophers will counsel you from their own words.
           </Text>
-        )}
+        </View>
 
+        <View style={styles.actionCard}>
+          {concernPillText && (
+            <View style={styles.concernPill}>
+              <Text style={styles.concernPillText}>{concernPillText}</Text>
+            </View>
+          )}
 
-      <View style={styles.micButtonWrapper}>
-        <IconButton
-          style={[styles.largeMicButton, listening && styles.micButtonActive]}
-          onPress={handleMic}
-          accessibilityRole="button"
-          accessibilityLabel={listening ? 'Stop voice input' : 'Start voice input'}
-          accessibilityState={{ selected: listening }}
-        >
-          <IconSymbol
-            name={listening ? 'stop.fill' : 'mic.fill'}
-            size={40}
-            color={listening ? '#0f0e0c' : '#c9b97a'}
+          <View style={styles.micWrap}>
+            <IconButton
+              style={[styles.largeMicButton, listening && styles.micButtonActive]}
+              onPress={handleMic}
+              accessibilityRole="button"
+              accessibilityLabel={listening ? 'Stop voice input' : 'Start voice input'}
+              accessibilityState={{ selected: listening }}
+            >
+              <IconSymbol
+                name={listening ? 'stop.fill' : 'mic.fill'}
+                size={32}
+                color={listening ? '#0f0e0c' : '#c9b97a'}
+              />
+            </IconButton>
+            <Text style={styles.micCaption}>Tap to speak</Text>
+          </View>
+
+          <TextInput
+            style={styles.textInput}
+            placeholder="Or describe it here..."
+            placeholderTextColor="#8a7e6e"
+            value={input}
+            onChangeText={setInput}
+            multiline
+            maxLength={2000}
+            textAlignVertical="top"
+            accessibilityLabel="Describe your concern"
           />
-        </IconButton>
-      </View>
 
-      <TextInput
-        style={styles.textInput}
-        placeholder="Or describe it here..."
-        placeholderTextColor="#8a7e6e"
-        value={input}
-        onChangeText={setInput}
-        multiline
-        maxLength={2000}
-        textAlignVertical="top"
-        accessibilityLabel="Describe your concern"
-      />
-
-    <TouchableOpacity
-      style={[styles.sendButton, !input.trim() && styles.sendButtonDisabled]}
-      onPress={handleSeekCounsel}
-      disabled={!input.trim()}
-      accessibilityRole="button"
-    >
-      <Text style={[styles.sendButtonText, !input.trim() && styles.sendButtonTextDisabled]}>
-        Seek Counsel
-      </Text>
-    </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.sendButton, !input.trim() && styles.sendButtonDisabled]}
+            onPress={handleSeekCounsel}
+            disabled={!input.trim()}
+            accessibilityRole="button"
+          >
+            <Text style={[styles.sendButtonText, !input.trim() && styles.sendButtonTextDisabled]}>
+              Seek Counsel
+            </Text>
+          </TouchableOpacity>
+        </View>
       </ScrollView>
 
       {!keyboardVisible && (
-        <View style={[styles.footer, { paddingBottom: insets.bottom + 80 }]}>
+        <View style={[styles.footer, { bottom: tabBarHeight + 10 }]}>
           <Text style={styles.footerText}>
             Drawing from Marcus Aurelius · Epictetus · Seneca
           </Text>
@@ -277,9 +302,13 @@ const styles = StyleSheet.create({
   },
   contentContainer: {
     flexGrow: 1,
-    padding: 24,
+    paddingHorizontal: 24,
+    paddingTop: 24,
     justifyContent: 'flex-start',
     width: '100%',
+  },
+  introZone: {
+    marginBottom: 20,
   },
   prompt: {
     fontSize: 28,
@@ -292,27 +321,58 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: '#8a7e6e',
     lineHeight: 22,
-    marginBottom: 32,
   },
-  concernNotice: {
-    fontSize: 13,
-    color: '#c9b97a',
-    lineHeight: 20,
-    marginBottom: 24,
-    fontStyle: 'italic',
-  },
-  textInput: {
+  // Contains the mic, text field, and Seek Counsel button as one unit —
+  // same treatment as dailyQuoteBox, so the "act" part of the screen reads
+  // as a single contained card instead of independently floating pieces.
+  //
+  // flex: 1 (inside contentContainer's flexGrow: 1 below) plus
+  // justifyContent: 'space-between' is what makes this card absorb
+  // whatever room a longer daily quote leaves it, rather than the quote
+  // pushing the card — and the Seek Counsel button — down the screen.
+  // gap is a floor under that, not the driver: when there's little room
+  // (a 3-line quote, or the keyboard open) the card shrinks toward gap's
+  // minimum instead of collapsing further, and content taller than that
+  // floor still just scrolls, via the ScrollView it already sits in.
+  actionCard: {
     backgroundColor: '#1e1c18',
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#4a4540',
+    padding: 20,
+    alignItems: 'stretch',
+    justifyContent: 'space-between',
+    gap: 10,
+    flex: 1,
+  },
+  concernPill: {
+    alignSelf: 'center',
+    backgroundColor: '#c9b97a',
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    maxWidth: '100%',
+  },
+  concernPillText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#0f0e0c',
+    letterSpacing: 0.2,
+  },
+  // Recessed relative to actionCard's own surface (page background instead
+  // of the card's own #1e1c18), so the field reads as set *into* the card
+  // rather than blending into it.
+  textInput: {
+    backgroundColor: '#0f0e0c',
     borderRadius: 16,
     paddingHorizontal: 20,
     paddingVertical: 16,
     color: '#f0ead6',
     fontSize: 16,
     borderWidth: 1,
-    borderColor: '#6a6050',
+    borderColor: '#4a4540',
     minHeight: 70,
     maxHeight: 130,
-    marginBottom: 16,
   },
   sendButton: {
     backgroundColor: '#2a2720',
@@ -335,9 +395,15 @@ const styles = StyleSheet.create({
   sendButtonTextDisabled: {
     color: '#6a6050',
   },
+  // Pinned at a fixed spot just above the (absolutely-positioned, floating)
+  // tab bar, via the inline `bottom` set from tabBarHeight above — no
+  // longer a flex sibling of the ScrollView, so it can't compete with the
+  // action card for space or drift out of sync with it.
   footer: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
     paddingHorizontal: 24,
-    paddingTop: 16,
     alignItems: 'center',
   },
   footerText: {
@@ -357,14 +423,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: 16,
   },
-  micButtonWrapper: {
+  micWrap: {
     alignItems: 'center',
-    marginBottom: 24,
+    gap: 6,
   },
+  // Reduced from the original 96px — still the largest circular element on
+  // the card and the clearest "primary" affordance, but no longer sized to
+  // dominate the whole screen the way it did floating on its own.
   largeMicButton: {
-    width: 96,
-    height: 96,
-    borderRadius: 48,
+    width: 76,
+    height: 76,
+    borderRadius: 38,
     backgroundColor: '#2a2720',
     alignItems: 'center',
     justifyContent: 'center',
@@ -373,6 +442,11 @@ const styles = StyleSheet.create({
   },
   micButtonActive: {
     backgroundColor: '#c9b97a',
+  },
+  micCaption: {
+    fontSize: 12,
+    color: '#8a7e6e',
+    letterSpacing: 0.2,
   },
   dailyQuoteBox: {
     backgroundColor: '#1e1c18',
