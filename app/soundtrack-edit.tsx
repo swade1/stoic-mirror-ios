@@ -31,6 +31,7 @@ export default function SoundtrackEditScreen() {
   const [name, setName] = useState('');
   const [tracks, setTracks] = useState<AmbientTrack[]>([]);
   const [selectedMood, setSelectedMood] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
   const [playlist, setPlaylist] = useState<PlaylistItem[]>([]);
   // Which curated track (if any) is currently sounding — a quick audition
   // before committing it to the playlist, distinct from playlist
@@ -193,7 +194,10 @@ export default function SoundtrackEditScreen() {
   };
 
   const trackMoods = getTrackMoods(tracks);
-  const filteredTracks = selectedMood ? tracks.filter((track) => track.mood === selectedMood) : tracks;
+  const searchQueryNormalized = searchQuery.trim().toLowerCase();
+  const filteredTracks = tracks
+    .filter((track) => (selectedMood ? track.mood === selectedMood : true))
+    .filter((track) => (searchQueryNormalized.length === 0 ? true : track.name.toLowerCase().includes(searchQueryNormalized)));
 
   const itemLabel = (item: PlaylistItem): string => {
     if (item.sourceType === 'personal') return item.personalFileName ?? 'Audio file';
@@ -234,6 +238,29 @@ export default function SoundtrackEditScreen() {
         <ActivityIndicator style={styles.loading} color="#c9b97a" />
       ) : (
         <ScrollView contentContainerStyle={styles.content}>
+          <View style={styles.searchContainer}>
+            <IconSymbol name="magnifyingglass" size={16} color="#8a7e6e" />
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Search tracks..."
+              placeholderTextColor="#8a7e6e"
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              autoCapitalize="none"
+              autoCorrect={false}
+              accessibilityLabel="Search tracks"
+            />
+            {searchQuery.length > 0 && (
+              <IconButton
+                onPress={() => setSearchQuery('')}
+                accessibilityRole="button"
+                accessibilityLabel="Clear search"
+              >
+                <IconSymbol name="xmark.circle.fill" size={16} color="#8a7e6e" />
+              </IconButton>
+            )}
+          </View>
+
           {trackMoods.length > 0 && (
             <>
               <Text style={styles.sectionLabel}>Mood</Text>
@@ -263,6 +290,9 @@ export default function SoundtrackEditScreen() {
             <Text style={[styles.sectionLabel, styles.sectionLabelInRow]}>Tracks</Text>
             <Text style={styles.sectionHint}>Tap to preview · tap + to add</Text>
           </View>
+          {filteredTracks.length === 0 && (
+            <Text style={styles.emptyPlaylistText}>No tracks match.</Text>
+          )}
           <View style={styles.chipRow}>
             {filteredTracks.map((track) => {
               const inPlaylist = playlist.some((item) => item.sourceType === 'curated' && item.curatedTrackId === track.id);
@@ -380,6 +410,20 @@ const styles = StyleSheet.create({
   content: {
     paddingHorizontal: 20,
     paddingBottom: 40,
+  },
+  searchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#1e1c18',
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    gap: 8,
+  },
+  searchInput: {
+    flex: 1,
+    color: '#f0ead6',
+    fontSize: 15,
   },
   sectionLabel: {
     fontSize: 11,

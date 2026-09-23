@@ -11,6 +11,9 @@ import { ScrollView } from 'react-native-gesture-handler';
 import Animated, { LinearTransition } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
+import * as MediaLibrary from 'expo-media-library';
+import { Image } from 'expo-image';
+import { captureRef } from 'react-native-view-shot';
 import { supabase } from '@/lib/supabase';
 import { IconSymbol } from '@/components/ui/IconSymbol';
 import { IconButton } from '@/components/ui/IconButton';
@@ -73,6 +76,13 @@ export default function SlideshowPhotosScreen() {
   // .enabled(!isEditing) technique DraggableTextBox uses.
   const [activeId, setActiveId] = useState<string | null>(null);
   const [gridWidth, setGridWidth] = useState(0);
+  const [downloading, setDownloading] = useState(false);
+  // The off-screen contact-sheet view captureRef snapshots — kept
+  // permanently mounted (positioned off-screen, not conditionally
+  // rendered) so it's already laid out at its full natural height
+  // whenever a download is requested, the same reasoning quote-cards.tsx's
+  // captured card view stays mounted rather than being built on demand.
+  const contactSheetRef = useRef<View>(null);
   // A count, not a boolean, so overlapping touch sequences (e.g. a quick
   // second tap landing before the first one's onFinalize fires) can't
   // leave scrolling stuck disabled — the grid only scrolls again once
@@ -377,6 +387,37 @@ export default function SlideshowPhotosScreen() {
   const missingCount = photos.filter((p) => !p.uri).length;
   const resolvedCount = photos.length - missingCount;
 
+  const exportedAt = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+
+  // Captures the off-screen contact-sheet view (every slide's thumbnail,
+  // in order, numbered) and saves it to Photos — a durable, human-readable
+  // record of a slideshow's contents outside the live database, the same
+  // idea as keeping a copy of a soundtrack's track list. Unlike the
+  // playback screen, a missing-photo slide renders its placeholder here
+  // too rather than being skipped — an honest record shouldn't quietly
+  // omit a slot that's known to be broken.
+  const downloadContactSheet = async () => {
+    if (!contactSheetRef.current || photos.length === 0 || downloading) return;
+    setDownloading(true);
+    try {
+      const { status } = await MediaLibrary.requestPermissionsAsync(true);
+      if (status !== 'granted') {
+        Alert.alert(
+          'Permission Needed',
+          'Allow The Stoic Mirror to save photos in your device Settings to download this slideshow.'
+        );
+        return;
+      }
+      const uri = await captureRef(contactSheetRef, { format: 'png', quality: 1 });
+      await MediaLibrary.saveToLibraryAsync(uri);
+      Alert.alert('Saved', 'A contact sheet of this slideshow was saved to your photos.');
+    } catch (err) {
+      Alert.alert('Download Failed', err instanceof Error ? err.message : 'Something went wrong.');
+    } finally {
+      setDownloading(false);
+    }
+  };
+
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <View style={styles.header}>
@@ -395,6 +436,18 @@ export default function SlideshowPhotosScreen() {
             accessibilityLabel="Slideshow playback settings"
           >
             <IconSymbol name="gearshape" size={20} color={showSettings ? '#f0ead6' : '#c9b97a'} />
+          </IconButton>
+          <IconButton
+            onPress={downloadContactSheet}
+            disabled={photos.length === 0 || downloading}
+            accessibilityRole="button"
+            accessibilityLabel="Download slideshow as an image"
+          >
+            {downloading ? (
+              <ActivityIndicator size="small" color="#c9b97a" />
+            ) : (
+              <IconSymbol name="square.and.arrow.down" size={20} color={photos.length === 0 ? '#4a4540' : '#c9b97a'} />
+            )}
           </IconButton>
           <IconButton
             onPress={() => router.push({ pathname: '/slideshow-play', params: { collectionId } })}
@@ -561,6 +614,50 @@ export default function SlideshowPhotosScreen() {
           </TouchableOpacity>
         </View>
       )}
+
+      {/* Off-screen contact-sheet layout for downloadContactSheet to
+          capture — positioned far outside the visible frame rather than
+          conditionally rendered, so it's already fully laid out (at
+          whatever height this many rows actually needs) the moment a
+          download is requested. collapsable={false} keeps the native view
+          from being optimized out of the hierarchy, the same requirement
+          quote-cards.tsx's captured card view has. */}
+      {gridWidth > 0 && photos.length > 0 && (
+        <View
+          ref={contactSheetRef}
+          collapsable={false}
+          // gridWidth is the on-screen grid ROW's own width — already
+          // padding-excluded, since that row sits inside the ScrollView's
+          // padded content and has none of its own. This container adds
+          // its own horizontal padding (styles.contactSheet), so its total
+          // width has to be gridWidth *plus* that padding back — using
+          // gridWidth alone here left this container too narrow for its
+          // own padding plus three full-width cells, wrapping the third
+          // one onto its own row (the "3 on screen, 2 in the export" bug).
+          style={[styles.contactSheet, { width: gridWidth + 24 }]}
+        >
+          <Text style={styles.contactSheetTitle} numberOfLines={1}>{collectionName}</Text>
+          <Text style={styles.contactSheetSubtitle}>As of {exportedAt}</Text>
+          <View style={styles.gridRow}>
+            {photos.map((photo, index) => (
+              <View key={photo.id} style={[styles.contactSheetSlot, { width: gridWidth / COLUMN_COUNT }]}>
+                <View style={styles.contactSheetTile}>
+                  {photo.uri ? (
+                    <Image source={{ uri: photo.uri }} style={styles.contactSheetImage} contentFit="cover" />
+                  ) : (
+                    <View style={styles.contactSheetMissing}>
+                      <IconSymbol name="photo.on.rectangle" size={22} color="#6a6050" accessibilityElementsHidden importantForAccessibility="no" />
+                    </View>
+                  )}
+                  <View style={styles.contactSheetBadge}>
+                    <Text style={styles.contactSheetBadgeText}>{index + 1}</Text>
+                  </View>
+                </View>
+              </View>
+            ))}
+          </View>
+        </View>
+      )}
     </View>
   );
 }
@@ -725,5 +822,61 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '600',
     color: '#0f0e0c',
+  },
+  contactSheet: {
+    position: 'absolute',
+    top: -100000,
+    left: 0,
+    backgroundColor: '#0f0e0c',
+    paddingHorizontal: 12,
+    paddingTop: 20,
+    paddingBottom: 12,
+  },
+  contactSheetTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#f0ead6',
+    textAlign: 'center',
+    marginBottom: 4,
+    paddingHorizontal: 8,
+  },
+  contactSheetSubtitle: {
+    fontSize: 13,
+    color: '#8a7e6e',
+    textAlign: 'center',
+    marginBottom: 16,
+  },
+  contactSheetSlot: {
+    padding: 4,
+  },
+  contactSheetTile: {
+    aspectRatio: 1,
+    borderRadius: 10,
+    overflow: 'hidden',
+    backgroundColor: '#1e1c18',
+  },
+  contactSheetImage: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  contactSheetMissing: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  contactSheetBadge: {
+    position: 'absolute',
+    bottom: 4,
+    right: 4,
+    backgroundColor: 'rgba(15,14,12,0.75)',
+    borderRadius: 8,
+    minWidth: 18,
+    paddingHorizontal: 4,
+    paddingVertical: 2,
+    alignItems: 'center',
+  },
+  contactSheetBadgeText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#f0ead6',
   },
 });

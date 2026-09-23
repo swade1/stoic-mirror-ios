@@ -33,6 +33,10 @@ const DEFAULT_DURATION_SECONDS = 7;
 // more contemplative feel. Also reused as the ambient-music fade-out
 // duration on exit, for the same unhurried pacing.
 const TRANSITION_PHASE_MS = 900;
+// Longer than TRANSITION_PHASE_MS on purpose — a music crossfade under
+// ~2s reads as an abrupt splice rather than a deliberate blend, even
+// though that pacing works fine for the visual slide transition.
+const AMBIENT_CROSSFADE_MS = 2500;
 // Kept deliberately subdued at every level — this is background
 // ambience, never meant to compete with the visual/text experience.
 const VOLUME_GAIN: Record<AmbientVolume, number> = { low: 0.15, medium: 0.35, high: 0.6 };
@@ -72,13 +76,12 @@ export default function SlideshowPlayScreen() {
   const [paused, setPaused] = useState(false);
   const [durationSeconds, setDurationSeconds] = useState(DEFAULT_DURATION_SECONDS);
   const [transition, setTransition] = useState<SlideshowTransition>('fade');
-  // The resolved, playable queue for this collection's ambient playlist,
-  // and which item within it is currently playing. Replaces a single
-  // track + player.loop=true — looping the whole queue (see the
-  // didJustFinish listener below) subsumes looping a single file for
-  // free, since a one-item queue just re-selects its own only index.
+  // The resolved, playable queue for this collection's ambient playlist.
+  // Which item is current lives in currentQueueIndexRef below, not React
+  // state — advancing through the queue is now driven imperatively by
+  // the crossfade logic rather than by an effect keyed on an index, so a
+  // re-render isn't needed on every track change.
   const [ambientQueue, setAmbientQueue] = useState<string[]>([]);
-  const [ambientQueueIndex, setAmbientQueueIndex] = useState(0);
   const [ambientVolume, setAmbientVolume] = useState<AmbientVolume>('medium');
   // Session-only — never persisted, always starts back at Off. "How long
   // do I want to watch right now" is a fresh choice each sitting, not a
@@ -106,7 +109,40 @@ export default function SlideshowPlayScreen() {
   const [slotUris, setSlotUris] = useState<[string | null, string | null]>([null, null]);
   const [activeSlot, setActiveSlot] = useState<0 | 1>(0);
 
-  const player = useAudioPlayer(null);
+  // Ambient playback uses two alternating players, the same slotUris/
+  // activeSlot two-layer pattern above but for audio — one plays the
+  // current track while the other is idle or mid-crossfade, so a track
+  // boundary can overlap and blend instead of hard-cutting the way a
+  // single player's replace() would. A one-item queue still benefits:
+  // it crossfades into its own repeat on every loop through this same
+  // mechanism, on top of (not instead of) the seamless loop point
+  // already baked into each file at prep time.
+  const playerA = useAudioPlayer(null, { updateInterval: 250 });
+  const playerB = useAudioPlayer(null, { updateInterval: 250 });
+  const getAmbientPlayer = useCallback(
+    (which: 'A' | 'B') => (which === 'A' ? playerA : playerB),
+    [playerA, playerB]
+  );
+  // Which player currently holds "the" track — tracked in a ref
+  // alongside the state because the playbackStatusUpdate listeners below
+  // are set up once per queue load and must always read whichever
+  // player is current *right now*, not whichever was current when the
+  // listener closure was created.
+  const [activeAmbientPlayer, setActiveAmbientPlayer] = useState<'A' | 'B'>('A');
+  const activeAmbientPlayerRef = useRef<'A' | 'B'>('A');
+  useEffect(() => {
+    activeAmbientPlayerRef.current = activeAmbientPlayer;
+  }, [activeAmbientPlayer]);
+  // Which queue index the active player is on — a ref, not state, since
+  // advancing no longer needs to trigger a re-render (the crossfade is
+  // driven imperatively from the status listener, not from an effect
+  // keyed on this value).
+  const currentQueueIndexRef = useRef(0);
+  // Guards against starting a second crossfade for the same boundary —
+  // playbackStatusUpdate keeps firing every ~250ms while the remaining
+  // time stays under AMBIENT_CROSSFADE_MS, not just once.
+  const crossfadingRef = useRef(false);
+  const crossfadeIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const opacity = useSharedValue(1);
   const controlsOpacity = useSharedValue(1);
@@ -195,7 +231,6 @@ export default function SlideshowPlayScreen() {
           setDurationSeconds(resolvedDuration);
           setTransition(resolvedTransition);
           setAmbientQueue(resolvedQueue);
-          setAmbientQueueIndex(0);
           setAmbientVolume(resolvedVolume);
           setSleepMinutes(null);
           const validUris = resolved.filter((u): u is string => !!u);
@@ -414,45 +449,146 @@ export default function SlideshowPlayScreen() {
     remainingMsRef.current = Math.max(0, remainingMsRef.current - (Date.now() - startedAtRef.current));
   }, [paused]);
 
-  // Ambient music is independent of individual slide pause/resume —
-  // pausing to read one slide longer shouldn't cut the music, it's
-  // ambient, not tied to the visual timer. Plays whichever queue item is
-  // current and otherwise continues until the screen is left; the queue
-  // as a whole is what loops, not this one file (player.loop stays
-  // false — see the didJustFinish listener below).
+  // Starts the first track of a freshly resolved queue. Every later
+  // advance happens imperatively inside the playbackStatusUpdate
+  // listener below (via startCrossfade/hardAdvance), not by this effect
+  // re-firing — it only runs again if the queue itself changes (a fresh
+  // slideshow load), never on a plain track advance. Ambient music is
+  // independent of individual slide pause/resume — pausing to read one
+  // slide longer shouldn't cut the music, it's ambient, not tied to the
+  // visual timer.
   useEffect(() => {
+    if (crossfadeIntervalRef.current) {
+      clearInterval(crossfadeIntervalRef.current);
+      crossfadeIntervalRef.current = null;
+    }
+    crossfadingRef.current = false;
+    currentQueueIndexRef.current = 0;
+    setActiveAmbientPlayer('A');
+    activeAmbientPlayerRef.current = 'A';
+    playerB.pause();
     if (ambientQueue.length === 0) {
-      player.pause();
+      playerA.pause();
       return;
     }
-    player.loop = false;
-    player.volume = VOLUME_GAIN[ambientVolume];
-    // ambientQueueIndex counts monotonically upward rather than wrapping
-    // (see the didJustFinish listener below) specifically so this effect
-    // always sees a changed dependency and re-fires — a wrapped index
-    // that lands back on the same value (e.g. a one-track queue going
-    // 0 -> 0) is a no-op React state update, which would silently skip
-    // this replace()/play() and leave a single-track soundtrack playing
-    // once and then falling silent.
-    player.replace(ambientQueue[ambientQueueIndex % ambientQueue.length]);
-    player.play();
+    playerA.loop = false;
+    playerB.loop = false;
+    playerA.volume = VOLUME_GAIN[ambientVolume];
+    playerA.replace(ambientQueue[0]);
+    playerA.play();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ambientQueue, ambientQueueIndex]);
+  }, [ambientQueue]);
 
-  // Advances to the next queue item when one finishes — always a genuine
-  // increment, never wrapped here, so the effect above always re-fires
-  // and can never observe an unchanged index (see its comment for why
-  // that matters). The wrap into a valid array position happens only
-  // when reading the queue, via % ambientQueue.length above.
+  // Begins overlapping the next queue item in on the idle player while
+  // ramping the current one down — the deliberate crossfade. A one-item
+  // queue crossfades into its own repeat the same way.
+  const startCrossfade = useCallback(() => {
+    if (crossfadingRef.current || ambientQueue.length === 0) return;
+    crossfadingRef.current = true;
+    const fromWhich = activeAmbientPlayerRef.current;
+    const toWhich: 'A' | 'B' = fromWhich === 'A' ? 'B' : 'A';
+    const fromPlayer = getAmbientPlayer(fromWhich);
+    const toPlayer = getAmbientPlayer(toWhich);
+    const nextIndex = (currentQueueIndexRef.current + 1) % ambientQueue.length;
+    try {
+      toPlayer.loop = false;
+      toPlayer.volume = 0;
+      toPlayer.replace(ambientQueue[nextIndex]);
+      toPlayer.play();
+    } catch {
+      crossfadingRef.current = false;
+      return;
+    }
+    const targetVolume = VOLUME_GAIN[ambientVolume];
+    const steps = 10;
+    const stepMs = AMBIENT_CROSSFADE_MS / steps;
+    let step = 0;
+    if (crossfadeIntervalRef.current) clearInterval(crossfadeIntervalRef.current);
+    const finishCrossfade = () => {
+      currentQueueIndexRef.current = nextIndex;
+      setActiveAmbientPlayer(toWhich);
+      activeAmbientPlayerRef.current = toWhich;
+      crossfadingRef.current = false;
+    };
+    crossfadeIntervalRef.current = setInterval(() => {
+      step += 1;
+      const ratio = step / steps;
+      // Equal-power curve, not a straight linear ramp — two independent
+      // (uncorrelated) audio sources summed under a linear fade have a
+      // perceptible loudness dip at the midpoint, since power doesn't
+      // scale linearly with amplitude the way a straight ramp assumes.
+      // sin/cos keeps outGain² + inGain² constant across the whole
+      // transition, which is the standard fix.
+      const fadeOutGain = Math.cos(ratio * (Math.PI / 2));
+      const fadeInGain = Math.sin(ratio * (Math.PI / 2));
+      try {
+        fromPlayer.volume = Math.max(0, targetVolume * fadeOutGain);
+        toPlayer.volume = Math.min(targetVolume, targetVolume * fadeInGain);
+        if (step >= steps) {
+          clearInterval(crossfadeIntervalRef.current!);
+          crossfadeIntervalRef.current = null;
+          fromPlayer.pause();
+          finishCrossfade();
+        }
+      } catch {
+        clearInterval(crossfadeIntervalRef.current!);
+        crossfadeIntervalRef.current = null;
+        finishCrossfade();
+      }
+    }, stepMs);
+  }, [ambientQueue, ambientVolume, getAmbientPlayer]);
+
+  // Fallback for a track that finishes before the crossfade window ever
+  // triggered (shorter than AMBIENT_CROSSFADE_MS, or a missed status
+  // tick) — a hard swap so playback never just stops, matching the
+  // reliability guarantee even in a case the crossfade path doesn't
+  // cleanly cover.
+  const hardAdvance = useCallback(() => {
+    if (ambientQueue.length === 0) return;
+    const fromWhich = activeAmbientPlayerRef.current;
+    const toWhich: 'A' | 'B' = fromWhich === 'A' ? 'B' : 'A';
+    const fromPlayer = getAmbientPlayer(fromWhich);
+    const toPlayer = getAmbientPlayer(toWhich);
+    const nextIndex = (currentQueueIndexRef.current + 1) % ambientQueue.length;
+    try {
+      fromPlayer.pause();
+      toPlayer.loop = false;
+      toPlayer.volume = VOLUME_GAIN[ambientVolume];
+      toPlayer.replace(ambientQueue[nextIndex]);
+      toPlayer.play();
+    } catch {
+      return;
+    }
+    currentQueueIndexRef.current = nextIndex;
+    setActiveAmbientPlayer(toWhich);
+    activeAmbientPlayerRef.current = toWhich;
+  }, [ambientQueue, ambientVolume, getAmbientPlayer]);
+
+  // Watches whichever player is currently active for how much time is
+  // left, to start a crossfade AMBIENT_CROSSFADE_MS before it ends —
+  // didJustFinish is only a fallback here (see hardAdvance), not the
+  // primary trigger, since by the time a track "just finished" it's too
+  // late to overlap anything with it.
   useEffect(() => {
     if (ambientQueue.length === 0) return;
-    const subscription = player.addListener('playbackStatusUpdate', (status) => {
-      if (status.didJustFinish) {
-        setAmbientQueueIndex((i) => i + 1);
+    const handleStatus = (which: 'A' | 'B') => (status: { duration: number; currentTime: number; didJustFinish: boolean }) => {
+      if (activeAmbientPlayerRef.current !== which || crossfadingRef.current) return;
+      const remainingMs = (status.duration - status.currentTime) * 1000;
+      if (status.duration > 0 && remainingMs > 0 && remainingMs <= AMBIENT_CROSSFADE_MS) {
+        startCrossfade();
+        return;
       }
-    });
-    return () => subscription.remove();
-  }, [player, ambientQueue]);
+      if (status.didJustFinish) {
+        hardAdvance();
+      }
+    };
+    const subA = playerA.addListener('playbackStatusUpdate', handleStatus('A'));
+    const subB = playerB.addListener('playbackStatusUpdate', handleStatus('B'));
+    return () => {
+      subA.remove();
+      subB.remove();
+    };
+  }, [ambientQueue, playerA, playerB, startCrossfade, hardAdvance]);
 
   // Guards fadeOutAudio's interval so a second call (e.g. a double-tap on
   // Close before the first fade finishes) can't leave two intervals
@@ -462,10 +598,13 @@ export default function SlideshowPlayScreen() {
   // throwing when it next tried to set player.volume on a dead object.
   const fadeIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // Ramps the ambient track's volume down over TRANSITION_PHASE_MS before
-  // pausing it, matching the app's existing unhurried transition pacing
-  // rather than an abrupt cut — then calls onDone (always, even when
-  // nothing was playing, so callers can unconditionally chain onto it).
+  // Ramps both ambient players' volume down over TRANSITION_PHASE_MS
+  // before pausing them, matching the app's existing unhurried transition
+  // pacing rather than an abrupt cut — then calls onDone (always, even
+  // when nothing was playing, so callers can unconditionally chain onto
+  // it). Both players, not just the active one, because a fade triggered
+  // mid-crossfade would otherwise leave the fading-in player audible
+  // after the "faded out" one goes silent.
   //
   // Every native player call is wrapped in try/catch: expo-audio's shared
   // native object can apparently be released out from under a still-valid
@@ -476,17 +615,35 @@ export default function SlideshowPlayScreen() {
   // If that happens mid-fade, there's nothing left to animate — just stop
   // and finish closing.
   const fadeOutAudio = useCallback((onDone: () => void) => {
+    if (crossfadeIntervalRef.current) {
+      clearInterval(crossfadeIntervalRef.current);
+      crossfadeIntervalRef.current = null;
+    }
+    crossfadingRef.current = false;
     if (fadeIntervalRef.current) {
       clearInterval(fadeIntervalRef.current);
       fadeIntervalRef.current = null;
     }
-    let startVolume: number;
+    let startVolumeA = 0;
+    let startVolumeB = 0;
+    let anyPlaying = false;
     try {
-      if (ambientQueue.length === 0 || !player.playing) {
+      if (ambientQueue.length === 0) {
         onDone();
         return;
       }
-      startVolume = player.volume;
+      if (playerA.playing) {
+        startVolumeA = playerA.volume;
+        anyPlaying = true;
+      }
+      if (playerB.playing) {
+        startVolumeB = playerB.volume;
+        anyPlaying = true;
+      }
+      if (!anyPlaying) {
+        onDone();
+        return;
+      }
     } catch {
       onDone();
       return;
@@ -497,11 +654,13 @@ export default function SlideshowPlayScreen() {
     fadeIntervalRef.current = setInterval(() => {
       step += 1;
       try {
-        player.volume = Math.max(0, startVolume * (1 - step / steps));
+        playerA.volume = Math.max(0, startVolumeA * (1 - step / steps));
+        playerB.volume = Math.max(0, startVolumeB * (1 - step / steps));
         if (step >= steps) {
           clearInterval(fadeIntervalRef.current!);
           fadeIntervalRef.current = null;
-          player.pause();
+          playerA.pause();
+          playerB.pause();
           onDone();
         }
       } catch {
@@ -510,17 +669,21 @@ export default function SlideshowPlayScreen() {
         onDone();
       }
     }, stepMs);
-  }, [ambientQueue, player]);
+  }, [ambientQueue, playerA, playerB]);
 
   // Belt-and-suspenders: if the screen unmounts by some path other than
   // fadeOutAudio's own onDone (e.g. a hardware/gesture back nav racing a
-  // fade already in progress), stop the interval before it can touch a
-  // player that's about to be released.
+  // fade already in progress), stop both intervals before they can touch
+  // a player that's about to be released.
   useEffect(() => {
     return () => {
       if (fadeIntervalRef.current) {
         clearInterval(fadeIntervalRef.current);
         fadeIntervalRef.current = null;
+      }
+      if (crossfadeIntervalRef.current) {
+        clearInterval(crossfadeIntervalRef.current);
+        crossfadeIntervalRef.current = null;
       }
     };
   }, []);

@@ -1,23 +1,23 @@
 ---
 name: prep-ambient-track
-description: Trim a source audio file to a given loop start/end, loudness-normalize it, bake in a fade, and upload it to the ambient-tracks Supabase bucket as a new slideshow ambient track, tagged with a mood. Use when Susan (the app's creator) provides a source audio file plus a loop start and end time — typically found with pymusiclooper — and wants it added as an ambient background track for the slideshow.
+description: Trim a source audio file to a given start/end, loudness-normalize it, and upload it to the ambient-tracks Supabase bucket as a new slideshow ambient track, tagged with a mood. Use when Susan (the app's creator) provides a source audio file plus start/end trim points and wants it added as an ambient background track for the slideshow.
 ---
 
 # Prep Ambient Track
 
-Turns a raw audio file plus a loop start/end time into a ready-to-use, mood-tagged ambient track in the app's `ambient-tracks` Supabase bucket. No app code change is involved — `lib/ambientTracks.ts` lists whatever's in the bucket automatically, deriving both the display name and the mood from the filename (mood is the text before the first hyphen, the same "category prefix" convention `lib/quoteBackgrounds.ts` uses).
+Turns a raw audio file plus start/end trim points into a ready-to-use, mood-tagged ambient track in the app's `ambient-tracks` Supabase bucket. No app code change is involved — `lib/ambientTracks.ts` lists whatever's in the bucket automatically, deriving both the display name and the mood from the filename (mood is the text before the first hyphen, the same "category prefix" convention `lib/quoteBackgrounds.ts` uses).
 
 ## Inputs needed
 
 Confirm you have all five before starting — ask if any are missing:
 
 1. Source audio file path
-2. Loop start time (`MM:SS.mmm` or `HH:MM:SS.mmm`)
-3. Loop end time (same format)
+2. Start trim point (`MM:SS.mmm` or `HH:MM:SS.mmm`) — where the kept audio begins
+3. End trim point (same format) — where the kept audio ends
 4. Desired track display name (e.g. "Rain On Leaves Loop")
 5. Mood — one of `Bright`, `Solemn`, or `Still` (see below). The output filename is `<Mood>-<Track Display Name>.mp3`.
 
-**Never guess or infer the mood yourself.** Claude has no audio-listening modality here — there's no way to judge whether a clip resolves major, minor, or neither by running a tool on it (key-detection algorithms exist but are unreliable on exactly the ambient/drone material this bucket tends to hold). Always ask Susan which mood applies; treat it as a required input like the loop points, not something to default or suggest.
+**Never guess or infer the mood yourself.** Claude has no audio-listening modality here — there's no way to judge whether a clip resolves major, minor, or neither by running a tool on it (key-detection algorithms exist but are unreliable on exactly the ambient/drone material this bucket tends to hold). Always ask Susan which mood applies; treat it as a required input like the trim points, not something to default or suggest.
 
 ### The three moods
 
@@ -29,18 +29,20 @@ Each is a single, checkable test — not a vibe — chosen so a track can't plau
 
 There is deliberately no length tag or bucket here — tracks used to be classified Short/Medium/Long to try to match a track's length to a slideshow's expected duration, but that didn't actually solve the problem it was aimed at (a short track still finishes and leaves silence) and has been replaced by letting a collection hold an ordered *playlist* of ambient tracks that queues through and loops as a whole (see `app/slideshow-play.tsx`'s ambient playback effect and `lib/ambientPlaylist.ts`). A track's length is no longer something this skill needs to compute or tag.
 
-## Why the file has to be pre-trimmed
+## Why the file gets trimmed at all, and how much to keep
 
-A track in an ambient playlist plays start to finish, then the queue advances to the next one — there's no separate intro section, so the file itself has to *be* the seamless loop before it's ever added to a playlist. It must be trimmed to exactly `[loop start, loop end]` before upload.
+`app/slideshow-play.tsx` crossfades live at playback time between whatever's queued next — including a single track looping into its own repeat, the same mechanism it already uses between two different tracks. That means the file no longer has to *be* a seamless loop on its own the way it used to; the app smooths the seam, not the file.
+
+So trimming is no longer about hunting for a pair of points where the audio matches closely enough to splice invisibly (the old approach, typically via a tool like pymusiclooper) — it's just about cutting out parts of the source that shouldn't play at all: a spoken intro, a long fade-to-silence outro, dead air, a false start. **Default to keeping as much of the source track as makes sense, including its natural intro and outro** — the old approach could end up discarding most of a track chasing a tight loop match, which this replaces. Only trim what's actually unwanted; don't narrow the range further than that in search of a "cleaner" seam, since the runtime crossfade is what's handling the seam now.
 
 ## Steps
 
-1. **Trim**, re-encoding rather than stream-copying — `-c copy` snaps to the nearest MP3 frame boundary and throws off the loop point by up to tens of milliseconds, which is audible as a click:
+1. **Trim**, re-encoding rather than stream-copying — `-c copy` snaps to the nearest MP3 frame boundary, which can leave a few tens of milliseconds of unwanted material at the cut:
    ```bash
-   ffmpeg -i "<source file>" -ss <loop start> -to <loop end> "<scratch>/trimmed.mp3"
+   ffmpeg -i "<source file>" -ss <start> -to <end> "<scratch>/trimmed.mp3"
    ```
 
-2. **Normalize loudness and bake in a self-crossfade loop point** using the repo's existing prep script. It two-pass normalizes to -18 LUFS integrated / -1.5 dBTP true peak (so this track sits at the same perceived volume as every other ambient track regardless of how loud its source was mastered), then crossfades the last 10% of the clip (capped 0.15–2s) with its own opening — so the track's own tail dissolves into its own head on loop instead of both dropping toward silence and back up the way a plain fade-in/out would (that's what this replaced; a plain fade-in/out leaves an audible near-silent dip right at the seam). Requires `jq` in addition to `ffmpeg`. Name the output file with the mood prefix already in place:
+2. **Normalize loudness** using the repo's existing prep script — two-pass normalizes to -18 LUFS integrated / -1.5 dBTP true peak, so this track sits at the same perceived volume as every other ambient track regardless of how loud its source was mastered, and so it's already volume-matched going into a live crossfade with whatever plays next. Requires `jq` in addition to `ffmpeg`. Name the output file with the mood prefix already in place:
    ```bash
    scripts/prep-ambient-track.sh "<scratch>/trimmed.mp3" "<scratch>/<Mood>-<Track Display Name>.mp3"
    ```
