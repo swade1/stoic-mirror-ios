@@ -260,6 +260,11 @@ export default function SettingsScreen() {
                 <IconSymbol name="chevron.right" size={12} color="#a89f88" accessibilityElementsHidden importantForAccessibility="no" />
               </TouchableOpacity>
               <View style={styles.divider} />
+              <TouchableOpacity style={styles.row} onPress={() => router.push('/my-cards')} accessibilityRole="button">
+                <Text style={styles.rowLabel}>My Cards</Text>
+                <IconSymbol name="chevron.right" size={12} color="#a89f88" accessibilityElementsHidden importantForAccessibility="no" />
+              </TouchableOpacity>
+              <View style={styles.divider} />
               <TouchableOpacity
                 style={styles.row}
                 onPress={handleExportData}

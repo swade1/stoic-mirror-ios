@@ -272,12 +272,12 @@ export default function HistoryScreen() {
             <IconSymbol name="play.rectangle" size={20} color="#c9b97a" />
           </IconButton>
           <IconButton
-            onPress={() => router.push('/my-cards')}
+            onPress={() => router.push('/soundtracks')}
             accessibilityRole="button"
-            accessibilityLabel="My Cards"
+            accessibilityLabel="Soundtracks"
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           >
-            <IconSymbol name="square.stack" size={20} color="#c9b97a" />
+            <IconSymbol name="music.note.list" size={20} color="#c9b97a" />
           </IconButton>
           <IconButton
             onPress={() => {

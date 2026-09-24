@@ -26,6 +26,12 @@ interface SlideshowCollection {
   sortOrder: number;
   photoCount: number;
   thumbnailUri: string | null;
+  soundtrackId: string | null;
+}
+
+interface SoundtrackOption {
+  id: string;
+  name: string;
 }
 
 export default function SlideshowCollectionsScreen() {
@@ -41,6 +47,9 @@ export default function SlideshowCollectionsScreen() {
   const [nameDraft, setNameDraft] = useState('');
   const [saving, setSaving] = useState(false);
   const [showICloudTip, setShowICloudTip] = useState(false);
+  // Fetched once per load alongside collections — reused by every row's
+  // soundtrack action sheet rather than re-querying on each tap.
+  const [soundtracks, setSoundtracks] = useState<SoundtrackOption[]>([]);
 
   useEffect(() => {
     hasSeenICloudTip().then((seen) => setShowICloudTip(!seen));
@@ -60,10 +69,10 @@ export default function SlideshowCollectionsScreen() {
       return;
     }
 
-    const [{ data: collectionRows, error }, { data: photoRows }] = await Promise.all([
+    const [{ data: collectionRows, error }, { data: photoRows }, { data: soundtrackRows }] = await Promise.all([
       supabase
         .from('slideshow_collections')
-        .select('id, name, sort_order')
+        .select('id, name, sort_order, soundtrack_id')
         .eq('user_id', session.user.id)
         .order('sort_order', { ascending: true }),
       supabase
@@ -71,7 +80,14 @@ export default function SlideshowCollectionsScreen() {
         .select('collection_id, asset_id, sort_order')
         .eq('user_id', session.user.id)
         .order('sort_order', { ascending: true }),
+      supabase
+        .from('soundtracks')
+        .select('id, name')
+        .eq('user_id', session.user.id)
+        .order('name', { ascending: true }),
     ]);
+
+    setSoundtracks(soundtrackRows ?? []);
 
     if (error || !collectionRows) {
       setCollections([]);
@@ -100,6 +116,7 @@ export default function SlideshowCollectionsScreen() {
           sortOrder: row.sort_order,
           photoCount: photos.length,
           thumbnailUri,
+          soundtrackId: row.soundtrack_id,
         };
       })
     );
@@ -184,6 +201,43 @@ export default function SlideshowCollectionsScreen() {
     );
   };
 
+  // Writes straight through, same shape as slideshow-photos.tsx's
+  // chooseDuration/chooseTransition — optimistic local update, then the
+  // real write, reverting via a reload if it fails.
+  const assignSoundtrack = async (collection: SlideshowCollection, soundtrackId: string | null) => {
+    setCollections((prev) => prev.map((c) => (c.id === collection.id ? { ...c, soundtrackId } : c)));
+    const { error } = await supabase.from('slideshow_collections').update({ soundtrack_id: soundtrackId }).eq('id', collection.id);
+    if (error) {
+      await load();
+      Alert.alert('Update Failed', error.message);
+    }
+  };
+
+  // A lightweight action sheet rather than a full-screen picker — lets a
+  // user assign, change, or clear a collection's soundtrack straight from
+  // its row, with a "Manage Soundtracks…" escape hatch to the full
+  // library (rename/delete/edit tracks) when that's what's actually
+  // needed. The currently-assigned option is marked with a checkmark
+  // prefix, since a native Alert's buttons can't carry any other styling.
+  const openSoundtrackSheet = (collection: SlideshowCollection) => {
+    Alert.alert(
+      'Soundtrack',
+      collection.name,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: collection.soundtrackId === null ? '✓ None' : 'None',
+          onPress: () => assignSoundtrack(collection, null),
+        },
+        ...soundtracks.map((s) => ({
+          text: collection.soundtrackId === s.id ? `✓ ${s.name}` : s.name,
+          onPress: () => assignSoundtrack(collection, s.id),
+        })),
+        { text: 'Manage Soundtracks…', onPress: () => router.push('/soundtracks') },
+      ]
+    );
+  };
+
   const panelOpen = isCreating || editingId !== null;
 
   return (
@@ -198,14 +252,6 @@ export default function SlideshowCollectionsScreen() {
         </IconButton>
         <Text style={styles.headerTitle}>Slideshows</Text>
         <View style={styles.headerActions}>
-          <IconButton
-            onPress={() => router.push('/soundtracks')}
-            accessibilityRole="button"
-            accessibilityLabel="Manage soundtracks"
-            hitSlop={8}
-          >
-            <IconSymbol name="music.note.list" size={20} color="#c9b97a" />
-          </IconButton>
           <IconButton
             onPress={openNewCollectionPanel}
             accessibilityRole="button"
@@ -276,6 +322,15 @@ export default function SlideshowCollectionsScreen() {
                 style={styles.rowAction}
               >
                 <IconSymbol name="square.and.pencil" size={16} color="#a89f88" />
+              </IconButton>
+              <IconButton
+                onPress={() => openSoundtrackSheet(item)}
+                accessibilityRole="button"
+                accessibilityLabel={`Soundtrack for ${item.name}`}
+                hitSlop={8}
+                style={styles.rowAction}
+              >
+                <IconSymbol name="music.note" size={16} color="#a89f88" />
               </IconButton>
               <IconButton
                 onPress={() =>

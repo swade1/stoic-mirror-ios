@@ -64,13 +64,11 @@ export default function SlideshowPhotosScreen() {
   const [durationSeconds, setDurationSeconds] = useState(DEFAULT_DURATION_SECONDS);
   const [transition, setTransition] = useState<SlideshowTransition>('fade');
   const [ambientVolume, setAmbientVolume] = useState<AmbientVolume>('medium');
-  // The soundtrack currently assigned to this slideshow, if any — the
-  // soundtrack itself (its name, tracks) is edited on its own screen,
-  // reached via the picker at app/soundtracks.tsx; this screen only
-  // needs to know which one (if any) is assigned, to show its name and
-  // gate the Volume section below.
+  // The soundtrack currently assigned to this slideshow, if any — only
+  // gates whether the Volume section below has anything to control.
+  // Assigning/changing the soundtrack itself happens from the Slideshows
+  // list's per-row soundtrack icon now, not on this screen.
   const [soundtrackId, setSoundtrackId] = useState<string | null>(null);
-  const [soundtrackName, setSoundtrackName] = useState<string | null>(null);
   // Which photo (by id) is currently being dragged, if any — disables
   // every other tile's own drag gesture for the duration, the same
   // .enabled(!isEditing) technique DraggableTextBox uses.
@@ -132,16 +130,6 @@ export default function SlideshowPhotosScreen() {
       setTransition(collectionRow.slideshow_transition === 'slide' ? 'slide' : 'fade');
       setAmbientVolume(collectionRow.ambient_volume === 'low' || collectionRow.ambient_volume === 'high' ? collectionRow.ambient_volume : 'medium');
       setSoundtrackId(collectionRow.soundtrack_id ?? null);
-      if (collectionRow.soundtrack_id) {
-        const { data: soundtrackRow } = await supabase
-          .from('soundtracks')
-          .select('name')
-          .eq('id', collectionRow.soundtrack_id)
-          .single();
-        setSoundtrackName(soundtrackRow?.name ?? null);
-      } else {
-        setSoundtrackName(null);
-      }
     }
 
     if (error || !data) {
@@ -431,13 +419,6 @@ export default function SlideshowPhotosScreen() {
         <Text style={styles.headerTitle} numberOfLines={1}>{collectionName}</Text>
         <View style={styles.headerActions}>
           <IconButton
-            onPress={() => setShowSettings((v) => !v)}
-            accessibilityRole="button"
-            accessibilityLabel="Slideshow playback settings"
-          >
-            <IconSymbol name="gearshape" size={20} color={showSettings ? '#f0ead6' : '#c9b97a'} />
-          </IconButton>
-          <IconButton
             onPress={downloadContactSheet}
             disabled={photos.length === 0 || downloading}
             accessibilityRole="button"
@@ -459,6 +440,17 @@ export default function SlideshowPhotosScreen() {
           </IconButton>
         </View>
       </View>
+
+      <TouchableOpacity
+        style={styles.settingsToggleRow}
+        onPress={() => setShowSettings((v) => !v)}
+        accessibilityRole="button"
+        accessibilityState={{ expanded: showSettings }}
+        accessibilityLabel={`${showSettings ? 'Hide' : 'Show'} slideshow settings`}
+      >
+        <Text style={styles.settingsToggleText}>Slideshow Settings</Text>
+        <IconSymbol name={showSettings ? 'chevron.up' : 'chevron.down'} size={16} color="#c9b97a" />
+      </TouchableOpacity>
 
       {showSettings && (
         <View style={styles.settingsPanel}>
@@ -498,17 +490,6 @@ export default function SlideshowPhotosScreen() {
             })}
           </View>
 
-          <Text style={styles.settingsLabel}>Soundtrack</Text>
-          <TouchableOpacity
-            style={styles.ambientMusicRow}
-            onPress={() => router.push({ pathname: '/soundtracks', params: { pickForCollectionId: collectionId } })}
-            accessibilityRole="button"
-            accessibilityLabel={`Soundtrack, currently ${soundtrackName ?? 'None'}`}
-          >
-            <Text style={styles.ambientMusicValue}>{soundtrackName ?? 'None'}</Text>
-            <IconSymbol name="chevron.right" size={14} color="#8a7e6e" />
-          </TouchableOpacity>
-
           {soundtrackId !== null && (
             <>
               <Text style={styles.settingsLabel}>Volume</Text>
@@ -534,9 +515,18 @@ export default function SlideshowPhotosScreen() {
       )}
 
       {!loading && missingCount > 0 && (
-        <Text style={styles.missingHint}>
-          {missingCount} photo{missingCount === 1 ? '' : 's'} {missingCount === 1 ? 'is' : 'are'} no longer available — use its icons to remove or replace it.
-        </Text>
+        <View style={styles.missingHintBlock}>
+          <Text style={styles.missingHint}>
+            {missingCount} photo{missingCount === 1 ? '' : 's'} {missingCount === 1 ? 'is' : 'are'} no longer available — use its icons to remove or replace it.
+          </Text>
+          <TouchableOpacity
+            onPress={() => router.push('/my-cards')}
+            accessibilityRole="button"
+            accessibilityLabel="Looking for the original card? Browse My Cards"
+          >
+            <Text style={styles.missingHintLink}>Looking for the original card? Browse My Cards</Text>
+          </TouchableOpacity>
+        </View>
       )}
 
       {!loading && photos.length > 1 && (
@@ -702,6 +692,20 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#f0ead6',
   },
+  settingsToggleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-start',
+    gap: 8,
+    marginHorizontal: 20,
+    marginBottom: 12,
+    paddingVertical: 10,
+  },
+  settingsToggleText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#c9b97a',
+  },
   headerActions: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -748,36 +752,32 @@ const styles = StyleSheet.create({
     color: '#f0ead6',
     fontWeight: '600',
   },
-  ambientMusicRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 10,
-    paddingHorizontal: 14,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: '#4a4540',
-  },
-  ambientMusicValue: {
-    fontSize: 14,
-    color: '#f0ead6',
-  },
   loading: {
     marginTop: 60,
   },
   reorderHint: {
     fontSize: 11,
-    color: '#6a6050',
+    color: '#8a7e6e',
     fontStyle: 'italic',
     textAlign: 'center',
     marginBottom: 8,
+  },
+  missingHintBlock: {
+    marginHorizontal: 20,
+    marginBottom: 8,
+    gap: 4,
   },
   missingHint: {
     fontSize: 12,
     color: '#c9b97a',
     textAlign: 'center',
-    marginHorizontal: 20,
-    marginBottom: 8,
+  },
+  missingHintLink: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#c9b97a',
+    textAlign: 'center',
+    textDecorationLine: 'underline',
   },
   grid: {
     paddingHorizontal: 12,
