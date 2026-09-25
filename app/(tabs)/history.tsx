@@ -266,47 +266,51 @@ export default function HistoryScreen() {
           <Text style={styles.headerTitle}>Saved Wisdom</Text>
           <Text style={styles.headerSubtitle}>Quotes you&apos;ve chosen to keep</Text>
         </View>
-        <View style={styles.headerActions}>
-          <IconButton
-            onPress={() => setFontMenuVisible(true)}
-            accessibilityRole="button"
-            accessibilityLabel="Text size"
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-          >
-            <IconSymbol name="textformat.size" size={20} color="#c9b97a" />
-          </IconButton>
-          <IconButton
-            onPress={() => router.push('/slideshow-collections')}
-            accessibilityRole="button"
-            accessibilityLabel="Slideshow"
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-          >
-            <IconSymbol name="play.rectangle" size={20} color="#c9b97a" />
-          </IconButton>
-          <IconButton
-            onPress={() => router.push('/soundtracks')}
-            accessibilityRole="button"
-            accessibilityLabel="Soundtracks"
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-          >
-            <IconSymbol name="music.note.list" size={20} color="#c9b97a" />
-          </IconButton>
-          <IconButton
-            onPress={() => {
-              setSearchVisible(!searchVisible);
-              setSearchQuery('');
-            }}
-            accessibilityRole="button"
-            accessibilityLabel={searchVisible ? 'Close search' : 'Search saved wisdom'}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-          >
-            <IconSymbol
-              name={searchVisible ? 'xmark' : 'magnifyingglass'}
-              size={20}
-              color="#c9b97a"
-            />
-          </IconButton>
-        </View>
+      </View>
+
+      {/* Actions — a row of its own rather than sharing the title row, so
+          the top row can match Counsel's (wreath, title, subtitle, nothing
+          else) instead of competing with icons for space. */}
+      <View style={styles.headerActions}>
+        <IconButton
+          onPress={() => setFontMenuVisible(true)}
+          accessibilityRole="button"
+          accessibilityLabel="Text size"
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+        >
+          <IconSymbol name="textformat.size" size={20} color="#c9b97a" />
+        </IconButton>
+        <IconButton
+          onPress={() => router.push('/slideshow-collections')}
+          accessibilityRole="button"
+          accessibilityLabel="Slideshow"
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+        >
+          <IconSymbol name="play.rectangle" size={20} color="#c9b97a" />
+        </IconButton>
+        <IconButton
+          onPress={() => router.push('/soundtracks')}
+          accessibilityRole="button"
+          accessibilityLabel="Soundtracks"
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+        >
+          <IconSymbol name="music.note.list" size={20} color="#c9b97a" />
+        </IconButton>
+        <IconButton
+          onPress={() => {
+            setSearchVisible(!searchVisible);
+            setSearchQuery('');
+          }}
+          accessibilityRole="button"
+          accessibilityLabel={searchVisible ? 'Close search' : 'Search saved wisdom'}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+        >
+          <IconSymbol
+            name={searchVisible ? 'xmark' : 'magnifyingglass'}
+            size={20}
+            color="#c9b97a"
+          />
+        </IconButton>
       </View>
 
       {/* Search bar */}
@@ -670,13 +674,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 24,
     paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#4a4540',
   },
   headerActions: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 16,
+    justifyContent: 'flex-end',
+    gap: 20,
+    paddingHorizontal: 24,
+    paddingBottom: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: '#4a4540',
   },
   headerTitle: {
     fontSize: 24,
