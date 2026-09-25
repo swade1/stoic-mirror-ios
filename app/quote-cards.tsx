@@ -877,7 +877,11 @@ export default function QuoteCardsScreen() {
   return (
     <View style={styles.container}>
       {!showEditor ? (
-        <View style={[styles.pickerScreen, { paddingTop: insets.top + 12 }]}>
+        <ScrollView
+          style={styles.pickerScreen}
+          contentContainerStyle={[styles.pickerScreenContent, { paddingTop: insets.top + 12 }]}
+          showsVerticalScrollIndicator={false}
+        >
           <TouchableOpacity
             style={styles.backButtonInline}
             onPress={() => router.back()}
@@ -979,7 +983,7 @@ export default function QuoteCardsScreen() {
               })
             )}
           </ScrollView>
-        </View>
+        </ScrollView>
       ) : (
         <>
           <View ref={cardRef} style={styles.card} onLayout={handleCardLayout} collapsable={false}>
@@ -1351,7 +1355,16 @@ const styles = StyleSheet.create({
   },
   pickerScreen: {
     flex: 1,
+  },
+  // Was a plain View — with a long quote pushing the "Choose a background"
+  // strip further down, there was no way to scroll to reach thumbnails
+  // that no longer fit on-screen. A vertical ScrollView here fixes that;
+  // the background strip itself stays a nested *horizontal* ScrollView
+  // for browsing within it, so scrolling down through the picker and
+  // scrolling sideways through photos don't fight each other.
+  pickerScreenContent: {
     paddingHorizontal: 24,
+    paddingBottom: 40,
   },
   backButtonInline: {
     flexDirection: 'row',
