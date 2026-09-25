@@ -41,6 +41,26 @@ const AMBIENT_CROSSFADE_MS = 2500;
 // ambience, never meant to compete with the visual/text experience.
 const VOLUME_GAIN: Record<AmbientVolume, number> = { low: 0.15, medium: 0.35, high: 0.6 };
 const SLEEP_TIMER_OPTIONS_MIN = [5, 10, 15, 30];
+
+// A fresh shuffled permutation of [0, length) for one pass through the
+// ambient queue — Fisher-Yates. avoidFirst, when given, is the index that
+// just finished playing: if the shuffle happens to land it in the very
+// first slot again, that would play the same track twice in a row across
+// the pass boundary, which reads as a bug rather than "shuffled." Swapping
+// it elsewhere in the same permutation keeps every index equally likely
+// to be picked, just not as the immediate repeat.
+function generateShuffleOrder(length: number, avoidFirst: number | null): number[] {
+  const order = Array.from({ length }, (_, i) => i);
+  for (let i = order.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [order[i], order[j]] = [order[j], order[i]];
+  }
+  if (length > 1 && avoidFirst !== null && order[0] === avoidFirst) {
+    const swapWith = 1 + Math.floor(Math.random() * (length - 1));
+    [order[0], order[swapWith]] = [order[swapWith], order[0]];
+  }
+  return order;
+}
 // How long the controls (progress bar, share/timer/close icons) stay
 // visible after the last interaction before fading out — long enough not
 // to feel twitchy, matching the app's generally unhurried pacing, but
@@ -83,6 +103,17 @@ export default function SlideshowPlayScreen() {
   // re-render isn't needed on every track change.
   const [ambientQueue, setAmbientQueue] = useState<string[]>([]);
   const [ambientVolume, setAmbientVolume] = useState<AmbientVolume>('medium');
+  // Persisted per collection (slideshow_collections.ambient_shuffle), same
+  // as duration/transition/volume — unlike the sleep timer below, this is
+  // a trait of the collection, not a fresh choice each sitting.
+  const [shuffleEnabled, setShuffleEnabled] = useState(false);
+  // The current pass's shuffled permutation of queue indices, and how far
+  // into it playback is — refs, not state, since advancing through them
+  // happens imperatively from the crossfade logic (see computeNextIndex)
+  // rather than triggering a re-render. Unused when shuffleEnabled is
+  // false; computeNextIndex falls back to the plain sequential advance.
+  const shuffleOrderRef = useRef<number[]>([]);
+  const shufflePositionRef = useRef(0);
   // Session-only — never persisted, always starts back at Off. "How long
   // do I want to watch right now" is a fresh choice each sitting, not a
   // trait of the collection the way duration/transition/music are.
@@ -188,7 +219,7 @@ export default function SlideshowPlayScreen() {
             .order('sort_order', { ascending: true }),
           supabase
             .from('slideshow_collections')
-            .select('slideshow_duration_seconds, slideshow_transition, ambient_volume, soundtrack_id')
+            .select('slideshow_duration_seconds, slideshow_transition, ambient_volume, ambient_shuffle, soundtrack_id')
             .eq('id', collectionId)
             .single(),
           listAmbientTracks().catch(() => [] as AmbientTrack[]),
@@ -222,6 +253,7 @@ export default function SlideshowPlayScreen() {
           collectionRow?.ambient_volume === 'low' || collectionRow?.ambient_volume === 'high'
             ? collectionRow.ambient_volume
             : 'medium';
+        const resolvedShuffle = collectionRow?.ambient_shuffle ?? false;
 
         const resolved = await Promise.all(photoRows.map((row) => resolveSlideshowAssetUri(row.asset_id)));
 
@@ -232,6 +264,7 @@ export default function SlideshowPlayScreen() {
           setTransition(resolvedTransition);
           setAmbientQueue(resolvedQueue);
           setAmbientVolume(resolvedVolume);
+          setShuffleEnabled(resolvedShuffle);
           setSleepMinutes(null);
           const validUris = resolved.filter((u): u is string => !!u);
           setUris(validUris);
@@ -449,6 +482,26 @@ export default function SlideshowPlayScreen() {
     remainingMsRef.current = Math.max(0, remainingMsRef.current - (Date.now() - startedAtRef.current));
   }, [paused]);
 
+  // Picks the queue index that follows currentIndex — the plain sequential
+  // advance when shuffle is off (or there's nothing to shuffle between),
+  // otherwise the next position in the current pass's shuffled order,
+  // regenerating a fresh pass (avoiding an immediate repeat of the track
+  // that just finished) once the previous one is exhausted. Shared by the
+  // initial-load effect below and both startCrossfade/hardAdvance, so
+  // "what's next" is decided in exactly one place regardless of how a
+  // track boundary is reached.
+  const computeNextIndex = useCallback((currentIndex: number): number => {
+    if (!shuffleEnabled || ambientQueue.length <= 1) {
+      return (currentIndex + 1) % ambientQueue.length;
+    }
+    shufflePositionRef.current += 1;
+    if (shufflePositionRef.current >= shuffleOrderRef.current.length) {
+      shuffleOrderRef.current = generateShuffleOrder(ambientQueue.length, currentIndex);
+      shufflePositionRef.current = 0;
+    }
+    return shuffleOrderRef.current[shufflePositionRef.current];
+  }, [ambientQueue, shuffleEnabled]);
+
   // Starts the first track of a freshly resolved queue. Every later
   // advance happens imperatively inside the playbackStatusUpdate
   // listener below (via startCrossfade/hardAdvance), not by this effect
@@ -463,18 +516,32 @@ export default function SlideshowPlayScreen() {
       crossfadeIntervalRef.current = null;
     }
     crossfadingRef.current = false;
-    currentQueueIndexRef.current = 0;
     setActiveAmbientPlayer('A');
     activeAmbientPlayerRef.current = 'A';
     playerB.pause();
     if (ambientQueue.length === 0) {
+      currentQueueIndexRef.current = 0;
       playerA.pause();
       return;
     }
+    // Shuffle covers the very first track too, not just later advances —
+    // "shuffle" should mean the whole experience is randomized, not "play
+    // track one normally, then randomize from there."
+    let startIndex = 0;
+    if (shuffleEnabled) {
+      const order = generateShuffleOrder(ambientQueue.length, null);
+      shuffleOrderRef.current = order;
+      shufflePositionRef.current = 0;
+      startIndex = order[0];
+    } else {
+      shuffleOrderRef.current = [];
+      shufflePositionRef.current = 0;
+    }
+    currentQueueIndexRef.current = startIndex;
     playerA.loop = false;
     playerB.loop = false;
     playerA.volume = VOLUME_GAIN[ambientVolume];
-    playerA.replace(ambientQueue[0]);
+    playerA.replace(ambientQueue[startIndex]);
     playerA.play();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ambientQueue]);
@@ -489,7 +556,7 @@ export default function SlideshowPlayScreen() {
     const toWhich: 'A' | 'B' = fromWhich === 'A' ? 'B' : 'A';
     const fromPlayer = getAmbientPlayer(fromWhich);
     const toPlayer = getAmbientPlayer(toWhich);
-    const nextIndex = (currentQueueIndexRef.current + 1) % ambientQueue.length;
+    const nextIndex = computeNextIndex(currentQueueIndexRef.current);
     try {
       toPlayer.loop = false;
       toPlayer.volume = 0;
@@ -536,7 +603,7 @@ export default function SlideshowPlayScreen() {
         finishCrossfade();
       }
     }, stepMs);
-  }, [ambientQueue, ambientVolume, getAmbientPlayer]);
+  }, [ambientQueue, ambientVolume, getAmbientPlayer, computeNextIndex]);
 
   // Fallback for a track that finishes before the crossfade window ever
   // triggered (shorter than AMBIENT_CROSSFADE_MS, or a missed status
@@ -549,7 +616,7 @@ export default function SlideshowPlayScreen() {
     const toWhich: 'A' | 'B' = fromWhich === 'A' ? 'B' : 'A';
     const fromPlayer = getAmbientPlayer(fromWhich);
     const toPlayer = getAmbientPlayer(toWhich);
-    const nextIndex = (currentQueueIndexRef.current + 1) % ambientQueue.length;
+    const nextIndex = computeNextIndex(currentQueueIndexRef.current);
     try {
       fromPlayer.pause();
       toPlayer.loop = false;
@@ -562,7 +629,7 @@ export default function SlideshowPlayScreen() {
     currentQueueIndexRef.current = nextIndex;
     setActiveAmbientPlayer(toWhich);
     activeAmbientPlayerRef.current = toWhich;
-  }, [ambientQueue, ambientVolume, getAmbientPlayer]);
+  }, [ambientQueue, ambientVolume, getAmbientPlayer, computeNextIndex]);
 
   // Watches whichever player is currently active for how much time is
   // left, to start a crossfade AMBIENT_CROSSFADE_MS before it ends —

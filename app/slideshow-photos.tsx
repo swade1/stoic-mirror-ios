@@ -51,6 +51,10 @@ const VOLUME_OPTIONS: { label: string; value: AmbientVolume }[] = [
   { label: 'Medium', value: 'medium' },
   { label: 'High', value: 'high' },
 ];
+const SHUFFLE_OPTIONS: { label: string; value: boolean }[] = [
+  { label: 'Off', value: false },
+  { label: 'On', value: true },
+];
 
 export default function SlideshowPhotosScreen() {
   const router = useRouter();
@@ -64,6 +68,7 @@ export default function SlideshowPhotosScreen() {
   const [durationSeconds, setDurationSeconds] = useState(DEFAULT_DURATION_SECONDS);
   const [transition, setTransition] = useState<SlideshowTransition>('fade');
   const [ambientVolume, setAmbientVolume] = useState<AmbientVolume>('medium');
+  const [shuffleEnabled, setShuffleEnabled] = useState(false);
   // The soundtrack currently assigned to this slideshow, if any — only
   // gates whether the Volume section below has anything to control.
   // Assigning/changing the soundtrack itself happens from the Slideshows
@@ -119,7 +124,7 @@ export default function SlideshowPhotosScreen() {
         .order('sort_order', { ascending: true }),
       supabase
         .from('slideshow_collections')
-        .select('name, slideshow_duration_seconds, slideshow_transition, ambient_volume, soundtrack_id')
+        .select('name, slideshow_duration_seconds, slideshow_transition, ambient_volume, ambient_shuffle, soundtrack_id')
         .eq('id', collectionId)
         .single(),
     ]);
@@ -129,6 +134,7 @@ export default function SlideshowPhotosScreen() {
       setDurationSeconds(collectionRow.slideshow_duration_seconds ?? DEFAULT_DURATION_SECONDS);
       setTransition(collectionRow.slideshow_transition === 'slide' ? 'slide' : 'fade');
       setAmbientVolume(collectionRow.ambient_volume === 'low' || collectionRow.ambient_volume === 'high' ? collectionRow.ambient_volume : 'medium');
+      setShuffleEnabled(collectionRow.ambient_shuffle ?? false);
       setSoundtrackId(collectionRow.soundtrack_id ?? null);
     }
 
@@ -372,6 +378,12 @@ export default function SlideshowPhotosScreen() {
     await supabase.from('slideshow_collections').update({ ambient_volume: value }).eq('id', collectionId);
   };
 
+  const chooseShuffle = async (value: boolean) => {
+    if (!collectionId) return;
+    setShuffleEnabled(value);
+    await supabase.from('slideshow_collections').update({ ambient_shuffle: value }).eq('id', collectionId);
+  };
+
   const missingCount = photos.filter((p) => !p.uri).length;
   const resolvedCount = photos.length - missingCount;
 
@@ -500,6 +512,24 @@ export default function SlideshowPhotosScreen() {
                     <TouchableOpacity
                       key={option.value}
                       onPress={() => chooseAmbientVolume(option.value)}
+                      accessibilityRole="radio"
+                      accessibilityState={{ selected }}
+                      style={[styles.chip, selected && styles.chipSelected]}
+                    >
+                      <Text style={[styles.chipText, selected && styles.chipTextSelected]}>{option.label}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+
+              <Text style={styles.settingsLabel}>Shuffle</Text>
+              <View style={styles.chipRow}>
+                {SHUFFLE_OPTIONS.map((option) => {
+                  const selected = shuffleEnabled === option.value;
+                  return (
+                    <TouchableOpacity
+                      key={option.label}
+                      onPress={() => chooseShuffle(option.value)}
                       accessibilityRole="radio"
                       accessibilityState={{ selected }}
                       style={[styles.chip, selected && styles.chipSelected]}
