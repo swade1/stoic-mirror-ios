@@ -49,10 +49,13 @@ async function getTodaysQuote(): Promise<string | null> {
 
   const index = getDailyQuoteId(new Date(), count);
 
+  // index is a 1-indexed position among all rows ordered by id, not a
+  // literal id value — see the matching note in app/(tabs)/index.tsx.
   const { data } = await supabase
     .from('daily_quotes')
     .select('quote, author')
-    .eq('id', index)
+    .order('id', { ascending: true })
+    .range(index - 1, index - 1)
     .single();
 
   return data ? `"${data.quote}" — ${data.author}` : null;

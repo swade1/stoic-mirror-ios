@@ -66,10 +66,14 @@ export default function CounselScreen() {
 
     const index = getDailyQuoteId(new Date(), count);
 
+    // index is a 1-indexed position among all rows ordered by id, not a
+    // literal id value — the id column isn't guaranteed to be a dense
+    // 1..count range (e.g. after rows are deleted and reinserted).
     const { data } = await supabase
       .from('daily_quotes')
       .select('quote, author, source')
-      .eq('id', index)
+      .order('id', { ascending: true })
+      .range(index - 1, index - 1)
       .single();
 
     if (data) {
@@ -194,16 +198,22 @@ export default function CounselScreen() {
         showsVerticalScrollIndicator={false}
       >
 
-        { /* Daily quote */ }
-        {dailyQuote && (
-          <View style={styles.dailyQuoteBox}>
-            <Text style={styles.dailyQuoteLabel}>Today&apos;s reflection</Text>
-            <ScaledText style={styles.dailyQuoteText}>
-              &ldquo;{dailyQuote.quote}&rdquo;
-            </ScaledText>
-            <ScaledText style={styles.dailyQuoteAuthor}>— {dailyQuote.author}</ScaledText>
-          </View>
-        )}
+        { /* Daily quote — always mounted (even before it loads) so the
+             action card below doesn't grow to fill its spot and then
+             snap back down once the quote arrives. */ }
+        <View style={styles.dailyQuoteBox}>
+          <Text style={styles.dailyQuoteLabel}>Today&apos;s reflection</Text>
+          {dailyQuote ? (
+            <>
+              <ScaledText style={styles.dailyQuoteText}>
+                &ldquo;{dailyQuote.quote}&rdquo;
+              </ScaledText>
+              <ScaledText style={styles.dailyQuoteAuthor}>— {dailyQuote.author}</ScaledText>
+            </>
+          ) : (
+            <View style={styles.dailyQuotePlaceholderLine} />
+          )}
+        </View>
         <View style={styles.introZone}>
           <Text style={styles.prompt}>What troubles you?</Text>
           <Text style={styles.promptSub}>
@@ -308,7 +318,7 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   introZone: {
-    marginBottom: 20,
+    marginBottom: 8,
   },
   prompt: {
     fontSize: 28,
@@ -340,6 +350,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#4a4540',
     padding: 20,
+    marginBottom: 24,
     alignItems: 'stretch',
     justifyContent: 'space-between',
     gap: 10,
@@ -452,7 +463,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#1e1c18',
     borderRadius: 12,
     padding: 16,
-    marginBottom: 20,
+    marginBottom: 8,
     borderWidth: 1,
     borderColor: '#2a2720',
     borderLeftWidth: 3,
@@ -469,13 +480,21 @@ const styles = StyleSheet.create({
   dailyQuoteText: {
     fontSize: 14,
     color: '#f0ead6',
-    lineHeight: 22,
-    marginBottom: 10,
+    lineHeight: 18,
+    marginBottom: 0,
   },
   dailyQuoteAuthor: {
     fontSize: 13,
     color: '#a89f88',
     textAlign: 'right',
+  },
+  // Roughly matches a loaded quote's height (label + a couple of text
+  // lines + author line) so the box doesn't visibly jump size once the
+  // real quote arrives.
+  dailyQuotePlaceholderLine: {
+    height: 44,
+    borderRadius: 6,
+    backgroundColor: '#2a2720',
   },
   showMore: {
     color: '#c9b97a',
