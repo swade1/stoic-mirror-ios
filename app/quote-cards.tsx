@@ -813,7 +813,20 @@ export default function QuoteCardsScreen() {
         // reaches here, so an in-progress draft can never get written to
         // Supabase just because the user tapped the button.
         await commitFormatting();
-        Alert.alert('Saved', 'This quote card was saved to your photos.');
+        // This is the plain (non-slideshow-linked) save path — the card
+        // now lives in Photos only, it hasn't been added to any slideshow.
+        // That's a real point of confusion (came up from Susan herself
+        // mistaking "create a card" for "add to slideshow"), so the alert
+        // spells out the next step and offers a direct way there, same
+        // pattern as the linked-save alert above.
+        Alert.alert(
+          'Saved to Photos',
+          'This quote card was saved to your Photos app. To use it in a slideshow, go to Slideshow and add it from there.',
+          [
+            { text: 'OK', style: 'cancel' },
+            { text: 'Go to Slideshow', onPress: () => router.push('/slideshow-collections') },
+          ]
+        );
       }
     } catch (err) {
       Alert.alert('Save Failed', err instanceof Error ? err.message : 'Something went wrong.');
