@@ -328,6 +328,7 @@ const styles = StyleSheet.create({
     flex: 1,
     color: '#f0ead6',
     fontSize: 15,
+    lineHeight: 20,
   },
   loading: {
     marginTop: 60,
