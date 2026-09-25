@@ -282,10 +282,32 @@ export default function LoadingScreen() {
           'No Connection',
           "The Stoic Mirror needs an internet connection to seek counsel. Check your connection and try again."
         );
+        router.replace('/(tabs)');
+      } else if ((error as Error).message === 'No relevant passages found') {
+        // Every passage above the similarity threshold for this concern has
+        // already been shown to this user (match_stoic_passages excludes
+        // entry_quotes.passage_id permanently, per user) — a genuine
+        // milestone, not a failure, so this gets its own celebratory copy
+        // and a real choice of next step instead of the generic error alert.
+        Alert.alert(
+          "You've Read the Entire Stoa",
+          "Every passage we have on this concern is now yours. Marcus, Epictetus, and Seneca have officially run out of new things to say about it — consider building a slideshow of your favorite wisdom on this to revisit daily, or bring them a new concern.",
+          [
+            {
+              text: 'Review My Favorites',
+              onPress: () => router.replace({ pathname: '/(tabs)/history', params: { q: concern } }),
+            },
+            {
+              text: 'Not Now',
+              style: 'cancel',
+              onPress: () => router.replace('/(tabs)'),
+            },
+          ]
+        );
       } else {
         Alert.alert('Error', (error as Error).message);
+        router.replace('/(tabs)');
       }
-      router.replace('/(tabs)');
     }
   };
 

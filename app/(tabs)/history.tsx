@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { useFocusEffect, useRouter } from 'expo-router';
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import {
   View,
   Text,
@@ -44,6 +44,7 @@ interface SavedQuote {
 
 export default function HistoryScreen() {
   const router = useRouter();
+  const { q } = useLocalSearchParams<{ q?: string }>();
   const insets = useSafeAreaInsets();
   const [savedQuotes, setSavedQuotes] = useState<SavedQuote[]>([]);
   const [loading, setLoading] = useState(true);
@@ -80,6 +81,17 @@ export default function HistoryScreen() {
     setExpandedCounsel(false);
     setExpandedQuote(false);
   }, [searchQuery, filter]);
+
+  // Arriving here via the "exhausted passages" alert's "Review My
+  // Favorites" button (app/loading.tsx) passes the concern text as `q` —
+  // open search prefilled with it rather than requiring the user to
+  // re-type what they just wrote.
+  useEffect(() => {
+    if (q) {
+      setSearchVisible(true);
+      setSearchQuery(q);
+    }
+  }, [q]);
 
   useFocusEffect(
     useCallback(() => {
