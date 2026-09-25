@@ -343,8 +343,9 @@ export default function HistoryScreen() {
         </Text>
       )}
 
-      {/* Category filter bar */}
-      {categories.length > 0 && (
+      {/* Category filter bar — hidden while searching so the search bar
+          and results count aren't competing with it for attention. */}
+      {!searchVisible && categories.length > 0 && (
         <View style={styles.filterBarContainer}>
           <View style={styles.filterBar}>
             {[null, ...categories].slice(0, 6).map((cat) => {
