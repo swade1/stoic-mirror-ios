@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex">
+<title>Unsubscribe — The Stoic Mirror</title>
+<link rel="icon" type="image/png" href="/favicon.png">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600&family=Source+Serif+4:wght@400;600&display=swap">
+<style>
+  :root{ color-scheme: dark; --bg:#0f0e0c; --surface:#1a1814; --border:#3d3830; --gold:#c9b97a; --gold-bright:#ddc98f; --text:#f0ead6; --muted:#a89f88; }
+  *{ box-sizing: border-box; }
+  body{ margin:0; min-height:100vh; display:flex; align-items:center; justify-content:center; padding:24px; background:var(--bg); color:var(--text); font-family:"Source Serif 4",Georgia,serif; font-size:1.2rem; line-height:1.6; }
+  main{ max-width:520px; text-align:center; }
+  h1{ font-family:"Fraunces",Georgia,serif; font-weight:600; font-size:2rem; margin:0 0 16px; }
+  p{ color:var(--muted); margin:0 0 24px; }
+  button{ font-family:ui-monospace,Menlo,monospace; font-size:1rem; letter-spacing:.06em; text-transform:uppercase; padding:14px 26px; border:0; border-radius:3px; background:linear-gradient(180deg,var(--gold-bright),var(--gold)); color:#201b10; font-weight:600; cursor:pointer; }
+  button:disabled{ opacity:.6; cursor:wait; }
+  a{ color:var(--gold-bright); }
+  input{ width:100%; margin-bottom:14px; font:inherit; color:var(--text); background:var(--surface); border:1px solid var(--border); border-radius:3px; padding:14px 16px; }
+  input:focus{ outline:none; border-color:var(--gold); }
+</style>
+</head>
+<body>
+<main>
+  <h1 id="title">Unsubscribe</h1>
+  <p id="text">Stop receiving launch updates from The Stoic Mirror?</p>
+  <button id="btn" type="button">Unsubscribe</button>
+  <form id="emailform" style="display:none">
+    <input id="email" type="email" required maxlength="254" placeholder="you@example.com" aria-label="Email address" autocomplete="email">
+    <button type="submit" id="ebtn">Unsubscribe</button>
+  </form>
+  <p style="margin-top:28px;font-size:1rem;"><a href="/">← Back to The Stoic Mirror</a></p>
+</main>
+<script>
+  (function(){
+    var SUPABASE_URL = "https://fazvbphkzlutghzpvsli.supabase.co";
+    var SUPABASE_KEY = "sb_publishable_erbTFZ8a6OIxaED3a3RL7Q_yz4XtDXX";
+    var token = new URLSearchParams(location.search).get('token') || '';
+    var title = document.getElementById('title'), text = document.getElementById('text'), btn = document.getElementById('btn');
+    if (!/^[0-9a-f-]{36}$/i.test(token)) {
+      text.textContent = 'Enter the email address you signed up with and we will remove it from our list.';
+      btn.style.display = 'none';
+      var f = document.getElementById('emailform'), ebtn = document.getElementById('ebtn');
+      f.style.display = 'block';
+      f.addEventListener('submit', function(e){
+        e.preventDefault();
+        ebtn.disabled = true;
+        fetch(SUPABASE_URL + '/rest/v1/rpc/unsubscribe_by_email', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY },
+          body: JSON.stringify({ p_email: document.getElementById('email').value })
+        }).then(function(r){ if (!r.ok) throw new Error(); }).then(function(){
+          title.textContent = "You're unsubscribed";
+          text.textContent = "If that address was on our list, it has been removed. You won't receive any more emails from us.";
+          f.style.display = 'none';
+        }).catch(function(){ text.textContent = 'Something went wrong. Please try again.'; ebtn.disabled = false; });
+      });
+      return;
+    }
+    btn.addEventListener('click', function(){
+      btn.disabled = true;
+      fetch(SUPABASE_URL + '/rest/v1/rpc/unsubscribe_email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY },
+        body: JSON.stringify({ p_token: token })
+      }).then(function(r){ if (!r.ok) throw new Error(); return r.json(); }).then(function(found){
+        if (found) { title.textContent = "You're unsubscribed"; text.textContent = "You won't receive any more emails from us. You can sign up again anytime."; }
+        else { title.textContent = 'Link not recognized'; text.textContent = 'We could not find that subscription. Please write to us via the Contact link on the home page.'; }
+        btn.style.display = 'none';
+      }).catch(function(){ text.textContent = 'Something went wrong. Please try again.'; btn.disabled = false; });
+    });
+  })();
+</script>
+</body>
+</html>

@@ -201,6 +201,26 @@
   }
   .btn-ghost:hover{ border-color: var(--gold-deep); color: var(--gold-bright); }
 
+  /* ---------- Email signup ---------- */
+  .notify{ margin: 36px auto 0; max-width: 520px; text-align: center; }
+  .notify-label{ font-family: var(--font-body); font-style: italic; font-size: var(--fs-small); color: var(--text-muted); margin-bottom: 14px; }
+  .notify-row{ display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+  .notify input[type=email]{
+    flex: 1 1 260px; min-width: 0;
+    font-family: var(--font-body); font-size: 1.1rem; color: var(--text);
+    background: var(--surface); border: 1px solid var(--border); border-radius: 3px;
+    padding: 14px 16px;
+  }
+  .notify input[type=email]::placeholder{ color: var(--text-dim); }
+  .notify input[type=email]:focus{ outline: none; border-color: var(--gold); }
+  .notify button.btn{ cursor: pointer; }
+  .notify button.btn:disabled{ opacity: 0.6; cursor: wait; }
+  .notify-msg{ margin-top: 14px; min-height: 1.4em; font-size: var(--fs-small); color: var(--text-muted); }
+  .notify-msg.ok{ color: var(--gold-bright); }
+  .notify-msg.err{ color: #d98b7a; }
+  .notify-fine{ margin-top: 6px; font-size: var(--fs-caption); color: var(--text-dim); }
+  .hp{ position: absolute; left: -9999px; width: 1px; height: 1px; overflow: hidden; }
+
   /* ---------- Book II — praefatio ---------- */
   .praefatio{ text-align: center; }
   .praefatio .lead{
@@ -471,6 +491,16 @@
       <span class="btn btn-primary">Download on the App Store <span class="soon">— coming soon</span></span>
       <a class="btn btn-ghost" href="#book-iii">See how it works ↓</a>
     </div>
+    <form class="notify" id="notify-form" novalidate>
+      <p class="notify-label">Get one email when The Stoic Mirror launches.</p>
+      <div class="notify-row">
+        <label class="hp" aria-hidden="true">Leave blank <input type="text" name="website" tabindex="-1" autocomplete="off"></label>
+        <input type="email" name="email" placeholder="you@example.com" aria-label="Email address" autocomplete="email" required maxlength="254">
+        <button type="submit" class="btn btn-primary">Notify me</button>
+      </div>
+      <p class="notify-msg" id="notify-msg" role="status" aria-live="polite"></p>
+      <p class="notify-fine">Launch updates only. <a href="/unsubscribe.html" style="color:inherit">Unsubscribe</a> anytime. Never shared or sold.</p>
+    </form>
   </div>
 </div>
 
@@ -675,10 +705,39 @@
     <a href="/privacy.html">Privacy Policy</a>
     <a href="/terms.html">Terms of Service</a>
     <a href="mailto:susan.wade09@gmail.com">Contact</a>
+    <a href="/unsubscribe.html">Unsubscribe</a>
   </nav>
   <div class="greek">Τὰ εἰς ἑαυτόν</div>
   <div class="copy">© 2026 The Stoic Mirror</div>
 </div>
+
+<script>
+  (function(){
+    var SUPABASE_URL = "https://fazvbphkzlutghzpvsli.supabase.co";
+    var SUPABASE_KEY = "sb_publishable_erbTFZ8a6OIxaED3a3RL7Q_yz4XtDXX";
+    var form = document.getElementById('notify-form');
+    var msg = document.getElementById('notify-msg');
+    function say(t, cls){ msg.textContent = t; msg.className = 'notify-msg ' + (cls || ''); }
+    form.addEventListener('submit', function(e){
+      e.preventDefault();
+      if (form.website.value) return; // honeypot
+      var email = form.email.value.trim().toLowerCase();
+      if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) { say('Please enter a valid email address.', 'err'); return; }
+      var btn = form.querySelector('button'); btn.disabled = true; say('Saving…');
+      fetch(SUPABASE_URL + '/functions/v1/subscribe', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_KEY },
+        body: JSON.stringify({ email: email })
+      }).then(function(r){
+        if (!r.ok) throw new Error('http ' + r.status);
+        form.email.value = '';
+        say("Thank you — we'll email you when the app is ready.", 'ok');
+      }).catch(function(){
+        say('Something went wrong. Please try again in a moment.', 'err');
+      }).then(function(){ btn.disabled = false; });
+    });
+  })();
+</script>
 
 <script>
   (function(){
