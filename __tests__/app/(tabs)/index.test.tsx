@@ -2,15 +2,6 @@ import React from 'react';
 import { render, screen } from '@testing-library/react-native';
 import CounselScreen from '@/app/(tabs)/index';
 
-jest.mock('expo-speech-recognition', () => ({
-  ExpoSpeechRecognitionModule: {
-    requestPermissionsAsync: jest.fn(),
-    stop: jest.fn(),
-    start: jest.fn(),
-  },
-  useSpeechRecognitionEvent: jest.fn(),
-}));
-
 jest.mock('expo-router', () => ({
   useRouter: () => ({ push: jest.fn() }),
   useFocusEffect: jest.fn(),
@@ -42,11 +33,10 @@ jest.mock('@/lib/dailyQuote', () => ({
 }));
 
 describe('CounselScreen', () => {
-  it('exposes an accessible label for the mic button that reflects listening state', () => {
+  it('offers an accessible text box that points users to keyboard dictation', () => {
     render(<CounselScreen />);
 
-    const micButton = screen.getByLabelText('Start voice input');
-    expect(micButton.props.accessibilityRole).toBe('button');
-    expect(micButton.props.accessibilityState).toEqual({ selected: false });
+    const input = screen.getByLabelText('Describe your concern');
+    expect(input.props.placeholder).toMatch(/microphone on your keyboard/i);
   });
 });

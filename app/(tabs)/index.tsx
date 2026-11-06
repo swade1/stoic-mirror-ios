@@ -1,7 +1,4 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { ExpoSpeechRecognitionModule, useSpeechRecognitionEvent } from 'expo-speech-recognition';
-import { IconSymbol } from '@/components/ui/IconSymbol';
-import { IconButton } from '@/components/ui/IconButton';
 import {
   View,
   Text,
@@ -34,7 +31,6 @@ export default function CounselScreen() {
   // feeds into the action card's dynamic sizing at all.
   const tabBarHeight = useBottomTabBarHeight();
   const [input, setInput] = useState('');
-  const [listening, setListening] = useState(false);
   const [keyboardVisible, setKeyboardVisible] = useState(false);
   const [dailyQuote, setDailyQuote] = useState<{ quote: string; author: string; source: string } | null>(null);
   const [expandedQuote, setExpandedQuote] = useState(false);
@@ -121,28 +117,6 @@ export default function CounselScreen() {
     }, [router])
   );
 
-  const handleMic = async () => {
-    try {
-      const SpeechModule = require('expo-speech-recognition');
-      if (listening) {
-        SpeechModule.ExpoSpeechRecognitionModule.stop();
-        setListening(false);
-        return;
-      }
-      const { granted } = await SpeechModule.ExpoSpeechRecognitionModule.requestPermissionsAsync();
-      if (!granted) return;
-      setListening(true);
-      SpeechModule.ExpoSpeechRecognitionModule.start({
-        lang: 'en-US',
-        continuous: false,
-        interimResults: true,
-      });
-    } catch (e) {
-      console.log('Speech recognition not available on this device');
-      setListening(false);
-    }
-  };
-
   useEffect(() => {
     const show = Keyboard.addListener('keyboardDidShow', () => setKeyboardVisible(true));
     const hide = Keyboard.addListener('keyboardDidHide', () => setKeyboardVisible(false));
@@ -228,26 +202,9 @@ export default function CounselScreen() {
             </View>
           )}
 
-          <View style={styles.micWrap}>
-            <IconButton
-              style={[styles.largeMicButton, listening && styles.micButtonActive]}
-              onPress={handleMic}
-              accessibilityRole="button"
-              accessibilityLabel={listening ? 'Stop voice input' : 'Start voice input'}
-              accessibilityState={{ selected: listening }}
-            >
-              <IconSymbol
-                name={listening ? 'stop.fill' : 'mic.fill'}
-                size={32}
-                color={listening ? '#0f0e0c' : '#c9b97a'}
-              />
-            </IconButton>
-            <Text style={styles.micCaption}>Tap to speak</Text>
-          </View>
-
           <TextInput
             style={styles.textInput}
-            placeholder="Or describe it here..."
+            placeholder="Describe it here — or tap the microphone on your keyboard to speak"
             placeholderTextColor="#8a7e6e"
             value={input}
             onChangeText={setInput}
@@ -382,8 +339,8 @@ const styles = StyleSheet.create({
     fontSize: 16,
     borderWidth: 1,
     borderColor: '#4a4540',
-    minHeight: 70,
-    maxHeight: 130,
+    minHeight: 110,
+    maxHeight: 160,
   },
   sendButton: {
     backgroundColor: '#2a2720',
@@ -433,31 +390,6 @@ const styles = StyleSheet.create({
     gap: 12,
     alignItems: 'center',
     marginTop: 16,
-  },
-  micWrap: {
-    alignItems: 'center',
-    gap: 6,
-  },
-  // Reduced from the original 96px — still the largest circular element on
-  // the card and the clearest "primary" affordance, but no longer sized to
-  // dominate the whole screen the way it did floating on its own.
-  largeMicButton: {
-    width: 76,
-    height: 76,
-    borderRadius: 38,
-    backgroundColor: '#2a2720',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: '#c9b97a',
-  },
-  micButtonActive: {
-    backgroundColor: '#c9b97a',
-  },
-  micCaption: {
-    fontSize: 12,
-    color: '#8a7e6e',
-    letterSpacing: 0.2,
   },
   dailyQuoteBox: {
     backgroundColor: '#1e1c18',
