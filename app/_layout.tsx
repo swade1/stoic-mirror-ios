@@ -11,6 +11,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import Purchases from 'react-native-purchases';
 import * as Notifications from 'expo-notifications';
 import { syncNotificationSchedule, isReminderNotificationId } from '@/lib/notifications';
+import NamePromptHost from '@/components/NamePromptHost';
 import { FontScaleProvider } from '@/contexts/FontScaleContext';
 import { PlayfairDisplay_600SemiBold_Italic } from '@expo-google-fonts/playfair-display';
 import { Cormorant_600SemiBold_Italic } from '@expo-google-fonts/cormorant';
@@ -158,6 +159,7 @@ export default function RootLayout() {
         <Stack.Screen name="terms" />
         <Stack.Screen name="+not-found" />
       </Stack>
+      <NamePromptHost />
       <StatusBar style="light" />
     </ThemeProvider>
     </FontScaleProvider>

@@ -1,8 +1,11 @@
 import { Alert } from 'react-native';
+import { showNamePrompt } from '@/lib/namePrompt';
 import { createSlideshow, promptNewSlideshow, DEFAULT_SLIDESHOW_NAME } from '@/lib/slideshowCreate';
 
 const mockBuilder: Record<string, jest.Mock> = {};
 let mockSession: { user: { id: string } } | null = { user: { id: 'user-1' } };
+
+jest.mock('@/lib/namePrompt', () => ({ showNamePrompt: jest.fn() }));
 
 jest.mock('@/lib/supabase', () => ({
   supabase: {
@@ -41,45 +44,47 @@ describe('createSlideshow', () => {
 });
 
 describe('promptNewSlideshow', () => {
-  it('asks for a name, creates the slideshow, and reports its id', async () => {
-    const promptSpy = jest.spyOn(Alert, 'prompt').mockImplementation(() => {});
+  const mockShow = showNamePrompt as jest.Mock;
+  beforeEach(() => mockShow.mockClear());
+
+  it('shows an empty name box with a placeholder, then creates and reports the id', async () => {
     const onCreated = jest.fn();
     promptNewSlideshow(onCreated);
 
-    expect(promptSpy.mock.calls[0][0]).toBe('Name your slideshow');
-    expect(promptSpy.mock.calls[0][4]).toBe(DEFAULT_SLIDESHOW_NAME);
-    const buttons = promptSpy.mock.calls[0][2] as { text: string; onPress?: (v?: string) => void }[];
-    buttons.find((b) => b.text === 'Create')!.onPress!('Morning');
+    const opts = mockShow.mock.calls[0][0];
+    expect(opts.title).toBe('Name your slideshow');
+    expect(opts.placeholder).toBe('Slideshow Name');
+    expect(opts.defaultValue).toBeUndefined();
+    opts.onSubmit('Morning');
 
     await new Promise((r) => setTimeout(r, 0));
     expect(mockBuilder.insert).toHaveBeenCalledWith(expect.objectContaining({ name: 'Morning' }));
     expect(onCreated).toHaveBeenCalledWith('new-id');
-    promptSpy.mockRestore();
   });
 
-  it('does not create anything if the prompt is cancelled', () => {
-    const promptSpy = jest.spyOn(Alert, 'prompt').mockImplementation(() => {});
+  it('falls back to the default name when left blank', async () => {
+    promptNewSlideshow(jest.fn());
+    mockShow.mock.calls[0][0].onSubmit('');
+    await new Promise((r) => setTimeout(r, 0));
+    expect(mockBuilder.insert).toHaveBeenCalledWith(expect.objectContaining({ name: DEFAULT_SLIDESHOW_NAME }));
+  });
+
+  it('creates nothing until the dialog is submitted', () => {
     const onCreated = jest.fn();
     promptNewSlideshow(onCreated);
-    const buttons = promptSpy.mock.calls[0][2] as { text: string; onPress?: () => void }[];
-    expect(buttons.find((b) => b.text === 'Cancel')!.onPress).toBeUndefined();
     expect(mockBuilder.insert).not.toHaveBeenCalled();
     expect(onCreated).not.toHaveBeenCalled();
-    promptSpy.mockRestore();
   });
 
   it('alerts instead of opening anything when creation fails', async () => {
     mockBuilder.single = jest.fn(() => Promise.resolve({ data: null, error: new Error('db down') }));
-    const promptSpy = jest.spyOn(Alert, 'prompt').mockImplementation(() => {});
     const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
     const onCreated = jest.fn();
     promptNewSlideshow(onCreated);
-    (promptSpy.mock.calls[0][2] as { text: string; onPress?: (v?: string) => void }[])
-      .find((b) => b.text === 'Create')!.onPress!('x');
+    mockShow.mock.calls[0][0].onSubmit('x');
     await new Promise((r) => setTimeout(r, 0));
     expect(onCreated).not.toHaveBeenCalled();
     expect(alertSpy).toHaveBeenCalledWith('Could Not Create Slideshow', 'db down');
-    promptSpy.mockRestore();
     alertSpy.mockRestore();
   });
 });

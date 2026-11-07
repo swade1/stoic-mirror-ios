@@ -1,4 +1,5 @@
-import { Alert, Platform } from 'react-native';
+import { Alert } from 'react-native';
+import { showNamePrompt } from '@/lib/namePrompt';
 import { supabase } from '@/lib/supabase';
 
 export const DEFAULT_SLIDESHOW_NAME = 'My Slideshow';
@@ -29,7 +30,8 @@ export async function createSlideshow(name: string): Promise<string> {
 
 // The single entry point for "make a slideshow" from anywhere in the app
 // (Saved Wisdom banner, the post-save nudge, the Slideshows list). Asks for
-// a name (iOS prompt; a default name elsewhere), creates it, then hands the
+// a name (empty box with a "Slideshow Name" placeholder; blank falls back to
+// the default name), creates it, then hands the
 // new slideshow's id to `onCreated` so the caller can open it.
 export function promptNewSlideshow(onCreated: (collectionId: string) => void) {
   const create = async (rawName?: string) => {
@@ -44,18 +46,11 @@ export function promptNewSlideshow(onCreated: (collectionId: string) => void) {
     }
   };
 
-  if (Platform.OS === 'ios') {
-    Alert.prompt(
-      'Name your slideshow',
-      'You can change it later.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Create', onPress: (value?: string) => create(value) },
-      ],
-      'plain-text',
-      DEFAULT_SLIDESHOW_NAME
-    );
-  } else {
-    create();
-  }
+  showNamePrompt({
+    title: 'Name your slideshow',
+    message: 'You can change it later.',
+    placeholder: 'Slideshow Name',
+    confirmLabel: 'Create',
+    onSubmit: (value) => create(value),
+  });
 }
