@@ -149,7 +149,16 @@ export default function QuoteCardsScreen() {
   // Reached from the My Cards gallery specifically — "Select a new quote"
   // doesn't make sense there, since going back doesn't land on a
   // quote-picking screen, it lands back in the gallery itself.
-  const backLabel = fromGallery ? 'Return to gallery' : 'Select a new quote';
+  // Inside a slideshow, going back lands on the slideshow itself (editing a
+  // slide) or on the quote list (adding one), so "Select a new quote" would
+  // be misleading there.
+  const backLabel = fromGallery
+    ? 'Return to gallery'
+    : editSlideId
+      ? 'Back to slideshow'
+      : collectionId
+        ? 'Back'
+        : 'Select a new quote';
 
   // Which of the two independent card slots (see SavedQuote above) this
   // screen instance is working with. Slideshow-linked slides never pass
