@@ -10,6 +10,7 @@ import Animated, {
   useSharedValue,
   useAnimatedStyle,
   withTiming,
+  withDelay,
   runOnJS,
   cancelAnimation,
   Easing,
@@ -181,6 +182,7 @@ export default function SlideshowPlayScreen() {
   const slotTranslateX1 = useSharedValue(0);
   // Fill of the current slide's progress segment, 0 to 1.
   const progress = useSharedValue(0);
+  const pausedBadgeOpacity = useSharedValue(0);
   // How much of the current slide's duration is left, in ms — the single
   // source of truth both the auto-advance timer and the visual progress
   // fill read from, so pausing freezes them in lockstep (the fill
@@ -439,13 +441,15 @@ export default function SlideshowPlayScreen() {
   // hidden, a tap just brings them back rather than also pausing — pausing
   // is only what a tap does once the controls are already up.
   const handleTap = useCallback(() => {
-    if (!controlsVisible) {
+    // While paused, any tap resumes — even if the controls have since faded
+    // away, a tap on a paused slideshow should always continue it.
+    if (!controlsVisible && !paused) {
       showControls();
       return;
     }
     showControls();
     togglePaused();
-  }, [controlsVisible, showControls, togglePaused]);
+  }, [controlsVisible, paused, showControls, togglePaused]);
 
   // Runs the auto-advance timer and the visual progress fill for
   // whatever time is actually left on this slide (remainingMsRef).
@@ -471,6 +475,19 @@ export default function SlideshowPlayScreen() {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentIndex, paused, uris.length, advance]);
+
+  // "Slideshow Paused" shows briefly when the slides pause, then fades out
+  // after a couple of seconds; it disappears at once on resume. The music
+  // keeps playing while paused, so the wording says the slideshow paused.
+  useEffect(() => {
+    cancelAnimation(pausedBadgeOpacity);
+    if (paused) {
+      pausedBadgeOpacity.value = 1;
+      pausedBadgeOpacity.value = withDelay(2000, withTiming(0, { duration: 600 }));
+    } else {
+      pausedBadgeOpacity.value = 0;
+    }
+  }, [paused, pausedBadgeOpacity]);
 
   // The only place remainingMsRef is decremented — fires solely when
   // `paused` becomes true, never on a natural slide change (it doesn't
@@ -833,6 +850,10 @@ export default function SlideshowPlayScreen() {
     opacity: opacity.value,
   }));
 
+  const pausedBadgeStyle = useAnimatedStyle(() => ({
+    opacity: pausedBadgeOpacity.value,
+  }));
+
   const slot0AnimatedStyle = useAnimatedStyle(() => ({
     transform: [{ translateX: slotTranslateX0.value }],
   }));
@@ -969,12 +990,10 @@ export default function SlideshowPlayScreen() {
           </View>
         )}
 
-        {paused && (
-          <View style={styles.pausedBadge}>
-            <IconSymbol name="pause.fill" size={14} color="#f0ead6" />
-            <Text style={styles.pausedText}>Paused</Text>
-          </View>
-        )}
+        <Animated.View style={[styles.pausedBadge, pausedBadgeStyle]} pointerEvents="none">
+          <IconSymbol name="pause.fill" size={14} color="#f0ead6" />
+          <Text style={styles.pausedText}>Slideshow Paused</Text>
+        </Animated.View>
       </View>
     </GestureDetector>
   );
