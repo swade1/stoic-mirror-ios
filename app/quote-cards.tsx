@@ -914,7 +914,11 @@ export default function QuoteCardsScreen() {
           <Text style={styles.pickerHint}>Pick one of ours, or use your own photo.</Text>
           {backgroundCategories.length > 0 && (
             <View style={styles.categoryChipContent}>
-              {['all', ...backgroundCategories].map((cat) => {
+              {/* Once a category is chosen, the others collapse away, leaving the
+                  chosen one plus "All" to bring the full list back. */}
+              {['all', ...backgroundCategories]
+                .filter((cat) => selectedCategory === null || cat === 'all' || cat === selectedCategory)
+                .map((cat) => {
                 const value = cat === 'all' ? null : cat;
                 const selected = selectedCategory === value;
                 const label = cat === 'all' ? 'All' : cat.charAt(0).toUpperCase() + cat.slice(1);
