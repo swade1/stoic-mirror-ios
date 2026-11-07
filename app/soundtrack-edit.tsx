@@ -124,6 +124,14 @@ export default function SoundtrackEditScreen() {
     }
   };
 
+  // Everything on this screen saves as it changes; Done just makes that
+  // explicit — it commits a name still being typed, then returns to the list.
+  const finish = async () => {
+    await commitName();
+    if (router.canGoBack()) router.back();
+    else router.replace('/soundtracks');
+  };
+
   // Tapping a curated track toggles its membership in the playlist —
   // "selected" here means "already in the playlist," not "is the sole
   // choice" the way a single-select radio would. Removal is optimistic
@@ -224,20 +232,70 @@ export default function SoundtrackEditScreen() {
           returnKeyType="done"
           onSubmitEditing={commitName}
         />
-        <IconButton
-          onPress={() => router.dismissTo('/(tabs)/history')}
+        <TouchableOpacity
+          onPress={finish}
           accessibilityRole="button"
-          accessibilityLabel="Back to History"
+          accessibilityLabel="Done. Your soundtrack is saved."
           hitSlop={8}
         >
-          <IconSymbol name="books.vertical.fill" size={18} color="#c9b97a" />
-        </IconButton>
+          <Text style={styles.doneText}>Done</Text>
+        </TouchableOpacity>
       </View>
 
       {loading ? (
         <ActivityIndicator style={styles.loading} color="#c9b97a" />
       ) : (
         <ScrollView contentContainerStyle={styles.content}>
+          <TouchableOpacity
+            style={[styles.chip, styles.choosePersonalTrackButton]}
+            onPress={choosePersonalTrack}
+            accessibilityRole="button"
+            accessibilityLabel="Add an audio file stored on your phone"
+          >
+            <Text style={styles.chipText}>Add a song from my phone</Text>
+          </TouchableOpacity>
+
+          <Text style={styles.sectionLabel}>Your Playlist</Text>
+          {playlist.length === 0 ? (
+            <Text style={styles.emptyPlaylistText}>No tracks yet — add some below, or add a song from your phone.</Text>
+          ) : (
+            <View style={styles.playlistList}>
+              {playlist.map((item, index) => (
+                <View key={item.id} style={styles.playlistRow}>
+                  <Text style={styles.playlistRowName} numberOfLines={1}>{itemLabel(item)}</Text>
+                  <View style={styles.playlistRowActions}>
+                    <IconButton
+                      onPress={() => moveItem(index, -1)}
+                      disabled={index === 0}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Move ${itemLabel(item)} up`}
+                      hitSlop={8}
+                    >
+                      <IconSymbol name="chevron.up" size={20} color={index === 0 ? '#4a4540' : '#c9b97a'} />
+                    </IconButton>
+                    <IconButton
+                      onPress={() => moveItem(index, 1)}
+                      disabled={index === playlist.length - 1}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Move ${itemLabel(item)} down`}
+                      hitSlop={8}
+                    >
+                      <IconSymbol name="chevron.down" size={20} color={index === playlist.length - 1 ? '#4a4540' : '#c9b97a'} />
+                    </IconButton>
+                    <IconButton
+                      onPress={() => handleRemoveItem(item)}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Remove ${itemLabel(item)}`}
+                      hitSlop={8}
+                    >
+                      <IconSymbol name="xmark" size={14} color="#8a7e6e" />
+                    </IconButton>
+                  </View>
+                </View>
+              ))}
+            </View>
+          )}
+
           <View style={styles.searchContainer}>
             <IconSymbol name="magnifyingglass" size={16} color="#8a7e6e" />
             <TextInput
@@ -329,56 +387,6 @@ export default function SoundtrackEditScreen() {
               );
             })}
           </View>
-
-          <TouchableOpacity
-            style={[styles.chip, styles.choosePersonalTrackButton]}
-            onPress={choosePersonalTrack}
-            accessibilityRole="button"
-            accessibilityLabel="Choose an audio file from your device"
-          >
-            <Text style={styles.chipText}>Choose an audio file</Text>
-          </TouchableOpacity>
-
-          <Text style={styles.sectionLabel}>Your Playlist</Text>
-          {playlist.length === 0 ? (
-            <Text style={styles.emptyPlaylistText}>No tracks yet — add some above.</Text>
-          ) : (
-            <View style={styles.playlistList}>
-              {playlist.map((item, index) => (
-                <View key={item.id} style={styles.playlistRow}>
-                  <Text style={styles.playlistRowName} numberOfLines={1}>{itemLabel(item)}</Text>
-                  <View style={styles.playlistRowActions}>
-                    <IconButton
-                      onPress={() => moveItem(index, -1)}
-                      disabled={index === 0}
-                      accessibilityRole="button"
-                      accessibilityLabel={`Move ${itemLabel(item)} up`}
-                      hitSlop={8}
-                    >
-                      <IconSymbol name="chevron.up" size={20} color={index === 0 ? '#4a4540' : '#c9b97a'} />
-                    </IconButton>
-                    <IconButton
-                      onPress={() => moveItem(index, 1)}
-                      disabled={index === playlist.length - 1}
-                      accessibilityRole="button"
-                      accessibilityLabel={`Move ${itemLabel(item)} down`}
-                      hitSlop={8}
-                    >
-                      <IconSymbol name="chevron.down" size={20} color={index === playlist.length - 1 ? '#4a4540' : '#c9b97a'} />
-                    </IconButton>
-                    <IconButton
-                      onPress={() => handleRemoveItem(item)}
-                      accessibilityRole="button"
-                      accessibilityLabel={`Remove ${itemLabel(item)}`}
-                      hitSlop={8}
-                    >
-                      <IconSymbol name="xmark" size={14} color="#8a7e6e" />
-                    </IconButton>
-                  </View>
-                </View>
-              ))}
-            </View>
-          )}
         </ScrollView>
       )}
     </View>
@@ -404,6 +412,11 @@ const styles = StyleSheet.create({
     color: '#f0ead6',
     textAlign: 'center',
   },
+  doneText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#c9b97a',
+  },
   loading: {
     marginTop: 60,
   },
@@ -412,6 +425,7 @@ const styles = StyleSheet.create({
     paddingBottom: 40,
   },
   searchContainer: {
+    marginTop: 24,
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#1e1c18',
