@@ -491,19 +491,6 @@ export default function QuoteCardsScreen() {
     setImageLoaded(false);
   };
 
-  // Cycles to the next/previous background within whatever category is
-  // currently filtered (filteredBackgrounds, defined below) — lets the
-  // user quickly compare photos without reopening the picker each time.
-  // Wraps around at either end rather than stopping, since the point is
-  // fast back-and-forth comparison, not a bounded list.
-  const advanceBackground = (direction: 1 | -1) => {
-    if (!quote || filteredBackgrounds.length === 0) return;
-    const currentIndex = filteredBackgrounds.findIndex((bg) => bg.id === quote.background_photo_id);
-    const baseIndex = currentIndex === -1 ? 0 : currentIndex;
-    const nextIndex = (baseIndex + direction + filteredBackgrounds.length) % filteredBackgrounds.length;
-    chooseBackground(filteredBackgrounds[nextIndex]);
-  };
-
   const choosePersonalPhoto = async () => {
     if (!quote) return;
     // No allowsEditing here — on iOS that option is Android-only for
@@ -1096,27 +1083,6 @@ export default function QuoteCardsScreen() {
             ))}
           </View>
 
-          {!personalPhotoUri && filteredBackgrounds.length > 1 && (
-            <>
-              <IconButton
-                style={styles.backgroundNavButton}
-                onPress={() => advanceBackground(-1)}
-                accessibilityRole="button"
-                accessibilityLabel="Previous background photo"
-              >
-                <IconSymbol name="chevron.left" size={20} color="#c9b97a" />
-              </IconButton>
-              <IconButton
-                style={[styles.backgroundNavButton, styles.backgroundNavButtonRight]}
-                onPress={() => advanceBackground(1)}
-                accessibilityRole="button"
-                accessibilityLabel="Next background photo"
-              >
-                <IconSymbol name="chevron.right" size={20} color="#c9b97a" />
-              </IconButton>
-            </>
-          )}
-
           <TouchableOpacity
             style={[styles.backButtonFloating, { top: insets.top + 12 }]}
             onPress={() => router.back()}
@@ -1127,8 +1093,18 @@ export default function QuoteCardsScreen() {
             <Text style={styles.backButtonText}>{backLabel}</Text>
           </TouchableOpacity>
 
+          <TouchableOpacity
+            style={[styles.changePhotoButton, { top: insets.top + 12 }]}
+            onPress={() => setShowPicker(true)}
+            accessibilityRole="button"
+            accessibilityLabel="Change background photo"
+          >
+            <IconSymbol name="photo.on.rectangle" size={14} color="#c9b97a" />
+            <Text style={styles.backButtonText}>Change photo</Text>
+          </TouchableOpacity>
+
           {personalPhotoUri && (
-            <View style={[styles.photoHint, { top: insets.top + 12 }]}>
+            <View style={[styles.photoHint, { top: insets.top + 56 }]}>
               <Text style={styles.photoHintText}>{'Pinch and drag to reposition\nDouble-tap to reset'}</Text>
             </View>
           )}
@@ -1289,14 +1265,6 @@ export default function QuoteCardsScreen() {
           )}
 
           <View style={[styles.actionRow, { bottom: insets.bottom + 52 }]}>
-            <IconButton
-              style={styles.actionButton}
-              onPress={() => setShowPicker(true)}
-              accessibilityRole="button"
-              accessibilityLabel="Change background photo"
-            >
-              <IconSymbol name="photo.on.rectangle" size={18} color="#c9b97a" />
-            </IconButton>
             <IconButton
               style={[styles.actionButton, showTextStylePanel && styles.actionButtonActive]}
               onPress={toggleTextStylePanel}
@@ -1514,25 +1482,20 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderRadius: 20,
   },
-  backgroundNavButton: {
-    position: 'absolute',
-    left: 12,
-    top: '50%',
-    marginTop: -20,
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(15,14,12,0.5)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  backgroundNavButtonRight: {
-    left: undefined,
-    right: 12,
-  },
   backButtonText: {
     fontSize: 14,
     color: '#c9b97a',
+  },
+  changePhotoButton: {
+    position: 'absolute',
+    right: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: 'rgba(15,14,12,0.6)',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 20,
   },
   photoHint: {
     position: 'absolute',
