@@ -7,7 +7,7 @@ Rules from Katherine's plan: say "coming soon", never "download now". Show only 
 ## Before you record (once)
 
 1. **Test account.** Use a clean account with no personal history. Run the search once first and keep a concern whose results you like. Leave all concerns deselected (Settings → Your concerns), so no "Matching…" pill shows on the Counsel tab. Concerns are chosen during sign-up, which this video skips.
-2. **Cards ready.** Make 2 quote cards ahead of time (Saved Wisdom → photo icon → Save to Photos) so they're in the Simulator's Photos app. You'll make a third one on camera.
+2. **First-save prompt.** The first time a quote is saved, the app asks once whether to make a slideshow. Either use it on camera or dismiss it with "Not now" before filming. To see it again, delete the app from the Simulator and reinstall. Also save 3 quotes before filming so the library has plenty to choose from.
 3. **Simulator.** Pick a recent iPhone model. Hide the phone frame (Window menu, turn off the device bezel). Turn on I/O → Keyboard → Connect Hardware Keyboard so you can type from your Mac.
 4. **Clean status bar.** In Terminal: `xcrun simctl status_bar booted override --time 9:41 --batteryState charged --batteryLevel 100 --wifiBars 3 --cellularBars 4`
 5. **Clear distractions.** Turn on Do Not Disturb on the Mac, close other windows, and hide the Dock.
@@ -25,11 +25,11 @@ Rules from Katherine's plan: say "coming soon", never "download now". Show only 
 | 0:13 to 0:16 | Loading screen | Rests off to the side | Trim the wait in editing if it's longer than 3 seconds. |
 | 0:16 to 0:23 | **Received Wisdom** | Scrolls slowly through the passages | Hold 2 seconds on the first passage and its counsel so viewers can read it. |
 | 0:23 to 0:29 | Same | Clicks the **bookmark** icon on 2 or 3 passages | About 1.5 seconds between clicks. The icon fills in when saved. |
-| 0:29 to 0:33 | History tab, **Saved Wisdom** | Clicks the History tab, then rests on the saved quotes | Show the saved quotes list. |
-| 0:33 to 0:40 | Quote card screen | Clicks the **photo** icon on one quote, picks a background (try two), then clicks **Save to Photos** | Pre-made cards cover the rest of the slideshow. |
-| 0:40 to 0:47 | History tab header | Clicks the **Slideshow** icon, then **New collection**, names it, opens it, clicks **Add photos**, selects the 3 cards | Speed up this section 2x in CapCut. |
-| 0:47 to 0:50 | **Slideshows** list | Clicks the **Soundtrack** icon on the new slideshow and picks the soundtrack | |
-| 0:50 to 0:58 | Slideshow playing, full screen | Clicks **Play**, then moves the mouse out of the frame | Let at least two cards cross-fade. This is the final shot. |
+| 0:29 to 0:33 | History tab, **Saved Wisdom** | Clicks the History tab, rests on the **Make a slideshow** banner | Hold 2 seconds so the banner can be read. |
+| 0:33 to 0:36 | Banner | Clicks **Start**, types a name such as *Evening*, clicks **Create** | Opens the slideshow screen with its three steps. |
+| 0:36 to 0:48 | Slideshow screen, step 1 | Clicks **Add** → **From Saved Quotes** → picks a quote → picks a background → clicks **Add to slideshow**, then **Back to Slideshow** | Repeat for 3 slides. Speed this section up 2x in CapCut. |
+| 0:48 to 0:52 | Step 2, **Music** | Clicks **Choose** and picks a soundtrack | The step now shows the soundtrack's name. |
+| 0:52 to 1:00 | Step 3, **Play** | Clicks **Play**, then moves the mouse out of the frame | Let at least two slides cross-fade. This is the final shot. |
 | Last 2 to 3 sec | End card (added in CapCut) | None | Text in the middle of the frame: "The Stoic Mirror. Coming soon. Link in bio to get notified." Instagram's buttons cover the bottom. |
 
 Raw run time is about 60 seconds. After the 2x speed-up of the slideshow-building section and trimming the loading wait, it lands around 50. For the website, trim to 45 seconds or less (for example, shorten the scroll through the passages and the bookmark clicks), or keep the full version for social.

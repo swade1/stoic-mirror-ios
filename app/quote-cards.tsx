@@ -784,14 +784,17 @@ export default function QuoteCardsScreen() {
         await commitFormatting();
         // Reached via the slideshow chain (History -> collections -> photos
         // -> From Saved Quotes -> here), so saving is a natural stopping
-        // point — offer a one-tap way back to History alongside staying put,
-        // rather than only the "Select a new quote" one-step-back button.
+        // point — offer a one-tap way back to the slideshow screen (where
+        // music, more slides and Play live) alongside staying put.
         Alert.alert(
           'Saved',
           editSlideId ? 'This slide was updated.' : 'Added to your slideshow.',
           [
             { text: 'Keep Editing', style: 'cancel' },
-            { text: 'Done', onPress: () => router.dismissTo('/(tabs)/history') },
+            {
+              text: 'Back to Slideshow',
+              onPress: () => router.dismissTo({ pathname: '/slideshow-photos', params: { collectionId } }),
+            },
           ]
         );
       } else {
@@ -1305,15 +1308,29 @@ export default function QuoteCardsScreen() {
             >
               <IconSymbol name="plus" size={18} color="#c9b97a" />
             </IconButton>
-            <IconButton
-              style={[styles.actionButton, (!imageLoaded || saving || !!editingBoxId) && styles.actionButtonDisabled]}
-              onPress={handleSaveToPhotos}
-              disabled={!imageLoaded || saving || !!editingBoxId}
-              accessibilityRole="button"
-              accessibilityLabel="Save this quote card to Photos"
-            >
-              <IconSymbol name="square.and.arrow.down" size={18} color={imageLoaded ? '#c9b97a' : '#6a6050'} />
-            </IconButton>
+            {collectionId ? (
+              // Arrived from a slideshow: this save adds the card to that
+              // slideshow, so say so in words instead of a bare download icon.
+              <TouchableOpacity
+                style={[styles.addToSlideshowButton, (!imageLoaded || saving || !!editingBoxId) && styles.actionButtonDisabled]}
+                onPress={handleSaveToPhotos}
+                disabled={!imageLoaded || saving || !!editingBoxId}
+                accessibilityRole="button"
+                accessibilityLabel={editSlideId ? 'Update this slide' : 'Add this card to the slideshow'}
+              >
+                <Text style={styles.addToSlideshowText}>{editSlideId ? 'Update slide' : 'Add to slideshow'}</Text>
+              </TouchableOpacity>
+            ) : (
+              <IconButton
+                style={[styles.actionButton, (!imageLoaded || saving || !!editingBoxId) && styles.actionButtonDisabled]}
+                onPress={handleSaveToPhotos}
+                disabled={!imageLoaded || saving || !!editingBoxId}
+                accessibilityRole="button"
+                accessibilityLabel="Save this quote card to Photos"
+              >
+                <IconSymbol name="square.and.arrow.down" size={18} color={imageLoaded ? '#c9b97a' : '#6a6050'} />
+              </IconButton>
+            )}
             <IconButton
               style={[styles.actionButton, (!imageLoaded || sharing || !!editingBoxId) && styles.actionButtonDisabled]}
               onPress={handleShare}
@@ -1532,6 +1549,19 @@ const styles = StyleSheet.create({
     borderColor: '#c9b97a',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  addToSlideshowButton: {
+    height: 44,
+    borderRadius: 22,
+    paddingHorizontal: 20,
+    backgroundColor: '#c9b97a',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  addToSlideshowText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#0f0e0c',
   },
   actionButtonDisabled: {
     borderColor: '#4a4540',

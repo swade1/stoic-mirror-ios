@@ -17,6 +17,7 @@ import { supabase } from '@/lib/supabase';
 import { IconSymbol } from '@/components/ui/IconSymbol';
 import { IconButton } from '@/components/ui/IconButton';
 import { getFramingLine } from '@/lib/framing';
+import { promptNewSlideshow } from '@/lib/slideshowCreate';
 import { ScaledText } from '@/components/ScaledText';
 import { FontSizeMenu } from '@/components/FontSizeMenu';
 import type { TextBox } from '@/components/DraggableTextBox';
@@ -281,22 +282,6 @@ export default function HistoryScreen() {
           <IconSymbol name="textformat.size" size={20} color="#c9b97a" />
         </IconButton>
         <IconButton
-          onPress={() => router.push('/slideshow-collections')}
-          accessibilityRole="button"
-          accessibilityLabel="Slideshow"
-          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-        >
-          <IconSymbol name="play.rectangle" size={20} color="#c9b97a" />
-        </IconButton>
-        <IconButton
-          onPress={() => router.push('/soundtracks')}
-          accessibilityRole="button"
-          accessibilityLabel="Soundtracks"
-          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-        >
-          <IconSymbol name="music.note.list" size={20} color="#c9b97a" />
-        </IconButton>
-        <IconButton
           onPress={() => {
             setSearchVisible(!searchVisible);
             setSearchQuery('');
@@ -312,6 +297,52 @@ export default function HistoryScreen() {
           />
         </IconButton>
       </View>
+
+      {/* The front door to slideshows. The header icons above are easy to
+          miss and say nothing about what they do, so once there is
+          something to put in a slideshow, say so in words. */}
+      {!loading && savedQuotes.length > 0 && !searchVisible && (
+        <View style={styles.slideshowBanner}>
+          <IconSymbol name="play.rectangle" size={24} color="#c9b97a" accessibilityElementsHidden importantForAccessibility="no" />
+          <View style={styles.slideshowBannerText}>
+            <Text style={styles.slideshowBannerTitle}>Make a slideshow</Text>
+            <Text style={styles.slideshowBannerSub}>Turn your saved quotes into cards that play with calming music.</Text>
+            <TouchableOpacity
+              onPress={() => router.push('/slideshow-collections')}
+              accessibilityRole="link"
+              accessibilityLabel="See my slideshows"
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <Text style={styles.slideshowBannerLink}>See my slideshows</Text>
+            </TouchableOpacity>
+          </View>
+          <TouchableOpacity
+            style={styles.slideshowBannerButton}
+            onPress={() =>
+              promptNewSlideshow((id) =>
+                router.push({ pathname: '/slideshow-photos', params: { collectionId: id } })
+              )
+            }
+            accessibilityRole="button"
+            accessibilityLabel="Make a slideshow"
+          >
+            <Text style={styles.slideshowBannerButtonText}>Start</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {/* With nothing saved there is no banner, but existing slideshows
+          must stay reachable. */}
+      {!loading && savedQuotes.length === 0 && !searchVisible && (
+        <TouchableOpacity
+          style={styles.slideshowOnlyLink}
+          onPress={() => router.push('/slideshow-collections')}
+          accessibilityRole="link"
+          accessibilityLabel="See my slideshows"
+        >
+          <Text style={styles.slideshowBannerLink}>See my slideshows</Text>
+        </TouchableOpacity>
+      )}
 
       {/* Search bar */}
       {searchVisible && (
@@ -703,6 +734,55 @@ const styles = StyleSheet.create({
     width: 68,
     height: 68,
     marginRight: 12,
+  },
+  slideshowBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginHorizontal: 16,
+    marginBottom: 12,
+    backgroundColor: 'rgba(201,185,122,0.08)',
+    borderWidth: 1,
+    borderColor: '#4a4540',
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+  },
+  slideshowOnlyLink: {
+    marginHorizontal: 20,
+    marginBottom: 12,
+    alignSelf: 'flex-start',
+  },
+  slideshowBannerText: {
+    flex: 1,
+  },
+  slideshowBannerTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#f0ead6',
+  },
+  slideshowBannerSub: {
+    fontSize: 13,
+    lineHeight: 18,
+    color: '#a89f88',
+    marginTop: 2,
+  },
+  slideshowBannerLink: {
+    fontSize: 13,
+    color: '#c9b97a',
+    marginTop: 6,
+    textDecorationLine: 'underline',
+  },
+  slideshowBannerButton: {
+    backgroundColor: '#c9b97a',
+    borderRadius: 10,
+    paddingVertical: 9,
+    paddingHorizontal: 16,
+  },
+  slideshowBannerButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#0f0e0c',
   },
   searchContainer: {
     flexDirection: 'row',

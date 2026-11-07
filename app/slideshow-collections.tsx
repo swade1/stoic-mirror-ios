@@ -19,6 +19,8 @@ import { IconSymbol } from '@/components/ui/IconSymbol';
 import { IconButton } from '@/components/ui/IconButton';
 import { resolveSlideshowAssetUri } from '@/lib/slideshowAssets';
 import { hasSeenICloudTip, markICloudTipSeen } from '@/lib/slideshowTip';
+import { promptNewSlideshow } from '@/lib/slideshowCreate';
+import { showSoundtrackSheet, soundtrackLabel } from '@/lib/soundtrackSheet';
 
 interface SlideshowCollection {
   id: string;
@@ -39,11 +41,10 @@ export default function SlideshowCollectionsScreen() {
   const insets = useSafeAreaInsets();
   const [collections, setCollections] = useState<SlideshowCollection[]>([]);
   const [loading, setLoading] = useState(true);
-  // null = panel closed; a string (possibly empty, for a new collection) =
-  // panel open, editing that collection's name; the sentinel 'new' id-less
-  // case is handled by editingId being null while the panel is open.
+  // null = rename panel closed; otherwise the id of the slideshow being
+  // renamed. (Creating a new slideshow no longer uses this panel — see
+  // startNewSlideshow below.)
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [isCreating, setIsCreating] = useState(false);
   const [nameDraft, setNameDraft] = useState('');
   const [saving, setSaving] = useState(false);
   const [showICloudTip, setShowICloudTip] = useState(false);
@@ -127,21 +128,21 @@ export default function SlideshowCollectionsScreen() {
 
   useFocusEffect(useCallback(() => { load(); }, [load]));
 
-  const openNewCollectionPanel = () => {
-    setEditingId(null);
-    setIsCreating(true);
-    setNameDraft('');
+  // Name it, create it, and open it — the slideshow screen then walks the
+  // user through adding slides, choosing music and playing.
+  const startNewSlideshow = () => {
+    promptNewSlideshow((id) =>
+      router.push({ pathname: '/slideshow-photos', params: { collectionId: id } })
+    );
   };
 
   const openRenamePanel = (collection: SlideshowCollection) => {
     setEditingId(collection.id);
-    setIsCreating(false);
     setNameDraft(collection.name);
   };
 
   const closePanel = () => {
     setEditingId(null);
-    setIsCreating(false);
     setNameDraft('');
   };
 
@@ -153,13 +154,7 @@ export default function SlideshowCollectionsScreen() {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) return;
 
-      if (isCreating) {
-        const nextOrder = collections.length > 0 ? Math.max(...collections.map((c) => c.sortOrder)) + 1 : 0;
-        const { error } = await supabase
-          .from('slideshow_collections')
-          .insert({ user_id: session.user.id, name: trimmed, sort_order: nextOrder });
-        if (error) throw error;
-      } else if (editingId) {
+      if (editingId) {
         const { error } = await supabase
           .from('slideshow_collections')
           .update({ name: trimmed })
@@ -177,7 +172,7 @@ export default function SlideshowCollectionsScreen() {
 
   const deleteCollection = (collection: SlideshowCollection) => {
     Alert.alert(
-      'Delete Collection',
+      'Delete Slideshow',
       `Delete "${collection.name}"? This removes it from your slideshow list — the photos stay in your Photos library.`,
       [
         { text: 'Cancel', style: 'cancel' },
@@ -213,32 +208,17 @@ export default function SlideshowCollectionsScreen() {
     }
   };
 
-  // A lightweight action sheet rather than a full-screen picker — lets a
-  // user assign, change, or clear a collection's soundtrack straight from
-  // its row, with a "Manage Soundtracks…" escape hatch to the full
-  // library (rename/delete/edit tracks) when that's what's actually
-  // needed. The currently-assigned option is marked with a checkmark
-  // prefix, since a native Alert's buttons can't carry any other styling.
   const openSoundtrackSheet = (collection: SlideshowCollection) => {
-    Alert.alert(
-      'Soundtrack',
-      collection.name,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: collection.soundtrackId === null ? '✓ None' : 'None',
-          onPress: () => assignSoundtrack(collection, null),
-        },
-        ...soundtracks.map((s) => ({
-          text: collection.soundtrackId === s.id ? `✓ ${s.name}` : s.name,
-          onPress: () => assignSoundtrack(collection, s.id),
-        })),
-        { text: 'Manage Soundtracks…', onPress: () => router.push('/soundtracks') },
-      ]
-    );
+    showSoundtrackSheet({
+      slideshowName: collection.name,
+      currentId: collection.soundtrackId,
+      soundtracks,
+      onAssign: (id) => assignSoundtrack(collection, id),
+      onManage: () => router.push('/soundtracks'),
+    });
   };
 
-  const panelOpen = isCreating || editingId !== null;
+  const panelOpen = editingId !== null;
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
@@ -253,9 +233,9 @@ export default function SlideshowCollectionsScreen() {
         <Text style={styles.headerTitle}>Slideshows</Text>
         <View style={styles.headerActions}>
           <IconButton
-            onPress={openNewCollectionPanel}
+            onPress={startNewSlideshow}
             accessibilityRole="button"
-            accessibilityLabel="New collection"
+            accessibilityLabel="New slideshow"
             hitSlop={8}
           >
             <IconSymbol name="plus" size={20} color="#c9b97a" />
@@ -290,10 +270,23 @@ export default function SlideshowCollectionsScreen() {
           ListEmptyComponent={
             <View style={styles.emptyState}>
               <IconSymbol name="photo.on.rectangle" size={40} color="#6a6050" accessibilityElementsHidden importantForAccessibility="no" />
-              <Text style={styles.emptyTitle}>No slideshows yet</Text>
+              <Text style={styles.emptyTitle}>Make your first slideshow</Text>
               <Text style={styles.emptySubtitle}>
-                Create a collection to group your saved quote cards into a themed, rotating slideshow.
+                Turn the quotes you&apos;ve saved into cards that play full screen, with calming music.
               </Text>
+              <View style={styles.stepsList}>
+                <Text style={styles.stepText}>1.  Add slides from your saved quotes</Text>
+                <Text style={styles.stepText}>2.  Choose music</Text>
+                <Text style={styles.stepText}>3.  Press play</Text>
+              </View>
+              <TouchableOpacity
+                style={styles.emptyButton}
+                onPress={startNewSlideshow}
+                accessibilityRole="button"
+                accessibilityLabel="Make a slideshow"
+              >
+                <Text style={styles.emptyButtonText}>Make a slideshow</Text>
+              </TouchableOpacity>
             </View>
           }
           renderItem={({ item }) => (
@@ -312,7 +305,9 @@ export default function SlideshowCollectionsScreen() {
               </View>
               <View style={styles.rowText}>
                 <Text style={styles.rowTitle}>{item.name}</Text>
-                <Text style={styles.rowSubtitle}>{item.photoCount} photo{item.photoCount === 1 ? '' : 's'}</Text>
+                <Text style={styles.rowSubtitle}>
+                  {item.photoCount} slide{item.photoCount === 1 ? '' : 's'} · Music: {soundtrackLabel(item.soundtrackId, soundtracks)}
+                </Text>
               </View>
               <IconButton
                 onPress={() => openRenamePanel(item)}
@@ -326,7 +321,7 @@ export default function SlideshowCollectionsScreen() {
               <IconButton
                 onPress={() => openSoundtrackSheet(item)}
                 accessibilityRole="button"
-                accessibilityLabel={`Soundtrack for ${item.name}`}
+                accessibilityLabel={`Choose music for ${item.name}`}
                 hitSlop={8}
                 style={styles.rowAction}
               >
@@ -365,7 +360,7 @@ export default function SlideshowCollectionsScreen() {
           pointerEvents="box-none"
         >
           <View style={[styles.panel, { marginBottom: insets.bottom + 24 }]}>
-            <Text style={styles.panelLabel}>{isCreating ? 'New Slideshow' : 'Rename Slideshow'}</Text>
+            <Text style={styles.panelLabel}>Rename Slideshow</Text>
             <TextInput
               style={styles.panelInput}
               value={nameDraft}
@@ -460,9 +455,31 @@ const styles = StyleSheet.create({
   },
   emptySubtitle: {
     fontSize: 14,
-    color: '#6a6050',
+    color: '#8a7e6e',
     textAlign: 'center',
     lineHeight: 20,
+  },
+  stepsList: {
+    alignSelf: 'stretch',
+    gap: 8,
+    marginTop: 8,
+    paddingHorizontal: 12,
+  },
+  stepText: {
+    fontSize: 15,
+    color: '#c4b99e',
+  },
+  emptyButton: {
+    marginTop: 16,
+    backgroundColor: '#c9b97a',
+    borderRadius: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 28,
+  },
+  emptyButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#0f0e0c',
   },
   row: {
     flexDirection: 'row',

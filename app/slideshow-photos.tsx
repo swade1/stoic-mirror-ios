@@ -19,6 +19,7 @@ import { IconSymbol } from '@/components/ui/IconSymbol';
 import { IconButton } from '@/components/ui/IconButton';
 import { DraggableGridTile } from '@/components/DraggableGridTile';
 import { resolveSlideshowAssetUri } from '@/lib/slideshowAssets';
+import { showSoundtrackSheet, soundtrackLabel, type SoundtrackOption } from '@/lib/soundtrackSheet';
 
 interface SlideshowPhoto {
   id: string;
@@ -69,11 +70,12 @@ export default function SlideshowPhotosScreen() {
   const [transition, setTransition] = useState<SlideshowTransition>('fade');
   const [ambientVolume, setAmbientVolume] = useState<AmbientVolume>('medium');
   const [shuffleEnabled, setShuffleEnabled] = useState(false);
-  // The soundtrack currently assigned to this slideshow, if any — only
-  // gates whether the Volume section below has anything to control.
-  // Assigning/changing the soundtrack itself happens from the Slideshows
-  // list's per-row soundtrack icon now, not on this screen.
+  // The soundtrack currently assigned to this slideshow, if any. Chosen
+  // from the "Music" step at the top of this screen (or the Slideshows
+  // list's music icon); also gates whether the Volume section below has
+  // anything to control.
   const [soundtrackId, setSoundtrackId] = useState<string | null>(null);
+  const [soundtracks, setSoundtracks] = useState<SoundtrackOption[]>([]);
   // Which photo (by id) is currently being dragged, if any — disables
   // every other tile's own drag gesture for the duration, the same
   // .enabled(!isEditing) technique DraggableTextBox uses.
@@ -115,7 +117,7 @@ export default function SlideshowPhotosScreen() {
       return;
     }
 
-    const [{ data, error }, { data: collectionRow }] = await Promise.all([
+    const [{ data, error }, { data: collectionRow }, { data: soundtrackRows }] = await Promise.all([
       supabase
         .from('slideshow_photos')
         .select('id, asset_id, sort_order, saved_quote_id')
@@ -127,7 +129,14 @@ export default function SlideshowPhotosScreen() {
         .select('name, slideshow_duration_seconds, slideshow_transition, ambient_volume, ambient_shuffle, soundtrack_id')
         .eq('id', collectionId)
         .single(),
+      supabase
+        .from('soundtracks')
+        .select('id, name')
+        .eq('user_id', session.user.id)
+        .order('name', { ascending: true }),
     ]);
+
+    setSoundtracks(soundtrackRows ?? []);
 
     if (collectionRow) {
       setCollectionName(collectionRow.name);
@@ -188,11 +197,34 @@ export default function SlideshowPhotosScreen() {
       undefined,
       [
         { text: 'Cancel', style: 'cancel' },
-        { text: 'From Photos', onPress: addFromPhotos },
         { text: 'From Saved Quotes', onPress: () => router.push({ pathname: '/slideshow-add-quote', params: { collectionId } }) },
+        { text: 'From my Photos', onPress: addFromPhotos },
       ]
     );
   };
+
+  const assignSoundtrack = async (id: string | null) => {
+    if (!collectionId) return;
+    const previous = soundtrackId;
+    setSoundtrackId(id);
+    const { error } = await supabase.from('slideshow_collections').update({ soundtrack_id: id }).eq('id', collectionId);
+    if (error) {
+      setSoundtrackId(previous);
+      Alert.alert('Update Failed', error.message);
+    }
+  };
+
+  const chooseMusic = () => {
+    showSoundtrackSheet({
+      slideshowName: collectionName,
+      currentId: soundtrackId,
+      soundtracks,
+      onAssign: assignSoundtrack,
+      onManage: () => router.push('/soundtracks'),
+    });
+  };
+
+  const playSlideshow = () => router.push({ pathname: '/slideshow-play', params: { collectionId } });
 
   const addFromPhotos = async () => {
     if (!collectionId) return;
@@ -453,6 +485,56 @@ export default function SlideshowPhotosScreen() {
         </View>
       </View>
 
+      <View style={styles.stepsCard}>
+        <View style={styles.stepRow}>
+          <Text style={styles.stepNum}>1</Text>
+          <View style={styles.stepBody}>
+            <Text style={styles.stepTitle}>Slides</Text>
+            <Text style={styles.stepSub}>{photos.length === 0 ? 'None yet. Add your saved quotes.' : `${photos.length} added`}</Text>
+          </View>
+          <TouchableOpacity
+            style={styles.stepButton}
+            onPress={chooseAddMethod}
+            disabled={adding}
+            accessibilityRole="button"
+            accessibilityLabel="Add slides"
+          >
+            <Text style={styles.stepButtonText}>Add</Text>
+          </TouchableOpacity>
+        </View>
+        <View style={styles.stepRow}>
+          <Text style={styles.stepNum}>2</Text>
+          <View style={styles.stepBody}>
+            <Text style={styles.stepTitle}>Music</Text>
+            <Text style={styles.stepSub} numberOfLines={1}>{soundtrackLabel(soundtrackId, soundtracks)}</Text>
+          </View>
+          <TouchableOpacity
+            style={styles.stepButton}
+            onPress={chooseMusic}
+            accessibilityRole="button"
+            accessibilityLabel="Choose music"
+          >
+            <Text style={styles.stepButtonText}>{soundtrackId === null ? 'Choose' : 'Change'}</Text>
+          </TouchableOpacity>
+        </View>
+        <View style={styles.stepRow}>
+          <Text style={styles.stepNum}>3</Text>
+          <View style={styles.stepBody}>
+            <Text style={styles.stepTitle}>Play</Text>
+            <Text style={styles.stepSub}>{resolvedCount === 0 ? 'Add a slide first' : 'Full screen, with your music'}</Text>
+          </View>
+          <TouchableOpacity
+            style={[styles.stepButton, styles.stepButtonPrimary, resolvedCount === 0 && styles.stepButtonDisabled]}
+            onPress={playSlideshow}
+            disabled={resolvedCount === 0}
+            accessibilityRole="button"
+            accessibilityLabel="Play slideshow"
+          >
+            <Text style={[styles.stepButtonText, styles.stepButtonPrimaryText]}>Play</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+
       <TouchableOpacity
         style={styles.settingsToggleRow}
         onPress={() => setShowSettings((v) => !v)}
@@ -570,7 +652,7 @@ export default function SlideshowPhotosScreen() {
           <IconSymbol name="photo.on.rectangle" size={40} color="#6a6050" accessibilityElementsHidden importantForAccessibility="no" />
           <Text style={styles.emptyTitle}>No photos yet</Text>
           <Text style={styles.emptySubtitle}>
-            Add the quote cards you&apos;ve saved to Photos — curated or personal photo — to build a slideshow.
+            Tap Add to turn your saved quotes into slides, or pick photos from your library.
           </Text>
         </View>
       ) : (
@@ -614,14 +696,14 @@ export default function SlideshowPhotosScreen() {
         onPress={chooseAddMethod}
         disabled={adding}
         accessibilityRole="button"
-        accessibilityLabel="Add photos"
+        accessibilityLabel="Add slides"
       >
         {adding ? (
           <ActivityIndicator color="#0f0e0c" />
         ) : (
           <>
             <IconSymbol name="plus" size={16} color="#0f0e0c" />
-            <Text style={styles.addButtonText}>Add Photos</Text>
+            <Text style={styles.addButtonText}>Add Slides</Text>
           </>
         )}
       </TouchableOpacity>
@@ -721,6 +803,70 @@ const styles = StyleSheet.create({
     fontSize: 17,
     fontWeight: '600',
     color: '#f0ead6',
+  },
+  stepsCard: {
+    marginHorizontal: 16,
+    marginBottom: 8,
+    backgroundColor: 'rgba(201,185,122,0.06)',
+    borderWidth: 1,
+    borderColor: '#4a4540',
+    borderRadius: 14,
+    paddingVertical: 4,
+    paddingHorizontal: 14,
+  },
+  stepRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 10,
+  },
+  stepNum: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    overflow: 'hidden',
+    textAlign: 'center',
+    lineHeight: 24,
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#0f0e0c',
+    backgroundColor: '#c9b97a',
+  },
+  stepBody: {
+    flex: 1,
+  },
+  stepTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#f0ead6',
+  },
+  stepSub: {
+    fontSize: 13,
+    color: '#a89f88',
+    marginTop: 2,
+  },
+  stepButton: {
+    minWidth: 76,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#c9b97a',
+    borderRadius: 10,
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+  },
+  stepButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#c9b97a',
+  },
+  stepButtonPrimary: {
+    backgroundColor: '#c9b97a',
+  },
+  stepButtonPrimaryText: {
+    color: '#0f0e0c',
+  },
+  stepButtonDisabled: {
+    opacity: 0.35,
   },
   settingsToggleRow: {
     flexDirection: 'row',

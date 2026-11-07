@@ -7,6 +7,7 @@ import {
   StyleSheet,
   TouchableOpacity,
   ActivityIndicator,
+  Alert,
  Animated } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { supabase } from '@/lib/supabase';
@@ -14,6 +15,8 @@ import { IconSymbol } from '@/components/ui/IconSymbol';
 import { IconButton } from '@/components/ui/IconButton';
 import { maybeRequestReview } from '@/lib/reviewPrompt';
 import { getFramingLine } from '@/lib/framing';
+import { hasSeenSlideshowNudge, markSlideshowNudgeSeen } from '@/lib/slideshowTip';
+import { promptNewSlideshow } from '@/lib/slideshowCreate';
 import { ScaledText } from '@/components/ScaledText';
 import { FontSizeMenu } from '@/components/FontSizeMenu';
 
@@ -153,6 +156,28 @@ export default function ResultsScreen() {
     }
   };
 
+  // Shown once, the first time anyone saves a quote: nothing else in the
+  // app says saved quotes can become a slideshow with music, and the
+  // feature is otherwise only reachable through unlabeled icons.
+  const maybeOfferSlideshow = async () => {
+    if (await hasSeenSlideshowNudge()) return;
+    await markSlideshowNudgeSeen();
+    Alert.alert(
+      'Saved',
+      'Your saved quotes can become a slideshow with calming music.',
+      [
+        { text: 'Not now', style: 'cancel' },
+        {
+          text: 'Make a slideshow',
+          onPress: () =>
+            promptNewSlideshow((id) =>
+              router.push({ pathname: '/slideshow-photos', params: { collectionId: id } })
+            ),
+        },
+      ]
+    );
+  };
+
   const toggleSave = async (quote: Quote) => {
     const isSaved = saved.includes(quote.id);
     const anim = getSaveAnim(quote.id);
@@ -186,6 +211,7 @@ export default function ResultsScreen() {
       });
       if (!error || error.code === '23505') {
         setSaved((prev) => [...prev, quote.id]);
+        maybeOfferSlideshow();
       }
     }
   };
@@ -211,6 +237,7 @@ export default function ResultsScreen() {
     }));
     await supabase.from('saved_quotes').upsert(rows, { onConflict: 'user_id,entry_id,quote' });
     setSaved(quotes.map((q) => q.id));
+    maybeOfferSlideshow();
   };
 
   const formatDate = (dateString: string) => {

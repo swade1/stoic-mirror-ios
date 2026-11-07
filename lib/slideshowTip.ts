@@ -9,3 +9,15 @@ export async function hasSeenICloudTip(): Promise<boolean> {
 export async function markICloudTipSeen(): Promise<void> {
   await AsyncStorage.setItem(ICLOUD_TIP_SEEN_KEY, 'true');
 }
+
+const SLIDESHOW_NUDGE_SEEN_KEY = 'has_seen_make_slideshow_nudge';
+
+// The one-time "make a slideshow" suggestion shown right after a user's
+// first saved quote on Received Wisdom.
+export async function hasSeenSlideshowNudge(): Promise<boolean> {
+  return (await AsyncStorage.getItem(SLIDESHOW_NUDGE_SEEN_KEY)) !== null;
+}
+
+export async function markSlideshowNudgeSeen(): Promise<void> {
+  await AsyncStorage.setItem(SLIDESHOW_NUDGE_SEEN_KEY, 'true');
+}
