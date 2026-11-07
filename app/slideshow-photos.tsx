@@ -220,7 +220,7 @@ export default function SlideshowPhotosScreen() {
       currentId: soundtrackId,
       soundtracks,
       onAssign: assignSoundtrack,
-      onManage: () => router.push('/soundtracks'),
+      onManage: () => router.push({ pathname: '/soundtracks', params: { pickForCollectionId: collectionId } }),
     });
   };
 

@@ -15,7 +15,7 @@ interface SoundtrackSheetArgs {
 
 // A lightweight action sheet rather than a full-screen picker — lets a user
 // assign, change, or clear a slideshow's soundtrack in place, with a
-// "Manage Soundtracks…" escape hatch to the full library (rename/delete/edit
+// "Manage or Create Soundtracks…" escape hatch to the full library (rename/delete/edit
 // tracks). The current choice is marked with a checkmark prefix, since a
 // native Alert's buttons can't carry any other styling. Shared by the
 // Slideshows list and the slideshow screen so both behave identically.
@@ -27,7 +27,7 @@ export function showSoundtrackSheet({ slideshowName, currentId, soundtracks, onA
       text: currentId === s.id ? `✓ ${s.name}` : s.name,
       onPress: () => onAssign(s.id),
     })),
-    { text: 'Manage Soundtracks…', onPress: onManage },
+    { text: 'Manage or Create Soundtracks…', onPress: onManage },
   ]);
 }
 

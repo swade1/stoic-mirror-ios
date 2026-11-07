@@ -105,14 +105,21 @@ export default function SoundtracksScreen() {
         if (!userId) return;
         const newId = await createSoundtrack(userId, trimmed);
         closePanel();
-        // A brand new soundtrack has no tracks yet — go straight into the
-        // editor so the user can start adding some. It's deliberately NOT
-        // auto-assigned to pickForCollectionId here even when reached as
-        // a picker — assignment should only ever happen from an explicit
-        // tap on a soundtrack in the list, never as a side effect of
-        // creating one, so backing out of the editor lands back on the
-        // picker with the new soundtrack available to choose (or not).
-        router.push({ pathname: '/soundtrack-edit', params: { soundtrackId: newId } });
+        // A brand new soundtrack has no tracks yet, so go straight into the
+        // editor to add some. When reached from a slideshow's music step
+        // ("Change"), the new soundtrack becomes that slideshow's music
+        // right away, and the editor replaces this screen so Back/Done
+        // return to the slideshow rather than to this list.
+        if (pickForCollectionId) {
+          const { error } = await supabase
+            .from('slideshow_collections')
+            .update({ soundtrack_id: newId })
+            .eq('id', pickForCollectionId);
+          if (error) Alert.alert('Could Not Attach Music', error.message);
+          router.replace({ pathname: '/soundtrack-edit', params: { soundtrackId: newId } });
+        } else {
+          router.push({ pathname: '/soundtrack-edit', params: { soundtrackId: newId } });
+        }
       } else if (editingId) {
         await renameSoundtrack(editingId, trimmed);
         closePanel();

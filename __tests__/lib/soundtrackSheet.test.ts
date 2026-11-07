@@ -18,12 +18,12 @@ describe('showSoundtrackSheet', () => {
   it('marks "No music" with a check when nothing is assigned', () => {
     showSoundtrackSheet({ slideshowName: 'Mine', currentId: null, soundtracks, onAssign: jest.fn(), onManage: jest.fn() });
     expect(alertSpy.mock.calls[0][0]).toBe('Choose music');
-    expect(buttons().map((b) => b.text)).toEqual(['Cancel', '✓ No music', 'Rain', 'Evening', 'Manage Soundtracks…']);
+    expect(buttons().map((b) => b.text)).toEqual(['Cancel', '✓ No music', 'Rain', 'Evening', 'Manage or Create Soundtracks…']);
   });
 
   it('marks the assigned soundtrack with a check', () => {
     showSoundtrackSheet({ slideshowName: 'Mine', currentId: 'b', soundtracks, onAssign: jest.fn(), onManage: jest.fn() });
-    expect(buttons().map((b) => b.text)).toEqual(['Cancel', 'No music', 'Rain', '✓ Evening', 'Manage Soundtracks…']);
+    expect(buttons().map((b) => b.text)).toEqual(['Cancel', 'No music', 'Rain', '✓ Evening', 'Manage or Create Soundtracks…']);
   });
 
   it('routes each choice to the right callback', () => {
