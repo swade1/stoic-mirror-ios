@@ -51,11 +51,11 @@ Deno.serve(async (req) => {
         to: [email.trim().toLowerCase()],
         subject: "Welcome to The Stoic Mirror",
         text:
-          `Thank you for signing up.\n\nWe'll email you once, when The Stoic Mirror is ready to download. No spam, and we never share or sell your address.\n\n— The Stoic Mirror\n\nUnsubscribe anytime: ${unsubscribeUrl}\n`,
+          `Thank you for signing up.\n\nWe'll let you know when The Stoic Mirror is ready to download. We never share or sell your address.\n\n— The Stoic Mirror\n\nUnsubscribe anytime: ${unsubscribeUrl}\n`,
         html:
           `<div style="font-family:Georgia,serif;font-size:17px;line-height:1.6;color:#222;max-width:520px">` +
           `<p>Thank you for signing up.</p>` +
-          `<p>We'll email you once, when <strong>The Stoic Mirror</strong> is ready to download. No spam, and we never share or sell your address.</p>` +
+          `<p>We'll let you know when <strong>The Stoic Mirror</strong> is ready to download. We never share or sell your address.</p>` +
           `<p>— The Stoic Mirror</p>` +
           `<p style="font-size:13px;color:#777"><a href="${unsubscribeUrl}" style="color:#777">Unsubscribe</a> anytime.</p></div>`,
         headers: { "List-Unsubscribe": `<${unsubscribeUrl}>` },
