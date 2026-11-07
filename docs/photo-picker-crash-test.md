@@ -1,7 +1,7 @@
 # Manual test: photo-picker stability
 
 Checks whether `choosePersonalPhoto()` in [app/quote-cards.tsx](../app/quote-cards.tsx)
-(the "Your Photo" picker, called from the quote-card background picker) can
+(the "Use my own photo" picker, called from the quote-card background picker) can
 crash or misbehave under adverse conditions. The call isn't wrapped in a
 try/catch, so this needs to be exercised by hand rather than proven safe by
 reading the code.
@@ -16,7 +16,7 @@ outright, shows a red-box/error screen, or just silently does nothing.
 
 ## Setup
 Get to the picker: History or Counsel tab → tap a quote's photo-card icon →
-in the background picker, tap "Your Photo".
+in the background picker, tap "Use my own photo".
 
 ## Cases
 
@@ -32,16 +32,16 @@ in the background picker, tap "Your Photo".
    nothing changed (this path already has an early `return` in the code —
    should be safe, but confirm the picker UI doesn't get stuck).
 
-4. **Rapid double-tap "Your Photo"** — tap it twice quickly before the
+4. **Rapid double-tap "Use my own photo"** — tap it twice quickly before the
    picker sheet finishes presenting. Confirm only one picker opens, and
    picking a photo afterward doesn't leave the app in a weird state.
 
 5. **Permission denied** — in Settings, revoke Photos access for the app,
-   then tap "Your Photo". Confirm the app shows some reasonable response
+   then tap "Use my own photo". Confirm the app shows some reasonable response
    (a permission prompt or message) rather than crashing.
 
 6. **Permission newly granted mid-flow** — with Photos access set to
-   "Limited" or denied, tap "Your Photo", and if iOS offers a
+   "Limited" or denied, tap "Use my own photo", and if iOS offers a
    grant-access prompt, grant it from inside that flow. Confirm the picker
    still opens correctly afterward.
 
@@ -54,7 +54,7 @@ in the background picker, tap "Your Photo".
    the app doesn't crash or leave the picker in a broken state.
 
 9. **Picking the same photo repeatedly** — pick a photo, go back to the
-   background picker, tap "Your Photo" again, and pick the *same* photo a
+   background picker, tap "Use my own photo" again, and pick the *same* photo a
    second time. Confirm no crash and the pan/zoom position resets cleanly
    each time (per the reset logic in `choosePersonalPhoto`).
 

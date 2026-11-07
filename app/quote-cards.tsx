@@ -906,11 +906,12 @@ export default function QuoteCardsScreen() {
 
           {isPersonalPhotoFallback && (
             <Text style={styles.personalPhotoFallbackNotice}>
-              This card originally used a personal photo, which isn&apos;t saved in the app. To edit, tap &ldquo;Your Photo&rdquo; and select the original unedited photo or another personal photo. Alternatively, select a new stock photo for this quote.
+              This card originally used a personal photo, which isn&apos;t saved in the app. To edit, tap &ldquo;Use my own photo&rdquo; and select the original unedited photo or another personal photo. Alternatively, select a new stock photo for this quote.
             </Text>
           )}
 
-          <Text style={styles.pickerLabel}>Choose a background</Text>
+          <Text style={[styles.pickerLabel, styles.pickerLabelTight]}>Choose a background</Text>
+          <Text style={styles.pickerHint}>Pick one of ours, or use your own photo.</Text>
           {backgroundCategories.length > 0 && (
             <View style={styles.categoryChipContent}>
               {['all', ...backgroundCategories].map((cat) => {
@@ -960,7 +961,7 @@ export default function QuoteCardsScreen() {
               style={styles.personalPhotoTile}
             >
               <IconSymbol name="photo.badge.plus" size={28} color="#c9b97a" />
-              <Text style={styles.personalPhotoTileText}>Your Photo</Text>
+              <Text style={styles.personalPhotoTileText} numberOfLines={2}>Use my own photo</Text>
             </TouchableOpacity>
             {filteredBackgrounds.length === 0 ? (
               <Text style={styles.pickerEmptyText}>
@@ -1479,9 +1480,19 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 6,
   },
+  pickerLabelTight: {
+    marginBottom: 4,
+  },
+  pickerHint: {
+    fontSize: 13,
+    color: '#a89f88',
+    marginBottom: 12,
+  },
   personalPhotoTileText: {
     fontSize: 11,
     color: '#c9b97a',
+    textAlign: 'center',
+    paddingHorizontal: 6,
   },
   card: {
     flex: 1,

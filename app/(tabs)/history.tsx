@@ -303,7 +303,6 @@ export default function HistoryScreen() {
           something to put in a slideshow, say so in words. */}
       {!loading && savedQuotes.length > 0 && !searchVisible && (
         <View style={styles.slideshowBanner}>
-          <IconSymbol name="play.rectangle" size={24} color="#c9b97a" accessibilityElementsHidden importantForAccessibility="no" />
           <View style={styles.slideshowBannerText}>
             <Text style={styles.slideshowBannerTitle}>Make a slideshow</Text>
             <Text style={styles.slideshowBannerSub}>Turn your saved quotes into cards that play with calming music.</Text>
@@ -525,7 +524,8 @@ export default function HistoryScreen() {
                   <IconSymbol name="lightbulb.fill" size={12} color="#c4b99e" />
                   <Text style={styles.counselLabel}>Counsel</Text>
                 </View>
-                <IconButton
+                <TouchableOpacity
+                  style={styles.photoCardButton}
                   onPress={() => router.push({
                     pathname: '/quote-cards',
                     params: { quoteId: currentQuote?.id, textSource: 'counsel', ...(hasCounselCard ? { resume: '1' } : {}) },
@@ -534,8 +534,9 @@ export default function HistoryScreen() {
                   accessibilityLabel={hasCounselCard ? 'Edit this photo card' : 'Turn this counsel into a photo card'}
                   hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                 >
-                  <IconSymbol name="photo.on.rectangle" size={18} color="#c9b97a" />
-                </IconButton>
+                  <IconSymbol name="photo.on.rectangle" size={14} color="#c9b97a" />
+                  <Text style={styles.photoCardButtonText}>{hasCounselCard ? 'Edit photo card' : 'Make a photo card'}</Text>
+                </TouchableOpacity>
               </View>
               <ScaledText style={styles.counselText}>
                 {expandedCounsel
@@ -568,7 +569,8 @@ export default function HistoryScreen() {
                   <IconSymbol name="text.quote" size={12} color="#c9b97a" />
                   <Text style={styles.quoteLabel}>The Philosophers</Text>
                 </View>
-                <IconButton
+                <TouchableOpacity
+                  style={styles.photoCardButton}
                   onPress={() => router.push({
                     pathname: '/quote-cards',
                     params: { quoteId: currentQuote?.id, textSource: 'quote', ...(hasQuoteCard ? { resume: '1' } : {}) },
@@ -577,8 +579,9 @@ export default function HistoryScreen() {
                   accessibilityLabel={hasQuoteCard ? 'Edit this photo card' : 'Turn this quote into a photo card'}
                   hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                 >
-                  <IconSymbol name="photo.on.rectangle" size={18} color="#c9b97a" />
-                </IconButton>
+                  <IconSymbol name="photo.on.rectangle" size={14} color="#c9b97a" />
+                  <Text style={styles.photoCardButtonText}>{hasQuoteCard ? 'Edit photo card' : 'Make a photo card'}</Text>
+                </TouchableOpacity>
               </View>
               {getFramingLine(currentQuote.matched_concern) && (
                 <Text style={styles.framingLine}>{getFramingLine(currentQuote.matched_concern)}</Text>
@@ -740,6 +743,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 12,
     marginHorizontal: 16,
+    marginTop: 10,
     marginBottom: 12,
     backgroundColor: 'rgba(201,185,122,0.08)',
     borderWidth: 1,
@@ -748,8 +752,24 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 12,
   },
+  photoCardButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    borderWidth: 1,
+    borderColor: '#c9b97a',
+    borderRadius: 999,
+    paddingVertical: 5,
+    paddingHorizontal: 10,
+  },
+  photoCardButtonText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#c9b97a',
+  },
   slideshowOnlyLink: {
     marginHorizontal: 20,
+    marginTop: 10,
     marginBottom: 12,
     alignSelf: 'flex-start',
   },
