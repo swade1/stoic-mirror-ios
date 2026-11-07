@@ -377,6 +377,9 @@ const styles = StyleSheet.create({
   panelInput: {
     fontSize: 16,
     color: '#f0ead6',
+    // Vertical padding gives the text room so descenders (g, y) and the
+    // placeholder are not clipped along the bottom edge.
+    paddingVertical: 6,
   },
   panelActions: {
     flexDirection: 'row',
