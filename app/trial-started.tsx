@@ -1,5 +1,5 @@
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { IconSymbol } from '@/components/ui/IconSymbol';
@@ -20,9 +20,12 @@ export default function TrialStartedScreen() {
   // Backs the paywall's "We'll remind you 1 day before your trial ends".
   // This screen appears right after sign-up, so it's where the reminder is
   // scheduled (and where iOS asks permission to send it).
+  const [reminderDenied, setReminderDenied] = useState(false);
   useEffect(() => {
     if (!trialEnd) return;
-    scheduleTrialEndReminder(new Date(trialEnd)).catch(() => {});
+    scheduleTrialEndReminder(new Date(trialEnd))
+      .then((result) => setReminderDenied(result === 'denied'))
+      .catch(() => {});
   }, [trialEnd]);
 
   return (
@@ -72,6 +75,13 @@ export default function TrialStartedScreen() {
           charged — no questions asked.
         </Text>
 
+        {reminderDenied && (
+          <Text style={styles.reminderNote}>
+            Notifications are off, so we can&apos;t remind you before your trial ends. You can turn them on in your
+            iPhone&apos;s Settings, or set your own reminder for {trialEndString}.
+          </Text>
+        )}
+
         <TouchableOpacity
           style={styles.button}
           onPress={() => router.replace('/(tabs)')}
@@ -85,6 +95,13 @@ export default function TrialStartedScreen() {
 }
 
 const styles = StyleSheet.create({
+  reminderNote: {
+    fontSize: 13,
+    lineHeight: 19,
+    color: '#a89f88',
+    textAlign: 'center',
+    marginBottom: 20,
+  },
   container: {
     flex: 1,
     backgroundColor: '#0f0e0c',
