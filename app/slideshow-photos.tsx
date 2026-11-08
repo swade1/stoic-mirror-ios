@@ -600,7 +600,13 @@ export default function SlideshowPhotosScreen() {
         accessibilityState={{ expanded: showSettings }}
         accessibilityLabel={`${showSettings ? 'Hide' : 'Show'} slideshow settings`}
       >
-        <Text style={styles.settingsToggleText}>Slideshow Settings</Text>
+        <View style={styles.settingsToggleBody}>
+          <Text style={styles.settingsToggleText}>Slideshow Settings</Text>
+          <Text style={styles.settingsToggleSummary} numberOfLines={1}>
+            {`${durationSeconds}s per slide · ${TRANSITION_OPTIONS.find((o) => o.value === transition)?.label ?? 'Fade'}${soundtrackId !== null ? ' · Volume' : ''}`}
+          </Text>
+        </View>
+        <Text style={styles.settingsToggleAction}>{showSettings ? 'Hide' : 'Change'}</Text>
         <IconSymbol name={showSettings ? 'chevron.up' : 'chevron.down'} size={16} color="#c9b97a" />
       </TouchableOpacity>
 
@@ -929,13 +935,30 @@ const styles = StyleSheet.create({
   settingsToggleRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'flex-start',
-    gap: 8,
-    marginHorizontal: 20,
+    gap: 10,
+    marginHorizontal: 16,
     marginBottom: 12,
-    paddingVertical: 10,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    backgroundColor: 'rgba(201,185,122,0.06)',
+    borderWidth: 1,
+    borderColor: '#4a4540',
+    borderRadius: 14,
+  },
+  settingsToggleBody: {
+    flex: 1,
   },
   settingsToggleText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#f0ead6',
+  },
+  settingsToggleSummary: {
+    fontSize: 13,
+    color: '#a89f88',
+    marginTop: 2,
+  },
+  settingsToggleAction: {
     fontSize: 14,
     fontWeight: '600',
     color: '#c9b97a',
