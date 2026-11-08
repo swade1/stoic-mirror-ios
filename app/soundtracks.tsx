@@ -60,19 +60,9 @@ export default function SoundtracksScreen() {
 
   useFocusEffect(useCallback(() => { load(); }, [load]));
 
-  const assignAndReturn = async (soundtrackId: string | null) => {
-    if (!pickForCollectionId) return;
-    await supabase.from('slideshow_collections').update({ soundtrack_id: soundtrackId }).eq('id', pickForCollectionId);
-    if (router.canGoBack()) {
-      router.back();
-    } else {
-      router.replace({ pathname: '/slideshow-photos', params: { collectionId: pickForCollectionId } });
-    }
-  };
-
-  // Tapping a soundtrack's name opens it for editing, the same everywhere —
-  // picking which soundtrack a slideshow uses is done from that slideshow's
-  // music sheet (Choose/Change), not from this list.
+  // Tapping a soundtrack's name opens it for editing. Picking which
+  // soundtrack a slideshow uses is done from that slideshow's music sheet
+  // (Choose/Change); this screen is only for managing and creating.
   const selectRow = (soundtrack: Soundtrack) => {
     router.push({ pathname: '/soundtrack-edit', params: { soundtrackId: soundtrack.id } });
   };
@@ -174,7 +164,7 @@ export default function SoundtracksScreen() {
         >
           <IconSymbol name="chevron.left" size={16} color="#c9b97a" />
         </IconButton>
-        <Text style={styles.headerTitle}>{pickForCollectionId ? 'Choose Soundtrack' : 'Soundtracks'}</Text>
+        <Text style={styles.headerTitle}>Soundtracks</Text>
         <IconButton onPress={openNewSoundtrackPanel} accessibilityRole="button" accessibilityLabel="New soundtrack">
           <IconSymbol name="plus" size={20} color="#c9b97a" />
         </IconButton>
@@ -187,20 +177,6 @@ export default function SoundtracksScreen() {
           data={soundtracks}
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.list}
-          ListHeaderComponent={
-            pickForCollectionId ? (
-              <TouchableOpacity
-                style={styles.row}
-                onPress={() => assignAndReturn(null)}
-                accessibilityRole="button"
-                accessibilityLabel="No soundtrack"
-              >
-                <View style={styles.rowText}>
-                  <Text style={styles.rowTitle}>None</Text>
-                </View>
-              </TouchableOpacity>
-            ) : null
-          }
           ListEmptyComponent={
             <View style={styles.emptyState}>
               <IconSymbol name="music.note" size={40} color="#6a6050" accessibilityElementsHidden importantForAccessibility="no" />
