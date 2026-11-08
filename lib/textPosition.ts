@@ -23,3 +23,17 @@ export function pixelsToFraction(pixels: number, dimension: number): number {
 export function fractionToPixels(fraction: number, dimension: number): number {
   return clampFraction(fraction) * dimension;
 }
+
+// The band of the card text must stay inside, as fractions of card height.
+// The editor draws dashed guides at these lines, and drag/placement keep a
+// text block between them, so text is never cropped by the card's edge or
+// by the screen furniture around a shared video.
+export const TEXT_SAFE_ZONE = { top: 0.08, bottom: 0.86 } as const;
+
+// Clamps a block's top edge (pixels) so the whole block sits inside the safe
+// band. A block taller than the band is pinned to the top of the band.
+export function clampTextTop(top: number, blockHeight: number, cardHeight: number): number {
+  const min = TEXT_SAFE_ZONE.top * cardHeight;
+  const max = Math.max(min, TEXT_SAFE_ZONE.bottom * cardHeight - blockHeight);
+  return Math.min(max, Math.max(min, top));
+}

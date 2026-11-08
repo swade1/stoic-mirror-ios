@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { LayoutChangeEvent, StyleSheet, Text, TextInput, type TextStyle } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, { runOnJS, useAnimatedStyle, useSharedValue } from 'react-native-reanimated';
-import { DEFAULT_TEXT_POSITION, fractionToPixels, pixelsToFraction } from '@/lib/textPosition';
+import { DEFAULT_TEXT_POSITION, TEXT_SAFE_ZONE, clampTextTop, fractionToPixels, pixelsToFraction } from '@/lib/textPosition';
 import { isLightTextColor, type TextAlignValue } from '@/lib/textStyleOptions';
 
 export interface TextBox {
@@ -113,7 +113,7 @@ export function DraggableTextBox({
     const fx = box.offsetX ?? defaultOffsetX;
     const fy = box.offsetY ?? defaultOffsetY;
     translateX.value = fractionToPixels(fx, cardWidth) - size.width * boxAnchorX;
-    translateY.value = fractionToPixels(fy, cardHeight) - size.height / 2;
+    translateY.value = clampTextTop(fractionToPixels(fy, cardHeight) - size.height / 2, size.height, cardHeight);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [box.offsetX, box.offsetY, cardWidth, cardHeight, size.width, size.height, boxAnchorX, defaultOffsetX, defaultOffsetY]);
 
@@ -137,9 +137,12 @@ export function DraggableTextBox({
     })
     .onUpdate((e) => {
       const maxX = Math.max(0, cardWidthShared.value - widthShared.value);
-      const maxY = Math.max(0, cardHeightShared.value - heightShared.value);
+      // Vertical movement stays inside the safe band (see TEXT_SAFE_ZONE),
+      // matching clampTextTop — inlined because this runs as a worklet.
+      const minY = TEXT_SAFE_ZONE.top * cardHeightShared.value;
+      const maxY = Math.max(minY, TEXT_SAFE_ZONE.bottom * cardHeightShared.value - heightShared.value);
       translateX.value = Math.min(maxX, Math.max(0, startX.value + e.translationX));
-      translateY.value = Math.min(maxY, Math.max(0, startY.value + e.translationY));
+      translateY.value = Math.min(maxY, Math.max(minY, startY.value + e.translationY));
     })
     .onEnd(() => {
       runOnJS(persistPosition)(translateX.value, translateY.value);

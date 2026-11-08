@@ -21,3 +21,15 @@ export async function hasSeenSlideshowNudge(): Promise<boolean> {
 export async function markSlideshowNudgeSeen(): Promise<void> {
   await AsyncStorage.setItem(SLIDESHOW_NUDGE_SEEN_KEY, 'true');
 }
+
+const TEXT_BOX_HINT_SEEN_KEY = 'has_seen_text_box_hint';
+
+// The card editor's "drag to move, tap to edit" hint, shown until the user
+// first moves or edits a text block.
+export async function hasSeenTextBoxHint(): Promise<boolean> {
+  return (await AsyncStorage.getItem(TEXT_BOX_HINT_SEEN_KEY)) !== null;
+}
+
+export async function markTextBoxHintSeen(): Promise<void> {
+  await AsyncStorage.setItem(TEXT_BOX_HINT_SEEN_KEY, 'true');
+}

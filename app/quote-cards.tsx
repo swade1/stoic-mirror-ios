@@ -31,7 +31,8 @@ import {
   getBackgroundCategories,
   type QuoteBackground,
 } from '@/lib/quoteBackgrounds';
-import { DEFAULT_TEXT_POSITION } from '@/lib/textPosition';
+import { DEFAULT_TEXT_POSITION, TEXT_SAFE_ZONE } from '@/lib/textPosition';
+import { hasSeenTextBoxHint, markTextBoxHintSeen } from '@/lib/slideshowTip';
 import { flattenManualLineBreaks } from '@/lib/quoteCardText';
 import {
   TEXT_COLOR_OPTIONS,
@@ -216,6 +217,17 @@ export default function QuoteCardsScreen() {
   const [cardSize, setCardSize] = useState({ width: 0, height: 0 });
 
   const cardRef = useRef<View>(null);
+  // "Drag to move, tap to edit" cue — shown until the user first moves or
+  // edits a text block (then remembered, so it never nags again).
+  const [showTextHint, setShowTextHint] = useState(false);
+  useEffect(() => {
+    hasSeenTextBoxHint().then((seen) => setShowTextHint(!seen)).catch(() => {});
+  }, []);
+  const dismissTextHint = () => {
+    if (!showTextHint) return;
+    setShowTextHint(false);
+    markTextBoxHintSeen().catch(() => {});
+  };
   // Remembers horizontal scroll position in the background thumbnail
   // strip so reopening the picker (e.g. via the "change background" icon
   // after trying a photo) returns to where the user was browsing, instead
@@ -621,6 +633,7 @@ export default function QuoteCardsScreen() {
   // untouched cards keep writing nothing to Supabase.
   const startEditingBox = (id: string) => {
     if (!quote) return;
+    dismissTextHint();
     setQuote((prev) => (prev && !prev.card_text_boxes ? { ...prev, card_text_boxes: deriveDefaultBoxes(prev) } : prev));
     setShowTextStylePanel(false);
     setStylingBoxId(null);
@@ -636,6 +649,7 @@ export default function QuoteCardsScreen() {
   };
 
   const persistBoxPosition = (id: string, offsetX: number, offsetY: number) => {
+    dismissTextHint();
     setQuote((prev) => {
       if (!prev) return prev;
       const boxes = prev.card_text_boxes ?? deriveDefaultBoxes(prev);
@@ -1092,6 +1106,21 @@ export default function QuoteCardsScreen() {
             ))}
           </View>
 
+          {/* Guides sit outside cardRef on purpose, so they are never part of
+              a saved or exported card. Text stays between the two dashed
+              lines, which keeps it clear of the card's edges. */}
+          {cardSize.height > 0 && (
+            <View style={StyleSheet.absoluteFill} pointerEvents="none">
+              <View style={[styles.safeGuide, { top: cardSize.height * TEXT_SAFE_ZONE.top }]} />
+              <View style={[styles.safeGuide, { top: cardSize.height * TEXT_SAFE_ZONE.bottom }]} />
+              {showTextHint && !editingBoxId && (
+                <View style={[styles.textHint, { top: cardSize.height * TEXT_SAFE_ZONE.top + 10 }]}>
+                  <Text style={styles.textHintText}>Drag text to move it · Tap it to edit</Text>
+                </View>
+              )}
+            </View>
+          )}
+
           <TouchableOpacity
             style={[styles.backButtonFloating, { top: insets.top + 12 }]}
             onPress={() => router.back()}
@@ -1479,6 +1508,27 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#0f0e0c',
     overflow: 'hidden',
+  },
+  safeGuide: {
+    position: 'absolute',
+    left: 12,
+    right: 12,
+    height: 0,
+    borderTopWidth: 1,
+    borderStyle: 'dashed',
+    borderColor: 'rgba(240,234,214,0.55)',
+  },
+  textHint: {
+    position: 'absolute',
+    alignSelf: 'center',
+    backgroundColor: 'rgba(15,14,12,0.7)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 14,
+  },
+  textHintText: {
+    fontSize: 12,
+    color: '#f0ead6',
   },
   backButtonFloating: {
     position: 'absolute',
