@@ -70,12 +70,11 @@ export default function SoundtracksScreen() {
     }
   };
 
+  // Tapping a soundtrack's name opens it for editing, the same everywhere —
+  // picking which soundtrack a slideshow uses is done from that slideshow's
+  // music sheet (Choose/Change), not from this list.
   const selectRow = (soundtrack: Soundtrack) => {
-    if (pickForCollectionId) {
-      assignAndReturn(soundtrack.id);
-    } else {
-      router.push({ pathname: '/soundtrack-edit', params: { soundtrackId: soundtrack.id } });
-    }
+    router.push({ pathname: '/soundtrack-edit', params: { soundtrackId: soundtrack.id } });
   };
 
   // Arriving from "Choose music" with no soundtracks yet: skip the empty list
@@ -236,7 +235,7 @@ export default function SoundtracksScreen() {
               style={styles.row}
               onPress={() => selectRow(item)}
               accessibilityRole="button"
-              accessibilityLabel={`Choose ${item.name}`}
+              accessibilityLabel={`Edit ${item.name}`}
             >
               <View style={styles.rowText}>
                 <Text style={styles.rowTitle}>{item.name}</Text>
@@ -246,17 +245,6 @@ export default function SoundtracksScreen() {
                   {item.usedByNames.length > 0 ? `Used by ${item.usedByNames.join(', ')}` : 'Not used by any slideshow'}
                 </Text>
               </View>
-              {pickForCollectionId && (
-                <IconButton
-                  onPress={() => router.push({ pathname: '/soundtrack-edit', params: { soundtrackId: item.id } })}
-                  accessibilityRole="button"
-                  accessibilityLabel={`Edit ${item.name}'s tracks`}
-                  hitSlop={8}
-                  style={styles.rowAction}
-                >
-                  <IconSymbol name="gearshape" size={16} color="#a89f88" />
-                </IconButton>
-              )}
               <IconButton
                 onPress={() => openRenamePanel(item)}
                 accessibilityRole="button"
