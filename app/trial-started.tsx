@@ -4,6 +4,7 @@ import { Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'rea
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { IconSymbol } from '@/components/ui/IconSymbol';
 import { scheduleTrialEndReminder } from '@/lib/notifications';
+import { cancelByFrom, formatTrialDate } from '@/lib/trial';
 
 export default function TrialStartedScreen() {
   const router = useRouter();
@@ -12,10 +13,8 @@ export default function TrialStartedScreen() {
 
   const isMonthly = plan === 'monthly';
   const trialEndDate = trialEnd ? new Date(trialEnd) : new Date();
-  const trialEndString = trialEndDate.toLocaleDateString('en-US', {
-    month: 'long',
-    day: 'numeric',
-  });
+  const trialEndString = formatTrialDate(trialEndDate);
+  const cancelByString = formatTrialDate(cancelByFrom(trialEndDate));
 
   // Backs the paywall's "We'll remind you 1 day before your trial ends".
   // This screen appears right after sign-up, so it's where the reminder is
@@ -71,14 +70,14 @@ export default function TrialStartedScreen() {
         </View>
 
         <Text style={styles.reassurance}>
-          You can cancel from Settings any time before {trialEndString} and you won&apos;t be
-          charged — no questions asked.
+          Cancel anytime and keep full access until {trialEndString}. To avoid being charged, cancel
+          by {cancelByString} in the app under Settings → Subscription.
         </Text>
 
         {reminderDenied && (
           <Text style={styles.reminderNote}>
             Notifications are off, so we can&apos;t remind you before your trial ends. You can turn them on in your
-            iPhone&apos;s Settings, or set your own reminder for {trialEndString}.
+            iPhone&apos;s Settings, or set your own reminder to cancel by {cancelByString}.
           </Text>
         )}
 

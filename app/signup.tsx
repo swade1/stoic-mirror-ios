@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabase';
+import { trialEndFrom } from '@/lib/trial';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import React, { useState } from 'react';
 import {
@@ -43,8 +44,7 @@ export default function SignUp() {
     // the listener fires; every failure branch below removes it again so
     // a failed or already-registered attempt doesn't leave it dangling
     // for some unrelated later sign-in to pick up.
-    const trialEnd = new Date();
-    trialEnd.setDate(trialEnd.getDate() + 3);
+    const trialEnd = trialEndFrom(new Date());
     await AsyncStorage.setItem('pending_trial_welcome', JSON.stringify({
       plan: plan === 'monthly' ? 'monthly' : 'annual',
       trialEnd: trialEnd.toISOString(),

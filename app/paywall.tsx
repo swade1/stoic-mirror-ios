@@ -9,6 +9,7 @@ import {
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { IconSymbol } from '@/components/ui/IconSymbol';
+import { trialEndFrom, cancelByFrom, formatTrialDate } from '@/lib/trial';
 
 const SOCIAL_PROOF = [
   {
@@ -34,12 +35,9 @@ export default function PaywallScreen() {
   const [selected, setSelected] = React.useState<'annual' | 'monthly'>('annual');
 
   // Calculate trial end date
-  const trialEndDate = new Date();
-  trialEndDate.setDate(trialEndDate.getDate() + 3);
-  const trialEndString = trialEndDate.toLocaleDateString('en-US', {
-    month: 'long',
-    day: 'numeric',
-  });
+  const trialEndDate = trialEndFrom(new Date());
+  const trialEndString = formatTrialDate(trialEndDate);
+  const cancelByString = formatTrialDate(cancelByFrom(trialEndDate));
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
@@ -51,7 +49,7 @@ export default function PaywallScreen() {
         <View style={styles.header}>
           <Text style={styles.headline}>Support the practice.</Text>
           <Text style={styles.subheadline}>
-            Start your 3-day free trial. Cancel anytime.
+            Start your 3-day free trial. Cancel anytime and keep full access until it ends.
           </Text>
         </View>
 
@@ -77,8 +75,8 @@ export default function PaywallScreen() {
             <View style={[styles.timelineDot, styles.timelineDotMuted]} />
             <View style={styles.timelineText}>
               <Text style={styles.timelineTitle}>{trialEndString} — Trial ends</Text>
-              <Text style={styles.timelineSubtitle}>Cancel before this date for free</Text>
-              <Text style={styles.timelineSubtitle}>We&apos;ll remind you 1 day before your trial ends</Text>
+              <Text style={styles.timelineSubtitle}>Cancel by {cancelByString} to avoid being charged</Text>
+              <Text style={styles.timelineSubtitle}>We&apos;ll remind you before your trial ends</Text>
             </View>
           </View>
           <View style={styles.timelineLine} />
@@ -183,8 +181,9 @@ export default function PaywallScreen() {
 
         {/* Disclaimer */}
         <Text style={styles.disclaimer}>
-          Cancel anytime before trial ends at no charge. Billed through Apple. 
-          Subscription auto-renews unless cancelled 24 hours before renewal date.
+          Payment will be charged to your Apple Account at the end of the free trial. Your subscription
+          renews automatically unless you cancel at least 24 hours before the end of the trial or
+          current period. Manage or cancel anytime in the app under Settings → Subscription.
         </Text>
       </ScrollView>
     </View>
