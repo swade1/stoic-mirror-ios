@@ -26,6 +26,13 @@ describe('showSoundtrackSheet', () => {
     expect(buttons().map((b) => b.text)).toEqual(['Cancel', 'No music', 'Rain', '✓ Evening', 'Manage or Create Soundtracks…']);
   });
 
+  it('skips the sheet and starts a new soundtrack when there are none', () => {
+    const onManage = jest.fn();
+    showSoundtrackSheet({ slideshowName: 'Mine', currentId: null, soundtracks: [], onAssign: jest.fn(), onManage });
+    expect(alertSpy).not.toHaveBeenCalled();
+    expect(onManage).toHaveBeenCalledWith(true);
+  });
+
   it('routes each choice to the right callback', () => {
     const onAssign = jest.fn();
     const onManage = jest.fn();

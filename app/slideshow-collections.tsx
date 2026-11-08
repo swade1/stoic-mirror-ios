@@ -214,7 +214,7 @@ export default function SlideshowCollectionsScreen() {
       currentId: collection.soundtrackId,
       soundtracks,
       onAssign: (id) => assignSoundtrack(collection, id),
-      onManage: () => router.push({ pathname: '/soundtracks', params: { pickForCollectionId: collection.id } }),
+      onManage: (startNew) => router.push({ pathname: '/soundtracks', params: { pickForCollectionId: collection.id, ...(startNew ? { startNew: '1' } : {}) } }),
     });
   };
 

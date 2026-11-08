@@ -10,7 +10,9 @@ interface SoundtrackSheetArgs {
   currentId: string | null;
   soundtracks: SoundtrackOption[];
   onAssign: (soundtrackId: string | null) => void;
-  onManage: () => void;
+  // startNew is true when there are no soundtracks yet, so the screen can
+  // open straight to naming a new one.
+  onManage: (startNew?: boolean) => void;
 }
 
 // A lightweight action sheet rather than a full-screen picker — lets a user
@@ -20,6 +22,12 @@ interface SoundtrackSheetArgs {
 // native Alert's buttons can't carry any other styling. Shared by the
 // Slideshows list and the slideshow screen so both behave identically.
 export function showSoundtrackSheet({ slideshowName, currentId, soundtracks, onAssign, onManage }: SoundtrackSheetArgs) {
+  // Nothing to choose from yet: a sheet offering only "No music" would be a
+  // dead end, so go straight to creating the first soundtrack.
+  if (soundtracks.length === 0) {
+    onManage(true);
+    return;
+  }
   Alert.alert('Choose music', slideshowName, [
     { text: 'Cancel', style: 'cancel' },
     { text: currentId === null ? '✓ No music' : 'No music', onPress: () => onAssign(null) },
@@ -27,7 +35,7 @@ export function showSoundtrackSheet({ slideshowName, currentId, soundtracks, onA
       text: currentId === s.id ? `✓ ${s.name}` : s.name,
       onPress: () => onAssign(s.id),
     })),
-    { text: 'Manage or Create Soundtracks…', onPress: onManage },
+    { text: 'Manage or Create Soundtracks…', onPress: () => onManage() },
   ]);
 }
 

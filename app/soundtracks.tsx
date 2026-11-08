@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import {
   View,
@@ -35,7 +35,7 @@ import { listSoundtracksWithCounts, createSoundtrack, renameSoundtrack, deleteSo
 export default function SoundtracksScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { pickForCollectionId } = useLocalSearchParams<{ pickForCollectionId?: string }>();
+  const { pickForCollectionId, startNew } = useLocalSearchParams<{ pickForCollectionId?: string; startNew?: string }>();
   const [userId, setUserId] = useState<string | null>(null);
   const [soundtracks, setSoundtracks] = useState<Soundtrack[]>([]);
   const [loading, setLoading] = useState(true);
@@ -77,6 +77,16 @@ export default function SoundtracksScreen() {
       router.push({ pathname: '/soundtrack-edit', params: { soundtrackId: soundtrack.id } });
     }
   };
+
+  // Arriving from "Choose music" with no soundtracks yet: skip the empty list
+  // and open the name box straight away (once).
+  const startNewHandled = useRef(false);
+  useEffect(() => {
+    if (startNew && !loading && !startNewHandled.current) {
+      startNewHandled.current = true;
+      openNewSoundtrackPanel();
+    }
+  }, [startNew, loading]);
 
   const openNewSoundtrackPanel = () => {
     setIsCreating(true);
@@ -197,9 +207,29 @@ export default function SoundtracksScreen() {
               <IconSymbol name="music.note" size={40} color="#6a6050" accessibilityElementsHidden importantForAccessibility="no" />
               <Text style={styles.emptyTitle}>No soundtracks yet</Text>
               <Text style={styles.emptySubtitle}>
-                Create a soundtrack to build a reusable set of tracks you can assign to any slideshow.
+                A soundtrack is a set of calming tracks that plays with your slideshow. Make one, then use it on any slideshow.
               </Text>
+              <TouchableOpacity
+                style={styles.newSoundtrackButton}
+                onPress={openNewSoundtrackPanel}
+                accessibilityRole="button"
+                accessibilityLabel="Create a soundtrack"
+              >
+                <Text style={styles.newSoundtrackButtonText}>Create a Soundtrack</Text>
+              </TouchableOpacity>
             </View>
+          }
+          ListFooterComponent={
+            soundtracks.length > 0 ? (
+              <TouchableOpacity
+                style={[styles.newSoundtrackButton, styles.newSoundtrackFooter]}
+                onPress={openNewSoundtrackPanel}
+                accessibilityRole="button"
+                accessibilityLabel="Create a new soundtrack"
+              >
+                <Text style={styles.newSoundtrackButtonText}>+ New Soundtrack</Text>
+              </TouchableOpacity>
+            ) : null
           }
           renderItem={({ item }) => (
             <TouchableOpacity
@@ -321,14 +351,32 @@ const styles = StyleSheet.create({
     paddingTop: 80,
     gap: 12,
   },
+  newSoundtrackButton: {
+    marginTop: 12,
+    borderWidth: 1,
+    borderColor: '#c9b97a',
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    alignItems: 'center',
+  },
+  newSoundtrackFooter: {
+    marginTop: 16,
+    marginHorizontal: 0,
+  },
+  newSoundtrackButtonText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#c9b97a',
+  },
   emptyTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#6a6050',
+    color: '#a89f88',
   },
   emptySubtitle: {
     fontSize: 14,
-    color: '#6a6050',
+    color: '#a89f88',
     textAlign: 'center',
     lineHeight: 20,
   },
@@ -384,9 +432,11 @@ const styles = StyleSheet.create({
   panelInput: {
     fontSize: 16,
     color: '#f0ead6',
-    // Vertical padding gives the text room so descenders (g, y) and the
-    // placeholder are not clipped along the bottom edge.
-    paddingVertical: 6,
+    // A fixed height (rather than padding) gives descenders (g, y) room so
+    // nothing clips, while the text, placeholder and cursor all share one
+    // vertically centred baseline.
+    height: 36,
+    paddingVertical: 0,
   },
   panelActions: {
     flexDirection: 'row',
