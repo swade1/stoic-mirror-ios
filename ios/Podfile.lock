@@ -2153,6 +2153,8 @@ PODS:
   - SDWebImageWebPCoder (0.14.6):
     - libwebp (~> 1.0)
     - SDWebImage/Core (~> 5.17)
+  - SlideshowExport (1.0.0):
+    - ExpoModulesCore
   - Yoga (0.0.0)
 
 DEPENDENCIES:
@@ -2262,6 +2264,7 @@ DEPENDENCIES:
   - RNReanimated (from `../node_modules/react-native-reanimated`)
   - RNScreens (from `../node_modules/react-native-screens`)
   - RNWorklets (from `../node_modules/react-native-worklets`)
+  - SlideshowExport (from `../modules/slideshow-export/ios`)
   - Yoga (from `../node_modules/react-native/ReactCommon/yoga`)
 
 SPEC REPOS:
@@ -2490,6 +2493,8 @@ EXTERNAL SOURCES:
     :path: "../node_modules/react-native-screens"
   RNWorklets:
     :path: "../node_modules/react-native-worklets"
+  SlideshowExport:
+    :path: "../modules/slideshow-export/ios"
   Yoga:
     :path: "../node_modules/react-native/ReactCommon/yoga"
 
@@ -2610,6 +2615,7 @@ SPEC CHECKSUMS:
   SDWebImageAVIFCoder: afe194a084e851f70228e4be35ef651df0fc5c57
   SDWebImageSVGCoder: 15a300a97ec1c8ac958f009c02220ac0402e936c
   SDWebImageWebPCoder: e38c0a70396191361d60c092933e22c20d5b1380
+  SlideshowExport: 2f239efe3802bd8306cf4fa82e2f54d06a39fd8d
   Yoga: 051f086b5ccf465ff2ed38a2cf5a558ae01aaaa1
 
 PODFILE CHECKSUM: 7203b9fe90fc6dc5a97fa1ba002435fd5bdbf407

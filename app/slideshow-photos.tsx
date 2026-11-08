@@ -19,6 +19,10 @@ import { IconSymbol } from '@/components/ui/IconSymbol';
 import { IconButton } from '@/components/ui/IconButton';
 import { DraggableGridTile } from '@/components/DraggableGridTile';
 import { resolveSlideshowAssetUri } from '@/lib/slideshowAssets';
+import * as Sharing from 'expo-sharing';
+import { File } from 'expo-file-system';
+import { hasPaidAccess } from '@/lib/subscription';
+import { exportSlideshowVideo } from '@/lib/slideshowExport';
 import { showSoundtrackSheet, soundtrackLabel, type SoundtrackOption } from '@/lib/soundtrackSheet';
 
 interface SlideshowPhoto {
@@ -222,6 +226,38 @@ export default function SlideshowPhotosScreen() {
       onAssign: assignSoundtrack,
       onManage: () => router.push({ pathname: '/soundtracks', params: { pickForCollectionId: collectionId } }),
     });
+  };
+
+  // Renders the slideshow (slides, transition, music, watermark) to an MP4
+  // and opens the share sheet. The file is temporary — deleted afterwards.
+  const [exporting, setExporting] = useState(false);
+  const shareVideo = async () => {
+    if (!collectionId || exporting) return;
+    // Sharing a video is a paid feature.
+    if (!(await hasPaidAccess())) {
+      Alert.alert(
+        'Sharing Is a Premium Feature',
+        'Upgrade to share your slideshow as a video with your music.',
+        [
+          { text: 'Not now', style: 'cancel' },
+          { text: 'See plans', onPress: () => router.push('/paywall') },
+        ]
+      );
+      return;
+    }
+    setExporting(true);
+    let uri: string | null = null;
+    try {
+      uri = await exportSlideshowVideo(collectionId);
+      await Sharing.shareAsync(uri, { mimeType: 'video/mp4', UTI: 'public.mpeg-4', dialogTitle: collectionName });
+    } catch (err) {
+      Alert.alert('Could Not Share Video', err instanceof Error ? err.message : 'Something went wrong.');
+    } finally {
+      if (uri) {
+        try { new File(uri).delete(); } catch { /* already gone */ }
+      }
+      setExporting(false);
+    }
   };
 
   const playSlideshow = () => router.push({ pathname: '/slideshow-play', params: { collectionId } });
@@ -531,6 +567,28 @@ export default function SlideshowPhotosScreen() {
             accessibilityLabel="Play slideshow"
           >
             <Text style={[styles.stepButtonText, styles.stepButtonPrimaryText]}>Play</Text>
+          </TouchableOpacity>
+        </View>
+        <View style={styles.stepRow}>
+          <Text style={styles.stepNum}>4</Text>
+          <View style={styles.stepBody}>
+            <Text style={styles.stepTitle}>Share</Text>
+            <Text style={styles.stepSub}>
+              {exporting ? 'Making your video… this can take a minute' : resolvedCount === 0 ? 'Add a slide first' : 'Send a video with your music'}
+            </Text>
+          </View>
+          <TouchableOpacity
+            style={[styles.stepButton, (resolvedCount === 0 || exporting) && styles.stepButtonDisabled]}
+            onPress={shareVideo}
+            disabled={resolvedCount === 0 || exporting}
+            accessibilityRole="button"
+            accessibilityLabel="Share slideshow as a video"
+          >
+            {exporting ? (
+              <ActivityIndicator size="small" color="#c9b97a" />
+            ) : (
+              <Text style={styles.stepButtonText}>Share</Text>
+            )}
           </TouchableOpacity>
         </View>
       </View>
