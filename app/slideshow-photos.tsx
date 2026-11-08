@@ -190,8 +190,8 @@ export default function SlideshowPhotosScreen() {
       undefined,
       [
         { text: 'Cancel', style: 'cancel' },
-        { text: 'From Saved Quotes', onPress: () => router.push({ pathname: '/slideshow-add-quote', params: { collectionId } }) },
-        { text: 'From my Photos', onPress: addFromPhotos },
+        { text: 'Choose a Quote and Background', onPress: () => router.push({ pathname: '/slideshow-add-quote', params: { collectionId } }) },
+        { text: 'Add Finished Pictures from My Photos', onPress: addFromPhotos },
       ]
     );
   };

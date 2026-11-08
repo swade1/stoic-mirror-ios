@@ -27,7 +27,7 @@ Rules from Katherine's plan: say "coming soon", never "download now". Show only 
 | 0:23 to 0:29 | Same | Clicks the **bookmark** icon on 2 or 3 passages | About 1.5 seconds between clicks. The icon fills in when saved. |
 | 0:29 to 0:33 | History tab, **Saved Wisdom** | Clicks the History tab, rests on the **Make a slideshow** banner | Hold 2 seconds so the banner can be read. |
 | 0:33 to 0:36 | Banner | Clicks **Start**, types a name such as *Evening*, clicks **Create** | Opens the slideshow screen with its three steps. |
-| 0:36 to 0:48 | Slideshow screen, step 1 | Clicks **Add** → **From Saved Quotes** → picks a quote → picks a background → clicks **Add to slideshow**, then **Back to Slideshow** | Repeat for 3 slides. Speed this section up 2x in CapCut. |
+| 0:36 to 0:48 | Slideshow screen, step 1 | Clicks **Add** → **Choose a Quote and Background** → picks a quote → picks a background → clicks **Add to slideshow**, then **Back to Slideshow** | Repeat for 3 slides. Speed this section up 2x in CapCut. |
 | 0:48 to 0:52 | Step 2, **Music** | Clicks **Choose** and picks a soundtrack | The step now shows the soundtrack's name. |
 | 0:52 to 1:00 | Step 3, **Play** | Clicks **Play**, then moves the mouse out of the frame | Let at least two slides cross-fade. This is the final shot. |
 | Last 2 to 3 sec | End card (added in CapCut) | None | Text in the middle of the frame: "The Stoic Mirror. Coming soon. Link in bio to get notified." Instagram's buttons cover the bottom. |
