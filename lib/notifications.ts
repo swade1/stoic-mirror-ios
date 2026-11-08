@@ -104,14 +104,35 @@ export async function scheduleReengagementNudge(days: number): Promise<void> {
   });
 }
 
+export const TRIAL_ENDING_ID = 'trial-ending-reminder';
+const TRIAL_REMINDER_LEAD_MS = 24 * 60 * 60 * 1000;
+
 /**
- * Not yet wired up anywhere — trial-ending reminders depend on a real
- * trial-start event from RevenueCat, which isn't live yet. Once it is,
- * call this at the moment a trial actually starts.
+ * Schedules the "your free trial ends tomorrow" reminder, the one the
+ * paywall promises ("We'll remind you 1 day before your trial ends").
+ * Fires 24 hours before `trialEnd`. Asks for notification permission if
+ * it hasn't been granted yet. Says what happened, so the caller can tell the
+ * user when notifications are off: 'scheduled', 'denied' (permission
+ * declined), or 'too-late' (the reminder time has already passed).
  */
-export async function scheduleTrialReminders(_trialStartDate: Date): Promise<void> {
-  // TODO: schedule Day 5 / Day 7 style local reminders relative to
-  // _trialStartDate once RevenueCat provides a real trial-start event.
+export type TrialReminderResult = 'scheduled' | 'denied' | 'too-late';
+
+export async function scheduleTrialEndReminder(trialEnd: Date): Promise<TrialReminderResult> {
+  const fireAt = new Date(trialEnd.getTime() - TRIAL_REMINDER_LEAD_MS);
+  if (fireAt.getTime() <= Date.now()) return 'too-late';
+  if (!(await requestNotificationPermission())) return 'denied';
+
+  await Notifications.cancelScheduledNotificationAsync(TRIAL_ENDING_ID);
+  await Notifications.scheduleNotificationAsync({
+    identifier: TRIAL_ENDING_ID,
+    content: {
+      title: 'Your free trial ends tomorrow',
+      body: 'You can manage or cancel your subscription anytime in Settings.',
+      sound: true,
+    },
+    trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date: fireAt },
+  });
+  return 'scheduled';
 }
 
 /**

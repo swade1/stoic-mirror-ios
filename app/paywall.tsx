@@ -78,6 +78,7 @@ export default function PaywallScreen() {
             <View style={styles.timelineText}>
               <Text style={styles.timelineTitle}>{trialEndString} — Trial ends</Text>
               <Text style={styles.timelineSubtitle}>Cancel before this date for free</Text>
+              <Text style={styles.timelineSubtitle}>We&apos;ll remind you 1 day before your trial ends</Text>
             </View>
           </View>
           <View style={styles.timelineLine} />

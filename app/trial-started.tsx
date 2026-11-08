@@ -1,8 +1,9 @@
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { IconSymbol } from '@/components/ui/IconSymbol';
+import { scheduleTrialEndReminder } from '@/lib/notifications';
 
 export default function TrialStartedScreen() {
   const router = useRouter();
@@ -15,6 +16,14 @@ export default function TrialStartedScreen() {
     month: 'long',
     day: 'numeric',
   });
+
+  // Backs the paywall's "We'll remind you 1 day before your trial ends".
+  // This screen appears right after sign-up, so it's where the reminder is
+  // scheduled (and where iOS asks permission to send it).
+  useEffect(() => {
+    if (!trialEnd) return;
+    scheduleTrialEndReminder(new Date(trialEnd)).catch(() => {});
+  }, [trialEnd]);
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
