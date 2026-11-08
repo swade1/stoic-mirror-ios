@@ -72,6 +72,36 @@ export function getTrackMoods(tracks: AmbientTrack[]): string[] {
   return Array.from(moods).sort();
 }
 
+export interface TrackGroup {
+  mood: string | null;
+  label: string;
+  tracks: AmbientTrack[];
+}
+
+// Groups tracks under their mood for the picker's list: moods in alphabetical
+// order, tracks within each group alphabetical, and tracks with no mood in a
+// trailing "Other" group.
+export function groupTracksByMood(tracks: AmbientTrack[]): TrackGroup[] {
+  const byMood = new Map<string | null, AmbientTrack[]>();
+  tracks.forEach((track) => {
+    const list = byMood.get(track.mood) ?? [];
+    list.push(track);
+    byMood.set(track.mood, list);
+  });
+  const sortByName = (list: AmbientTrack[]) => [...list].sort((a, b) => a.name.localeCompare(b.name));
+  const groups: TrackGroup[] = Array.from(byMood.keys())
+    .filter((mood): mood is string => mood !== null)
+    .sort()
+    .map((mood) => ({
+      mood,
+      label: mood.charAt(0).toUpperCase() + mood.slice(1),
+      tracks: sortByName(byMood.get(mood)!),
+    }));
+  const unmooded = byMood.get(null);
+  if (unmooded) groups.push({ mood: null, label: 'Other', tracks: sortByName(unmooded) });
+  return groups;
+}
+
 // Lists whatever audio files currently exist in the ambient-tracks
 // Storage bucket. New tracks dropped into the bucket via the Supabase
 // dashboard show up here on next call — no app update needed, matching

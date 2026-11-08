@@ -7,7 +7,7 @@ import { useAudioPlayer } from 'expo-audio';
 import { supabase } from '@/lib/supabase';
 import { IconSymbol } from '@/components/ui/IconSymbol';
 import { IconButton } from '@/components/ui/IconButton';
-import { listAmbientTracks, getTrackMoods, type AmbientTrack } from '@/lib/ambientTracks';
+import { listAmbientTracks, getTrackMoods, groupTracksByMood, type AmbientTrack } from '@/lib/ambientTracks';
 import { listPlaylistItems, addCuratedItem, addPersonalItem, removeItem, reorderItems, type PlaylistItem } from '@/lib/ambientPlaylist';
 import { renameSoundtrack } from '@/lib/soundtracks';
 
@@ -351,42 +351,47 @@ export default function SoundtrackEditScreen() {
           {filteredTracks.length === 0 && (
             <Text style={styles.emptyPlaylistText}>No tracks match.</Text>
           )}
-          <View style={styles.chipRow}>
-            {filteredTracks.map((track) => {
-              const inPlaylist = playlist.some((item) => item.sourceType === 'curated' && item.curatedTrackId === track.id);
-              const isPreviewing = previewingTrackId === track.id;
-              return (
-                <View key={track.id} style={[styles.chip, styles.trackChip, inPlaylist && styles.chipSelected]}>
-                  <TouchableOpacity
-                    onPress={() => togglePreview(track)}
-                    accessibilityRole="button"
-                    accessibilityLabel={`${isPreviewing ? 'Pause' : 'Preview'} ${track.name}`}
-                    style={styles.trackChipPreview}
-                  >
-                    <IconSymbol
-                      name={isPreviewing ? 'pause.circle' : 'play.circle'}
-                      size={16}
-                      color={inPlaylist ? '#f0ead6' : '#a89f88'}
-                    />
-                    <Text style={[styles.chipText, inPlaylist && styles.chipTextSelected]}>{track.name}</Text>
-                  </TouchableOpacity>
-                  <IconButton
-                    onPress={() => toggleCuratedTrack(track.id)}
-                    accessibilityRole="checkbox"
-                    accessibilityState={{ checked: inPlaylist }}
-                    accessibilityLabel={`${inPlaylist ? 'Remove' : 'Add'} ${track.name} ${inPlaylist ? 'from' : 'to'} your playlist`}
-                    hitSlop={8}
-                  >
-                    <IconSymbol
-                      name={inPlaylist ? 'checkmark.circle.fill' : 'plus.circle'}
-                      size={18}
-                      color={inPlaylist ? '#c9b97a' : '#a89f88'}
-                    />
-                  </IconButton>
-                </View>
-              );
-            })}
-          </View>
+          {groupTracksByMood(filteredTracks).map((group) => (
+            <View key={group.mood ?? 'other'}>
+              <Text style={styles.trackGroupHeader}>{group.label}</Text>
+              {group.tracks.map((track) => {
+                const inPlaylist = playlist.some((item) => item.sourceType === 'curated' && item.curatedTrackId === track.id);
+                const isPreviewing = previewingTrackId === track.id;
+                return (
+                  <View key={track.id} style={[styles.trackRow, inPlaylist && styles.trackRowSelected]}>
+                    <TouchableOpacity
+                      onPress={() => togglePreview(track)}
+                      accessibilityRole="button"
+                      accessibilityLabel={`${isPreviewing ? 'Pause' : 'Preview'} ${track.name}`}
+                      style={styles.trackRowMain}
+                    >
+                      <IconSymbol
+                        name={isPreviewing ? 'pause.circle' : 'play.circle'}
+                        size={22}
+                        color={inPlaylist ? '#f0ead6' : '#a89f88'}
+                      />
+                      <Text style={[styles.trackRowName, inPlaylist && styles.chipTextSelected]} numberOfLines={1}>
+                        {track.name}
+                      </Text>
+                    </TouchableOpacity>
+                    <IconButton
+                      onPress={() => toggleCuratedTrack(track.id)}
+                      accessibilityRole="checkbox"
+                      accessibilityState={{ checked: inPlaylist }}
+                      accessibilityLabel={`${inPlaylist ? 'Remove' : 'Add'} ${track.name} ${inPlaylist ? 'from' : 'to'} your playlist`}
+                      hitSlop={8}
+                    >
+                      <IconSymbol
+                        name={inPlaylist ? 'checkmark.circle.fill' : 'plus.circle'}
+                        size={24}
+                        color={inPlaylist ? '#c9b97a' : '#a89f88'}
+                      />
+                    </IconButton>
+                  </View>
+                );
+              })}
+            </View>
+          ))}
         </ScrollView>
       )}
     </View>
@@ -483,15 +488,39 @@ const styles = StyleSheet.create({
     borderColor: '#c9b97a',
     backgroundColor: 'rgba(201,185,122,0.15)',
   },
-  trackChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
+  trackGroupHeader: {
+    fontSize: 11,
+    color: '#c9b97a',
+    letterSpacing: 1,
+    textTransform: 'uppercase',
+    marginTop: 14,
+    marginBottom: 6,
   },
-  trackChipPreview: {
+  trackRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: 'transparent',
+    marginBottom: 4,
+  },
+  trackRowSelected: {
+    backgroundColor: 'rgba(201,185,122,0.12)',
+    borderColor: '#c9b97a',
+  },
+  trackRowMain: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  trackRowName: {
+    flex: 1,
+    fontSize: 15,
+    color: '#a89f88',
   },
   chipText: {
     fontSize: 13,
