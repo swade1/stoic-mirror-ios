@@ -21,7 +21,6 @@ import { DraggableGridTile } from '@/components/DraggableGridTile';
 import { resolveSlideshowAssetUri } from '@/lib/slideshowAssets';
 import * as Sharing from 'expo-sharing';
 import { File } from 'expo-file-system';
-import { hasPaidAccess } from '@/lib/subscription';
 import { exportSlideshowVideo } from '@/lib/slideshowExport';
 import { showSoundtrackSheet, soundtrackLabel, type SoundtrackOption } from '@/lib/soundtrackSheet';
 
@@ -233,18 +232,6 @@ export default function SlideshowPhotosScreen() {
   const [exporting, setExporting] = useState(false);
   const shareVideo = async () => {
     if (!collectionId || exporting) return;
-    // Sharing a video is a paid feature.
-    if (!(await hasPaidAccess())) {
-      Alert.alert(
-        'Sharing Is a Premium Feature',
-        'Upgrade to share your slideshow as a video with your music.',
-        [
-          { text: 'Not now', style: 'cancel' },
-          { text: 'See plans', onPress: () => router.push('/paywall') },
-        ]
-      );
-      return;
-    }
     setExporting(true);
     let uri: string | null = null;
     try {
