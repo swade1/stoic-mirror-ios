@@ -44,7 +44,7 @@ export default function SignUp() {
     // a failed or already-registered attempt doesn't leave it dangling
     // for some unrelated later sign-in to pick up.
     const trialEnd = new Date();
-    trialEnd.setDate(trialEnd.getDate() + 7);
+    trialEnd.setDate(trialEnd.getDate() + 3);
     await AsyncStorage.setItem('pending_trial_welcome', JSON.stringify({
       plan: plan === 'monthly' ? 'monthly' : 'annual',
       trialEnd: trialEnd.toISOString(),

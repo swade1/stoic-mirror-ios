@@ -35,7 +35,7 @@ export default function TrialStartedScreen() {
 
         <Text style={styles.headline}>You&apos;re all set.</Text>
         <Text style={styles.subheadline}>
-          Your 7-day free trial has started. Take your time — the practice is yours to explore.
+          Your 3-day free trial has started. Take your time — the practice is yours to explore.
         </Text>
 
         <View style={styles.timeline}>

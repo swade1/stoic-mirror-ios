@@ -35,7 +35,7 @@ export default function PaywallScreen() {
 
   // Calculate trial end date
   const trialEndDate = new Date();
-  trialEndDate.setDate(trialEndDate.getDate() + 7);
+  trialEndDate.setDate(trialEndDate.getDate() + 3);
   const trialEndString = trialEndDate.toLocaleDateString('en-US', {
     month: 'long',
     day: 'numeric',
@@ -51,7 +51,7 @@ export default function PaywallScreen() {
         <View style={styles.header}>
           <Text style={styles.headline}>Support the practice.</Text>
           <Text style={styles.subheadline}>
-            Start your 7-day free trial. Cancel anytime.
+            Start your 3-day free trial. Cancel anytime.
           </Text>
         </View>
 
@@ -99,7 +99,7 @@ export default function PaywallScreen() {
             onPress={() => setSelected('annual')}
             accessibilityRole="radio"
             accessibilityState={{ selected: selected === 'annual' }}
-            accessibilityLabel="Annual plan, $39.99 per year, 7 days free, save 33%"
+            accessibilityLabel="Annual plan, $39.99 per year, 3 days free, save 33%"
           >
             <View style={styles.planBadge}>
               <Text style={styles.planBadgeText}>BEST VALUE</Text>
@@ -107,7 +107,7 @@ export default function PaywallScreen() {
             <View style={styles.planRow}>
               <View style={styles.planLeft}>
                 <Text style={[styles.planTitle, selected === 'annual' && styles.planTitleSelected]}>Annual</Text>
-                <Text style={styles.planSub}>7 days free · save 33%</Text>
+                <Text style={styles.planSub}>3 days free · save 33%</Text>
               </View>
               <View style={styles.planRight}>
                 <Text style={[styles.planPrice, selected === 'annual' && styles.planPriceSelected]}>$39.99</Text>
@@ -126,12 +126,12 @@ export default function PaywallScreen() {
             onPress={() => setSelected('monthly')}
             accessibilityRole="radio"
             accessibilityState={{ selected: selected === 'monthly' }}
-            accessibilityLabel="Monthly plan, $4.99 per month, 7 days free"
+            accessibilityLabel="Monthly plan, $4.99 per month, 3 days free"
           >
             <View style={styles.planRow}>
               <View style={styles.planLeft}>
                 <Text style={[styles.planTitle, selected === 'monthly' && styles.planTitleSelected]}>Monthly</Text>
-                <Text style={styles.planSub}>7 days free</Text>
+                <Text style={styles.planSub}>3 days free</Text>
               </View>
               <View style={styles.planRight}>
                 <Text style={[styles.planPrice, selected === 'monthly' && styles.planPriceSelected]}>$4.99</Text>
