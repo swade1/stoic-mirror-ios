@@ -21,7 +21,7 @@ beforeEach(() => {
 });
 
 describe('scheduleTrialEndReminder', () => {
-  it('schedules a reminder 24 hours before the trial ends', async () => {
+  it('schedules a reminder 48 hours before the trial ends', async () => {
     const trialEnd = new Date(Date.now() + 3 * DAY);
     await expect(scheduleTrialEndReminder(trialEnd)).resolves.toBe('scheduled');
     const request = mockN.scheduleNotificationAsync.mock.calls[0][0] as {
@@ -29,7 +29,8 @@ describe('scheduleTrialEndReminder', () => {
       trigger: { date: Date };
     };
     expect(request.identifier).toBe(TRIAL_ENDING_ID);
-    expect(request.trigger.date.getTime()).toBe(trialEnd.getTime() - DAY);
+    expect((request as unknown as { content: { body: string } }).content.body).toContain('keep full access');
+    expect(request.trigger.date.getTime()).toBe(trialEnd.getTime() - 2 * DAY);
   });
 
   it('asks for permission and schedules nothing when it is declined', async () => {
@@ -40,7 +41,7 @@ describe('scheduleTrialEndReminder', () => {
   });
 
   it('skips a reminder whose time has already passed', async () => {
-    await expect(scheduleTrialEndReminder(new Date(Date.now() + DAY / 2))).resolves.toBe('too-late');
+    await expect(scheduleTrialEndReminder(new Date(Date.now() + 1.5 * DAY))).resolves.toBe('too-late');
     expect(mockN.scheduleNotificationAsync).not.toHaveBeenCalled();
   });
 });

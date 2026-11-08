@@ -1,6 +1,7 @@
 import * as Notifications from 'expo-notifications';
 import { supabase } from '@/lib/supabase';
 import { getDailyQuoteId } from '@/lib/dailyQuote';
+import { formatTrialDate } from '@/lib/trial';
 
 export const DAILY_REMINDER_ID = 'daily-reminder';
 export const REENGAGEMENT_ID = 'reengagement-nudge';
@@ -105,12 +106,15 @@ export async function scheduleReengagementNudge(days: number): Promise<void> {
 }
 
 export const TRIAL_ENDING_ID = 'trial-ending-reminder';
-const TRIAL_REMINDER_LEAD_MS = 24 * 60 * 60 * 1000;
+// Apple renews unless the user cancels at least 24 hours before the trial
+// ends, so a reminder sent exactly 24 hours before would arrive at the
+// deadline. 48 hours before leaves a full day to act on it.
+const TRIAL_REMINDER_LEAD_MS = 48 * 60 * 60 * 1000;
 
 /**
- * Schedules the "your free trial ends tomorrow" reminder, the one the
- * paywall promises ("We'll remind you 1 day before your trial ends").
- * Fires 24 hours before `trialEnd`. Asks for notification permission if
+ * Schedules the "your free trial ends in 2 days" reminder, the one the
+ * paywall promises ("We'll remind you before your trial ends"). Fires 48
+ * hours before `trialEnd`. Asks for notification permission if
  * it hasn't been granted yet. Says what happened, so the caller can tell the
  * user when notifications are off: 'scheduled', 'denied' (permission
  * declined), or 'too-late' (the reminder time has already passed).
@@ -126,8 +130,8 @@ export async function scheduleTrialEndReminder(trialEnd: Date): Promise<TrialRem
   await Notifications.scheduleNotificationAsync({
     identifier: TRIAL_ENDING_ID,
     content: {
-      title: 'Your free trial ends tomorrow',
-      body: 'You can manage or cancel your subscription anytime in Settings.',
+      title: 'Your free trial ends in 2 days',
+      body: `Cancel by the end of today to avoid being charged. You'll keep full access until ${formatTrialDate(trialEnd)}.`,
       sound: true,
     },
     trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date: fireAt },
