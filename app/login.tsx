@@ -24,23 +24,24 @@ export default function Login() {
   const [showPassword, setShowPassword] = useState(false);
 
   const handleForgotPassword = async () => {
-    if (!email) {
+    const cleanEmail = email.trim();
+    if (!cleanEmail) {
       Alert.alert('Enter your email', 'Please enter your email address first, then tap Forgot Password.');
       return;
     }
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+    const { error } = await supabase.auth.resetPasswordForEmail(cleanEmail, {
       redirectTo: 'exp://localhost:8081',
     });
     if (error) {
       Alert.alert('Error', error.message);
     } else {
-      Alert.alert('Check your email', 'A password reset link has been sent to ' + email);
+      Alert.alert('Check your email', 'A password reset link has been sent to ' + cleanEmail);
     }
   };
 
   const handleLogin = async () => {
     setLoading(true);
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
     setLoading(false);
     if (error) Alert.alert('Error', error.message);
     // No navigation on success — the onAuthStateChange listener in

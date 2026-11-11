@@ -50,7 +50,11 @@ export default function SignUp() {
       trialEnd: trialEnd.toISOString(),
     }));
 
-    const { data, error } = await supabase.auth.signUp({ email, password });
+    // Trimmed: iOS keyboards often leave a trailing space after an
+    // autocomplete suggestion or paste, which Supabase rejects as an
+    // invalid email format.
+    const cleanEmail = email.trim();
+    const { data, error } = await supabase.auth.signUp({ email: cleanEmail, password });
     if (error) {
       setLoading(false);
       await AsyncStorage.removeItem('pending_trial_welcome');
@@ -84,7 +88,7 @@ export default function SignUp() {
       await AsyncStorage.removeItem('pending_trial_welcome');
       Alert.alert(
         'Check Your Email',
-        `We sent a confirmation link to ${email}. Confirm your email, then sign in.`,
+        `We sent a confirmation link to ${cleanEmail}. Confirm your email, then sign in.`,
         [{ text: 'OK', onPress: () => router.push('/login') }]
       );
       return;
