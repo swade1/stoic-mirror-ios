@@ -209,7 +209,7 @@ export default function CounselScreen() {
 
           <TextInput
             style={styles.textInput}
-            placeholder="Describe it here — or tap the microphone on your keyboard to speak"
+            placeholder="Describe your concern here — or tap the microphone on your keyboard to speak"
             placeholderTextColor="#8a7e6e"
             value={input}
             onChangeText={setInput}
@@ -307,11 +307,9 @@ const styles = StyleSheet.create({
   // minimum instead of collapsing further, and content taller than that
   // floor still just scrolls, via the ScrollView it already sits in.
   actionCard: {
-    backgroundColor: '#1e1c18',
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: '#4a4540',
-    padding: 20,
+    // No box (background/border/padding) — the concern pill, text field
+    // and button sit directly on the page; the field's own border already
+    // marks where to type.
     marginBottom: 24,
     alignItems: 'stretch',
     justifyContent: 'space-between',
@@ -349,8 +347,8 @@ const styles = StyleSheet.create({
     fontSize: 16,
     borderWidth: 1,
     borderColor: '#4a4540',
-    minHeight: 110,
-    maxHeight: 160,
+    minHeight: 160,
+    maxHeight: 240,
   },
   sendButton: {
     backgroundColor: '#2a2720',
