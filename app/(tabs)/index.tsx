@@ -197,9 +197,14 @@ export default function CounselScreen() {
 
         <View style={styles.actionCard}>
           {concernPillText && (
-            <View style={styles.concernPill}>
-              <Text style={styles.concernPillText}>{concernPillText}</Text>
-            </View>
+            <TouchableOpacity
+              style={styles.concernPill}
+              onPress={() => router.push('/concerns?from=counsel')}
+              accessibilityRole="button"
+              accessibilityLabel={`Your concerns: ${activeConcerns.join(', ')}. Tap to view or edit.`}
+            >
+              <Text style={styles.concernPillText}>{concernPillText}  ›</Text>
+            </TouchableOpacity>
           )}
 
           <TextInput
@@ -315,16 +320,21 @@ const styles = StyleSheet.create({
   },
   concernPill: {
     alignSelf: 'center',
-    backgroundColor: '#c9b97a',
+    // Outline, not filled: a solid gold block was the brightest thing on the
+    // screen and pulled the eye away from the text field. The thin muted
+    // border keeps it visibly tappable without competing with it.
+    backgroundColor: 'transparent',
+    borderWidth: 1,
+    borderColor: 'rgba(201, 185, 122, 0.55)',
     borderRadius: 999,
     paddingHorizontal: 12,
-    paddingVertical: 5,
+    paddingVertical: 4,
     maxWidth: '100%',
   },
   concernPillText: {
     fontSize: 11,
-    fontWeight: '600',
-    color: '#0f0e0c',
+    fontWeight: '500',
+    color: '#a89f88',
     letterSpacing: 0.2,
   },
   // Recessed relative to actionCard's own surface (page background instead

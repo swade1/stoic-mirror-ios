@@ -1,4 +1,4 @@
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -11,6 +11,9 @@ const REASONS = CONCERN_OPTIONS;
 export default function ConcernsScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  // Opened from the Counsel tab's concern pill or from Settings.
+  const { from } = useLocalSearchParams<{ from?: string }>();
+  const backLabel = from === 'counsel' ? 'Counsel' : 'Settings';
   const [selected, setSelected] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -58,10 +61,10 @@ export default function ConcernsScreen() {
           style={styles.backButton}
           onPress={() => router.back()}
           accessibilityRole="button"
-          accessibilityLabel="Back to Settings"
+          accessibilityLabel={`Back to ${backLabel}`}
         >
           <IconSymbol name="chevron.left" size={16} color="#c9b97a" />
-          <Text style={styles.backText}>Settings</Text>
+          <Text style={styles.backText}>{backLabel}</Text>
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Your concerns</Text>
         <Text style={styles.headerSubtitle}>
