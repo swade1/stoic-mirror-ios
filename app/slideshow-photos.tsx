@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
-import { View, Text, StyleSheet, TouchableOpacity, Alert, ActivityIndicator, type LayoutChangeEvent } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Alert, ActivityIndicator, AppState, Linking, type LayoutChangeEvent } from 'react-native';
 // react-native-gesture-handler's ScrollView, not the plain react-native one
 // — it's gesture-aware, letting a child tile's Gesture.Pan() properly win
 // the touch once its activateAfterLongPress threshold fires. The plain
@@ -19,6 +19,7 @@ import { resolveSlideshowAssetUri } from '@/lib/slideshowAssets';
 import * as Sharing from 'expo-sharing';
 import { File } from 'expo-file-system';
 import { exportSlideshowVideo } from '@/lib/slideshowExport';
+import { getPhotoAccess, type PhotoAccess } from '@/lib/photoAccess';
 import { showSoundtrackSheet, soundtrackLabel, type SoundtrackOption } from '@/lib/soundtrackSheet';
 
 interface SlideshowPhoto {
@@ -100,6 +101,11 @@ export default function SlideshowPhotosScreen() {
     pendingRemoveRef.current = pendingRemove;
   }, [pendingRemove]);
 
+  // Limited Photos access hides slides the user picked but never shared with
+  // the app; see lib/photoAccess.ts. The onboarding photos screen asks for
+  // full access up front — this only drives the quiet fallback line below.
+  const [photoAccess, setPhotoAccess] = useState<PhotoAccess>('all');
+
   const load = useCallback(async () => {
     if (!collectionId) return;
     setLoading(true);
@@ -161,8 +167,20 @@ export default function SlideshowPhotosScreen() {
     // dropped and cleaned up server-side — the user gets a chance to see
     // and act on it (Remove or Replace) before the row actually goes away.
     setPhotos(resolved);
+    setPhotoAccess(await getPhotoAccess());
     setLoading(false);
   }, [collectionId]);
+
+  // Coming back from the Settings app doesn't refocus this screen, so
+  // reload when the app becomes active again — but only while limited
+  // access is the open question, to avoid a pointless spinner otherwise.
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state === 'active' && photoAccess === 'limited') load();
+    });
+    return () => sub.remove();
+  }, [photoAccess, load]);
+
 
   useFocusEffect(useCallback(() => {
     load();
@@ -619,8 +637,19 @@ export default function SlideshowPhotosScreen() {
       {!loading && missingCount > 0 && (
         <View style={styles.missingHintBlock}>
           <Text style={styles.missingHint}>
-            {missingCount} photo{missingCount === 1 ? '' : 's'} {missingCount === 1 ? 'is' : 'are'} no longer available — use its icons to remove or replace it.
+            {photoAccess === 'limited'
+              ? `${missingCount} photo${missingCount === 1 ? '' : 's'} can't be shown — The Stoic Mirror only has access to some of your photos. Allow All Photos in Settings, or use its icons to remove or replace it.`
+              : `${missingCount} photo${missingCount === 1 ? '' : 's'} ${missingCount === 1 ? 'is' : 'are'} no longer available — use its icons to remove or replace it.`}
           </Text>
+          {photoAccess === 'limited' && (
+            <TouchableOpacity
+              onPress={() => Linking.openSettings()}
+              accessibilityRole="button"
+              accessibilityLabel="Open Settings to allow access to all photos"
+            >
+              <Text style={styles.missingHintLink}>Open Settings</Text>
+            </TouchableOpacity>
+          )}
           <TouchableOpacity
             onPress={() => router.push('/my-cards')}
             accessibilityRole="button"
