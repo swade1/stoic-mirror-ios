@@ -140,6 +140,7 @@ export default function RootLayout() {
           <Stack.Screen name="text-size" />
           <Stack.Screen name="quote-cards" />
           <Stack.Screen name="trial-started" />
+          <Stack.Screen name="photos-access" />
         </Stack.Protected>
 
         {/* Only reachable before an account exists */}

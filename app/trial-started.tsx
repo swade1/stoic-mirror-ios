@@ -83,7 +83,7 @@ export default function TrialStartedScreen() {
 
         <TouchableOpacity
           style={styles.button}
-          onPress={() => router.replace('/(tabs)')}
+          onPress={() => router.replace('/photos-access')}
           accessibilityRole="button"
         >
           <Text style={styles.buttonText}>Begin your practice</Text>
