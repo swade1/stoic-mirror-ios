@@ -11,8 +11,8 @@
 //   node scripts/retag-passage-concerns.js
 //     Classifies and updates every row in stoic_passages.
 //
-// Reads SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, and
-// EXPO_PUBLIC_ANTHROPIC_API_KEY from .env — the service-role key because
+// Reads SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, and ANTHROPIC_API_KEY from
+// .env (no EXPO_PUBLIC_ prefix, so it is never bundled into the app) — the service-role key because
 // this bypasses the app entirely (an admin content operation), same
 // pattern as scripts/upload-ambient-track.js.
 //
@@ -48,9 +48,9 @@ function loadEnv() {
 const env = loadEnv();
 const supabaseUrl = env.SUPABASE_URL;
 const serviceKey = env.SUPABASE_SERVICE_ROLE_KEY;
-const anthropicKey = env.EXPO_PUBLIC_ANTHROPIC_API_KEY;
+const anthropicKey = env.ANTHROPIC_API_KEY;
 if (!supabaseUrl || !serviceKey || !anthropicKey) {
-  console.error('Missing SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, or EXPO_PUBLIC_ANTHROPIC_API_KEY in .env');
+  console.error('Missing SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, or ANTHROPIC_API_KEY in .env');
   process.exit(1);
 }
 const supabase = createClient(supabaseUrl, serviceKey);
