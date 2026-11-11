@@ -518,7 +518,7 @@ export default function SlideshowPhotosScreen() {
           <View style={styles.stepBody}>
             <Text style={styles.stepTitle}>Share</Text>
             <Text style={styles.stepSub}>
-              {exporting ? 'Making your video… this can take a minute' : resolvedCount === 0 ? 'Add a slide first' : 'Send a video with your music'}
+              {exporting ? 'Making your video… this can take a minute' : resolvedCount === 0 ? 'Add a slide first' : 'Make a video to send or save'}
             </Text>
           </View>
           <TouchableOpacity
