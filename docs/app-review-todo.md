@@ -16,6 +16,14 @@ Status: **not done.** Started 2026-11-11. This is a checklist of things that com
 - [ ] **Permission wording.** Each purpose string should say exactly why. Photos: the current text only mentions choosing a photo for a quote card, but the app also saves cards to Photos and uses photos in slideshows (see `NSPhotoLibraryUsageDescription` and `NSPhotoLibraryAddUsageDescription`).
 - [ ] **Export compliance.** `ITSAppUsesNonExemptEncryption` is not set in `app.json` or `Info.plist`. The app encrypts concerns on the phone, so answer the encryption questions in App Store Connect (and set the key) deliberately.
 
+## Before launch, optional
+
+- [ ] **Sign in with Apple.** Not required for review (email and password alone passes), but it likely improves sign-ups from the launch wave, since it is one tap with no password. Estimated about a day of work plus one fresh Xcode build. Adding Google or another third-party login later would make Apple sign-in mandatory.
+  - **Code:** install `expo-apple-authentication` and add the entitlement in `app.json`; add the "Continue with Apple" button to `app/login.tsx` and `app/signup.tsx`; call `supabase.auth.signInWithIdToken`; run the trial setup (pending trial welcome note and profile row, now in `app/signup.tsx`) for first-time Apple users; add Jest tests.
+  - **No changes needed:** concern encryption (keyed on the Supabase user ID), account deletion (`delete_own_account`) and navigation after sign-in (`onAuthStateChange` in `app/_layout.tsx`).
+  - **Susan's tasks:** enable Sign in with Apple for `com.stoicmirror.app` in the Apple Developer account; enable the Apple provider in Supabase with the bundle ID as the client ID.
+  - **Watch for:** people who hide their email get an Apple relay address, so trial emails through Resend need the sending domain registered with Apple; it only works on a physical device, not the Simulator; check Supabase's account-linking setting for people who already have an email account with the same address.
+
 ## Verify in App Store Connect
 
 - [ ] **App Privacy ("nutrition labels").** Must match reality: email, saved concerns (encrypted on the phone), usage, and data sent to Anthropic and Voyage.
