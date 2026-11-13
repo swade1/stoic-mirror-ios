@@ -11,7 +11,7 @@ Status: **open.** Collected 2026-11-13. The click-through video for stoicmirror.
 
 ## Decisions waiting on Susan
 
-- [ ] **"Already used for a slide" indicator.** Waiting on Susan's user. Options: an "On a slide" tag in History, a marker in the Saved Quotes picker (`app/slideshow-add-quote.tsx`), or both.
+- [ ] **"Already used for a slide" indicator.** Decided 2026-11-13: not building it before the video or launch. Duplicate slides are easy to delete. Add it as a new feature only if it comes up in user reviews. Options if so: an "On a slide" tag in History, a marker in the Saved Quotes picker (`app/slideshow-add-quote.tsx`), or both.
 - [ ] **History list view.** Planned and prototyped, deferred. Susan said "later", not "no".
 - [ ] **Sign in with Apple.** Optional item in `docs/app-review-todo.md`.
 
@@ -26,7 +26,6 @@ Status: **open.** Collected 2026-11-13. The click-through video for stoicmirror.
 ## Smaller items
 
 - [ ] Counsel takes about 8–9 seconds. Watch during TestFlight; investigate if it feels slow.
-- [ ] `docs/stoicmirror-com-content.md` still says a 7-day trial. The trial is 3 days.
 - [ ] Trial reminder and cancellation emails (`docs/trial-emails-todo.md`): RevenueCat webhook and Resend.
 - [ ] Set the 3-day trial in App Store Connect and RevenueCat.
 - [ ] Modern translations re-ingest is on hold; Epictetus passage rows have a blank `section`.

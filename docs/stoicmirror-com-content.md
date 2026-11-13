@@ -77,7 +77,7 @@ The Stoic Mirror isn't therapy, and it isn't a quote-of-the-day app. It's a prac
 
 ## Pricing teaser
 
-**7-day free trial, then:**
+**3-day free trial, then:**
 - Annual — $39.99/year (save 33%)
 - Monthly — $4.99/month
 
@@ -99,7 +99,7 @@ The passages come from the actual Stoic texts, which are in the public domain. A
 Marcus Aurelius, Epictetus, and Seneca, to start.
 
 **Can I use it for free?**
-Yes, with a 7-day free trial. See Pricing above.
+Yes, with a 3-day free trial. See Pricing above.
 
 ---
 
