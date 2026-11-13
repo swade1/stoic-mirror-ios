@@ -28,6 +28,7 @@ Status: **open.** Collected 2026-11-13. The click-through video for stoicmirror.
 - [ ] Counsel takes about 8–9 seconds. Watch during TestFlight; investigate if it feels slow.
 - [ ] Trial reminder and cancellation emails (`docs/trial-emails-todo.md`): RevenueCat webhook and Resend.
 - [ ] Set the 3-day trial in App Store Connect and RevenueCat.
+- [ ] **Replace the daily quote for 22 June 2027.** On 2026-11-13 today's `daily_quotes` row (id 471) was changed to Seneca's "It is the mind, and not the event, that distinguishes a benefit from an injury." (for the video). That same quote is also row 672, which the date picks on 2027-06-22, so users would see it twice. Before then, update row 672 to a different quote. The position formula is `(YYYYMMDD % 358) + 1` over rows ordered by id; 2027-06-22 is position 305. Re-check the position if rows are added or deleted, because the count (358) changes it. The old row 471 text ("Great thanks to him for not having struck you." Epictetus) was discarded.
 - [ ] Modern translations re-ingest is on hold; Epictetus passage rows have a blank `section`.
 
 ## Not blocking the click-through video
