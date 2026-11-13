@@ -208,7 +208,7 @@ export default function CounselScreen() {
           )}
 
           <TextInput
-            style={styles.textInput}
+            style={[styles.textInput, !concernPillText && styles.textInputNoPill]}
             placeholder="Describe your concern here — or tap the microphone on your keyboard to speak"
             placeholderTextColor="#8a7e6e"
             value={input}
@@ -328,6 +328,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 4,
     maxWidth: '100%',
+    // Breathing room between the intro text above and the pill.
+    marginTop: 8,
   },
   concernPillText: {
     fontSize: 11,
@@ -349,6 +351,14 @@ const styles = StyleSheet.create({
     borderColor: '#4a4540',
     minHeight: 160,
     maxHeight: 240,
+  },
+  // With no concern pill above it there is room to spare, so the field
+  // grows by roughly the pill's height plus its gap.
+  textInputNoPill: {
+    minHeight: 200,
+    maxHeight: 280,
+    // Same gap above the field that the pill gets when it is showing.
+    marginTop: 8,
   },
   sendButton: {
     backgroundColor: '#2a2720',
